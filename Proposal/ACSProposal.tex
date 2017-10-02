@@ -1,0 +1,49 @@
+\documentclass[11pt]{article}
+\usepackage{a4wide,parskip,times}
+
+\begin{document}
+
+\centerline{\Large Detection of obfuscated Tor traffic with unsupervised neural networks}
+\vspace{2em}
+\centerline{\Large \emph{An MPhil project proposal}}
+\vspace{2em}
+\centerline{\large Chongyang Shi (\emph{cs940}), Christ's College}
+\vspace{1em}
+\centerline{\large Project Supervisor: (\emph{to be confirmed})}
+\vspace{1em}
+
+\begin{abstract}
+\textsl{Censorship-circumventing Tor network traffic can be disguised as regular TLS-encrypted traffic by the pluggable transport tool \emph{meek} \cite{fifield2015blocking}, utilising the \emph{domain fronting} technique. This proposed project seeks to develop a model for identifying such obfuscated Tor traffic from regular network traffic with the use of unsupervised neural networks. In comparison with existing detection techniques featuring supervised machine learning \cite[Sec. 6]{wang2015seeing}, unsupervised neural networks have the potential of achieving faster and more adaptive detection capabilities. The resulting detection model could contribute to improvement of meek's counter-classification capabilities.} 
+\end{abstract}
+
+\section{Introduction, approach and outcomes}
+
+Tor is a popular tool for anonymised and censorship-resistant network communications. While it is trivial for a network node in a privileged position to detect and block non-obfuscated Tor traffic \cite[Tb. 6] {bujlow2015independent} in a process called \emph{traffic classification}, Tor provides a set of \emph{pluggable transport} tools which clients can use to conceal their connections to a Tor bridge node from such censors. An arms race between state-sponsored censors and pluggable transport developers in traffic obfuscation has been going on for many years \cite{khattak2014systemization}. 
+
+Among pluggable transports, two classes of techniques currently exist to achieve obfuscation of the encrypted traffic: pseudo-random transformation and fronting of other ``legitimate'' protocols. Techniques in the former class attempt to avoid traffic classification by transforming Tor traffic into pseudo-random data, while those in the latter class transform Tor traffic into the likes of other protocols that will result in too much collateral damage for the censor to block. A number of tools have been developed in each class and deployed with Tor distributions, with pseudo-random transformation represented by ScrambleSuit \cite{winter2013scramblesuit} and Format-Transforming Encryption (FTE) \cite{dyer2013protocol}, and fronting represented by meek \cite{fifield2015blocking}. 
+
+Obfuscation techniques can generally be evaluated on two metrics: the transmission performance after obfuscation, and the indistinguishability of obfuscated traffic in the eye of a censor. For the purpose of censorship-circumvention, interests are usually concentrated on the latter. There has been a number of independent distinguishability evaluations on the aforementioned tools \cite{houmansadr2013parrot} \cite{tan2015towards} \cite{wang2015seeing}, utilising both entropy-based analysis and machine learning analysis on timing and features of obfuscated packets. Consensus reached by past studies suggest that fronting techniques represented by meek performs significantly better than pseudo-random transformation techniques against entropy-based attacks. However, meek can still be vulnerably to machine learning-based attacks, as demonstrated by Want \emph{et. al.} \cite[Sec. 6]{wang2015seeing}. 
+
+Therefore, the main objective of the proposed project is to apply unsupervised neural network learning to attempt to identify meek-obfuscated Tor traffic from regular encrypted HTTPS traffic produced by the TLS protocol, which now accounts for more than half of all web traffic \cite{encrypted-web}. While supervised machine learning through trained decision tree classifiers have been utilised effectively by Want \emph{et. al.} \cite[Tb. 8]{wang2015seeing} with a high true positive rate, the supervised classifiers only worked well when trained and tested on traces from the same network environment \cite{dixon2016network}, due to the inevitable overfitting caused by the singular source of training data. The use of unsupervised neural networks will allow the classifier to adapt to changing network environments more easily, permitting potential application on a greater scale. Unsupervised neural networks may also achieve superior detection performance when compared with supervised classifiers, as they will not require a target dataset in training.
+
+
+
+
+
+\section{Workplan (500 words)}
+\textsl{Project students have approximately 28 weeks between the submission of 
+the proposal, and the submission of the dissertation. Essay students have 
+approximately 14 weeks.  This section
+should account for what you intend to do duri ng that time. One
+approach would be to divide the time into two-week chunks, and 
+describe the work to be done (and, as relevant, milestones to be 
+achieved) in each chunk. You should leave one chunk for writing an essay or two 
+chunks for writing a project dissertation. You should leave 1 chunk for contingencies.} 
+
+\bibliographystyle{IEEEtran}
+\footnotesize{\bibliography{proposal}}
+
+\newpage
+\appendix
+
+\end{document}
