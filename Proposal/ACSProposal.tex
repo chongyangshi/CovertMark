@@ -29,23 +29,39 @@ Under current research efforts, three categories of attack techniques are used t
 
 All categories of attacks observe features in traffic traces such as packet metadata and distribution. Each category of technique has distinct superiorities and weaknesses in terms of computational cost, protocol coverage, and portability. They share the same the goal of achieving a high true-positive rate (identifying obfuscated traffic traces) and a low false-positive rate (not misidentifying non-obfuscated traffic as obfuscated), both of which are desirable to a state censor. 
 
-Therefore, the primary objective of this proposed project is to produce a benchmarking tool encompassing adapted versions of the aforementioned detection techniques. The tool will be able to accept sample traffic traces of any PT suitable for use with Tor, and perform varying combinations of traffic analysis techniques to evaluate the covertness of the PT protocol. Combinations of techniques can be chosen with deliberate strategies to maximise detection performance, as observed by Wang et al. \cite[Sec. 5.2]{wang2015seeing}. There is the possibility of automating the selection process. With varying thresholds on acceptable true-positive and false-negative rates, it would be possible to estimate whether a PT protocol is of required covertness standards, as performed by StirMark \cite{petitcolas1998attacks} on image-watermarking systems.
+Therefore, the primary objective of this proposed project is to produce a comprehensive benchmarking tool encompassing adapted versions of the aforementioned detection techniques. The tool will be able to accept sample traffic traces of any PT suitable for use with Tor, and perform varying combinations of traffic analysis techniques to evaluate the covertness of the PT protocol (perhaps with obfuscated-likelihood scoring from different techniques). Combinations of techniques can be chosen with deliberate strategies to maximise detection performance, as observed by Wang et al. \cite[Sec. 5.2]{wang2015seeing}. There is the possibility of automating the selection process. With varying thresholds on acceptable true-positive and false-negative rates, it would be possible to estimate whether a PT protocol is of required covertness standards, as performed by StirMark \cite{petitcolas1998attacks} on image-watermarking systems.
+
+Individual detection techniques covered by past research efforts will be studied during integration into the benchmarking tool. As design and implementation details of PT protocols may have changed during the past few years, traffic traces from PT protocols will be examined again to verify previous observations on their identifying features, and attempts to find new features will be made.
 
 Traffic traces used in this proposed study could be sourced from anonymised internet traces available for research purposes, injected with self-generated PT traffic traces, as conducted by Wang \emph{et. al.} \cite[Sec. 3]{wang2015seeing}. Alternatively, for traffic traces more resembling real network conditions, human volunteers can be invited to browse the internet in a monitored environment where Tor clients with PT are in use on some of the network clients, subject to ethical review approval.
 
 
 \section{Workplan (500 words)}
 
-With existing implementations of some detection techniques by Wang et. al. \cite{wang2015seeing} \footnote{https://github.com/liangw89/obfs-detection} to consult from, there is a reasonable level of confidence that individual detection techniques can effectively detect obfuscated traffic to some degree, despite the fact that Tor and pluggable transports have evolved since the publication of their work. In the process of developing a benchmarking tool encompassing these techniques, the primary matter of concern is to adapt and improve these techniques so that they could be combined for more accurate PT detection. 
+Consulting reference implementations of some detection techniques by Wang et. al. \cite{wang2015seeing} \footnote{Implementations by Wang et. al.: https://github.com/liangw89/obfs-detection}, there is a reasonable level of confidence that individual detection techniques can effectively detect obfuscated traffic to some degree, despite the fact that Tor and pluggable transports have evolved since the publication of their work. In the process of developing a benchmarking tool encompassing these techniques, along with reimplementing individual techniques, the project will be focused on adapting and improving these techniques, so that they could be easily applied to arbitrary traffic traces without a lengthy parameter adjustment process (especially in the case of machine learning methods, to avoid overfitting). 
 
-% Something about traffic
+Another significant implementation challenge is obtaining the traffic traces required for testing the benchmarking tool. In general, two sets of network traffic traces are required: a large set of regular user traffic captured from regular internet browsing without the use of Tor and PT (required for false-positive detection test), and a smaller set of obfuscated PT traffic (consists of traces by different PT protocols for true-positive detection test). While it is possible to obtain anonymised real traffic traces from the Center for Applied Internet Data Analysis (CAIDA) \footnote{CAIDA: https://www.caida.org/data/}, application-layer contents have been stripped in the anonymisation process for obvious privacy reasons. Synthetic traffic generated by automated browsing can also result in significant flaws in detection strategy, as observed by Wang et. al. \cite[Sec. 6.1]{wang2015seeing}. Therefore the only option is to capture and store full traces of real world traffic produced specifically for experimental purposes.
 
-% Week-by-week breakdown. 
+As discussed in the earlier section, ethical review approval will be required for volunteers to be invited for creating real user traffic at scale. Volunteers will be informed that their internet traffic will be recorded and stored securely for the purpose of the proposed project only. They will also be asked be asked to not log into internet accounts or accessing personal information during the process. Only statistical data will be reported in the project report. Prior to approval for other volunteers to be brought into this process, the project student will be able to create smaller scales of both sets of traffic by capturing his own internet usage, allowing preliminary work to be conducted.
+
+With these considerations in mind, the proposed work plan for the project is as followed, divided into two-week chunks within a 28-week project period:
+
+\begin{itemize}
+	\item \textbf{During Michaelmas Term}: Submit a request for departmental ethical review on the proposed volunteer traffic generation process, along with other project documents.
+	\item \textbf{Chunk 1}: Study the reference implementation and select a suitable programming language for implementing the benchmarking tool. Preliminarily determine a strategy for combined detection.
+	\item \textbf{Chunk 2}: Create a mechanism for reliably capturing network traffic traces with Wireshark, Tor (with PT), and potentially over VPN to a capture server. Test the mechanism by capturing own network traffic.
+	\item \textbf{Chunk 3}: Study traffic traces of each PT to verify observations by past research efforts and attempt to identify new identifying features.
+	\item \textbf{Chunks 4-6}: Implement and test individual techniques on their own, with traffic traces from own network usage. Details of detection techniques may be changed from existing research based on findings from tests.  If ethical review approves volunteer traffic generation, advertise with incentives for volunteers.
+	\item \textbf{Chunks 7-8}: Conduct the volunteer traffic generation during this work segment. Implement and test the combined detection strategy with both sets of traffic traces. 
+	\item \textbf{Chunks 9-10}: Evaluate combined detection performance and make adjustments to combined and individual techniques as necessary.
+	\item \textbf{Chunks 10-13}: Project report write up (literature review will likely have been written during the previous chunks).
+	\item \textbf{Chunk 14}: Reserved for contingencies.
+\end{itemize}
+
+Work may be conducted quicker than planned if no significant problems occur and time permits, in which case additional detection methods may be explored, especially in the case of methods based on machine learning.
 
 \bibliographystyle{IEEEtran}
 \footnotesize{\bibliography{proposal}}
 
-\newpage
-\appendix
 
 \end{document}
