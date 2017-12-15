@@ -77,8 +77,8 @@ class PCAPParser:
                 # Check and record TLS information if applicable.
                 try:
                     tls_data = dpkt.ssl.TLS(tcp.data)
-                    tls_data["type"] = tls.type
-                    tls_data["ver"] = tls.version
+                    tls_data["type"] = constants.TLS_TYPE[tls.type]
+                    tls_data["ver"] = constants.TLS_VERSION[tls.version]
                     tls_data["len"] = tls.len
                     tls_data["records"] = len(tls_records)
                     if tls_data["records"] > 0:
