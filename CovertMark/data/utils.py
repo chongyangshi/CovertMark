@@ -17,21 +17,23 @@ def check_file_exists(file_path):
         return False
 
 
-def byte_to_str(ip_bytes):
+def byte_to_str(ip_bytes, ip_type):
     """
     Convert an IPv4/IPv6 address in bytes to readable string.
     :param ip_bytes: bytes of IPv4/IPv6 address.
-    :returns: readable IPv4/IPv6 address as a string. False if ip invalid as
-        either.
+    :param ip_type: "IP" or "IP6" for iPv4 or IPv6 respectively.
+    :returns: readable IPv4/IPv6 address as a string. None if invalid address.
     """
 
+    return_ip = None
     try:
-        return_ip = socket.inet_ntop(socket.AF_INET, ip_bytes)
-    except:
-        try:
+        if ip_type == "IP":
+            return_ip = socket.inet_ntop(socket.AF_INET, ip_bytes)
+        elif ip_type == "IP6":
             return_ip = socket.inet_ntop(socket.AF_INET6, ip_bytes)
-        except:
-            return False
+    except:
+        raise
+        pass
 
     return return_ip
 

@@ -39,19 +39,16 @@ class PCAPParser:
                 packet_info = {}
 
                 # Generic IP information.
-                packet_info["dst"] = utils.byte_to_str(eth.dst)
-                if not packet_info["dst"]:
-                    packet_info["dst"] = None
-                packet_info["src"] = utils.byte_to_str(eth.src)
-                if not packet_info["src"]:
-                    packet_info["src"] = None
-
                 ip = eth.data
                 if eth.type == dpkt.ethernet.ETH_TYPE_IP:
+                    packet_info["dst"] = utils.byte_to_str(ip.dst, "IP")
+                    packet_info["src"] = utils.byte_to_str(ip.src, "IP")
                     packet_info["type"] = "IPv4"
                     packet_info["len"] = ip.len
 
                 elif eth.type == dpkt.ethernet.ETH_TYPE_IP6:
+                    packet_info["dst"] = utils.byte_to_str(ip.dst, "IP6")
+                    packet_info["src"] = utils.byte_to_str(ip.src, "IP6")
                     packet_info["type"] = "IPv6"
                     packet_info["len"] = ip.plen
 
