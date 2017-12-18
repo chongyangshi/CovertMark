@@ -4,7 +4,6 @@ from data import constants
 from os.path import isfile
 import dpkt
 
-LOG_ERROR = True
 
 class PCAPParser:
 
