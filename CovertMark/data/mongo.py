@@ -94,6 +94,24 @@ class MongoDBManager:
         return True
 
 
+    def modify_collection_description(self, collection_name, description):
+        """
+        Modify the description of a trace collection.
+        :param collection_name: the name of the collection to be modified.
+        :param description: the new description of the collection.
+        :returns: True if modification successful, False otherwise.
+        """
+
+        if not self.lookup_collection(collection_name):
+            return False
+
+        collection = self.__db[collection_name]
+        if collection.update_one({"name": collection_name}, {'$set': {"description": description}}):
+            return True
+        else:
+            return False
+
+
     def insert_traces(self, traces, collection_name=""):
         """
         Insert a list of fomatted packet traces. ONLY to be called by
@@ -107,7 +125,7 @@ class MongoDBManager:
 
         # Create new collection if supplied collection name does not exist.
         if collection_name == "":
-            collection_name = self.new_collection(description)
+            collection_name = self.new_collection()
             if not collection_name:
                 return False
         else:
@@ -143,10 +161,10 @@ class MongoDBManager:
 
         collection = self.__db[collection_name]
         if max_r:
-            query_result = collection.find(filter=query_params, projection={‘_id’: False},
+            query_result = collection.find(filter=query_params, projection={'_id': False},
                 limit = max_r)
         else:
-            query_result = collection.find(filter=query_params, projection={‘_id’: False})
+            query_result = collection.find(filter=query_params, projection={'_id': False})
 
         result = [x for x in query_result]
 
