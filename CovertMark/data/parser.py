@@ -21,6 +21,7 @@ class PCAPParser:
         Load information of packet traces. Non-IP/IPv6 packets are ignored.
         Format: ```[{type: v4/v6, dst: dst_ip, src: src_ip, len: packet_length,
                     proto: protocol, data: packet_payload, time: time_stamp,
+                    ttl: TTL/hop_limit,
                     tcp_info (None for non-TCP packets):
                         {sport: src_port, dport: dst_port, flags: tcp_flags,
                         opts: tcp_options, seq: tcp_seq, ack: tcp_ack},
@@ -45,12 +46,14 @@ class PCAPParser:
                     packet_info["src"] = utils.byte_to_str(ip.src, "IP")
                     packet_info["type"] = "IPv4"
                     packet_info["len"] = ip.len
+                    packet_info["ttl"] = ip.ttl
 
                 elif eth.type == dpkt.ethernet.ETH_TYPE_IP6:
                     packet_info["dst"] = utils.byte_to_str(ip.dst, "IP6")
                     packet_info["src"] = utils.byte_to_str(ip.src, "IP6")
                     packet_info["type"] = "IPv6"
                     packet_info["len"] = ip.plen
+                    packet_info["ttl"] = ip.hlim
 
                 else:
                     PCAPParser.log_invalid("Non ip/ip6 packet ignored: " + str(buf))
