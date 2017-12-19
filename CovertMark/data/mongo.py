@@ -191,12 +191,12 @@ class MongoDBManager:
     @staticmethod
     def generate_name():
         """
-        Generate a trace collection name in the format of 'traces(yyyymmdd) random-hex-string'.
+        Generate a trace collection name in the format of 'traces(yyyymmdd)random-hex-string'.
         :returns: a random collection name.
         """
         today = date.today().strftime("%Y%m%d")
 
-        return "traces_" + today + "_" + hashlib.sha1(urandom(8)).hexdigest()
+        return "traces" + today + hashlib.sha1(urandom(8)).hexdigest()
 
 
     @staticmethod
