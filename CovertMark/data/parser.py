@@ -108,7 +108,7 @@ class PCAPParser:
         traces = self.load_packet_info()
         insertion_result = self.__db.insert_traces(traces)
 
-        if insertion_result:
+        if len(insertion_result["inserted"].inserted_ids) > 0:
             collection_name = insertion_result["collection_name"]
             self.__db.modify_collection_description(collection_name, description)
             return collection_name
@@ -125,7 +125,7 @@ class PCAPParser:
         traces = self.load_packet_info()
         insertion_result = self.__db.insert_traces(traces, collection_name=collection_name)
 
-        if insertion_result:
+        if len(insertion_result["inserted"].inserted_ids) > 0:
             collection_name = insertion_result["collection_name"]
             return collection_name
         else:

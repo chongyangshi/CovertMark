@@ -196,7 +196,7 @@ class MongoDBManager:
         """
         today = date.today().strftime("%Y%m%d")
 
-        return "traces_" + today + "_" + hashlib.sha1(urandom(8)).hexdigest()
+        return "traces" + today + "" + hashlib.sha1(urandom(8)).hexdigest()
 
 
     @staticmethod
