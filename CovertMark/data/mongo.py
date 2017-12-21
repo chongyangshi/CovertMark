@@ -105,11 +105,28 @@ class MongoDBManager:
         if not self.lookup_collection(collection_name):
             return False
 
-        collection = self.__db[collection_name]
-        if collection.update_one({"name": collection_name}, {'$set': {"description": description}}):
+        update_result = self._trace_index.update_one({"name": collection_name}, {'$set': {"description": description}})
+
+        if update_result.modified_count > 0:
             return True
         else:
             return False
+
+
+    def list_collections(self):
+        """
+        Return all valid collections.
+        :returns: a list of valid collections with attributes.
+        """
+
+        collections = self._trace_index.find(projection={'_id': False})
+        in_db_collections = self.__db.collection_names()
+        valid_collections = []
+        for collection in collections:
+            if collection["name"] in in_db_collections:
+                valid_collections.append(collection)
+
+        return valid_collections
 
 
     def insert_traces(self, traces, collection_name=""):
