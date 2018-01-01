@@ -82,13 +82,10 @@ class PCAPParser:
                     tls_data["type"] = constants.TLS_TYPE[tls.type]
                     tls_data["ver"] = constants.TLS_VERSION[tls.version]
                     tls_data["len"] = tls.len
-                    tls_data["records"] = len(tls_records)
-                    if tls_data["records"] > 0:
-                        tls_data["data"] = b64encode(tls.records[0].data)
-                    # A vast majority of TLS packets have only one record, and
-                    # in multi-record case this tends to contain the majority
-                    # payload. As a secondary information, the number of records
-                    # is recorded for each TLS packet.
+                    tls_data["records"] = len(tls_records) # Number of records.
+                    tls_data["data"] = []
+                    for record in tls_data["records"]:
+                        tls_data["data"].append(b64encode(record.data))
                 except:
                     tls_data = None
                 packet_info["tls_info"] = tls_data
