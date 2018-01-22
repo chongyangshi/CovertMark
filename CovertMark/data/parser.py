@@ -78,13 +78,14 @@ class PCAPParser:
 
                 # Check and record TLS information if applicable.
                 try:
-                    tls_data = dpkt.ssl.TLS(tcp.data)
+                    tls = dpkt.ssl.TLS(ip.data.data)
+                    tls_data = {}
                     tls_data["type"] = constants.TLS_TYPE[tls.type]
                     tls_data["ver"] = constants.TLS_VERSION[tls.version]
                     tls_data["len"] = tls.len
-                    tls_data["records"] = len(tls_records) # Number of records.
+                    tls_data["records"] = len(tls.records) # Number of records.
                     tls_data["data"] = []
-                    for record in tls_data["records"]:
+                    for record in tls.records:
                         tls_data["data"].append(b64encode(record.data))
                 except:
                     tls_data = None
