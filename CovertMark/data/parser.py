@@ -2,6 +2,7 @@ from data import utils, constants, mongo
 
 from os.path import isfile
 from base64 import b64encode, b64decode
+import ipaddress
 import dpkt
 
 
@@ -14,6 +15,37 @@ class PCAPParser:
 
         self._pcap_file = pcap_file
         self.__db = mongo.MongoDBManager(db_server=constants.MONGODB_SERVER)
+        self.__filter = []
+
+
+    def get_ip_filter(self):
+        """
+        Return the current ip filter configuration.
+        :returns: a list of acceptable IPv4/IPv6 subnets in ipaddress subnet objects.
+        """
+
+        return self.__filter
+
+
+    def set_ip_filter(self, subjects):
+        """
+        Configure the parser to only store a packet if either its source or
+        destination address belongs to an address or subnet specified in subjects.
+        Always process single addresses as lowest-level subnets for convenience.
+        Overwrite the previous filter configuration.
+        :param subjects: a list of acceptable IPv4/IPv6 addresses or subnets in
+            string format.
+        :returns: the number of successfully added filters, overlapping subnets
+            are processed separately.
+        """
+
+        self.__filter = []
+        for subject in subjects:
+            subnet = utils.build_subnet(subject)
+            if subnet:
+                self.__filter.append(subnet)
+
+        return len(self.__filter)
 
 
     def load_packet_info(self):
@@ -36,6 +68,10 @@ class PCAPParser:
 
         packet_list = []
 
+        check_filter = False
+        if len(self.__filter) > 0:
+            check_filter = True
+
         with open(self._pcap_file, 'rb') as f:
             for ts, buf in dpkt.pcap.Reader(f):
                 eth = dpkt.ethernet.Ethernet(buf)
@@ -44,21 +80,35 @@ class PCAPParser:
                 # Generic IP information.
                 ip = eth.data
                 if eth.type == dpkt.ethernet.ETH_TYPE_IP:
-                    packet_info["dst"] = utils.byte_to_str(ip.dst, "IP")
-                    packet_info["src"] = utils.byte_to_str(ip.src, "IP")
+                    packet_info["dst"] = utils.parse_ip(ip.dst)
+                    packet_info["src"] = utils.parse_ip(ip.src)
                     packet_info["type"] = "IPv4"
                     packet_info["len"] = ip.len
                     packet_info["ttl"] = ip.ttl
 
                 elif eth.type == dpkt.ethernet.ETH_TYPE_IP6:
-                    packet_info["dst"] = utils.byte_to_str(ip.dst, "IP6")
-                    packet_info["src"] = utils.byte_to_str(ip.src, "IP6")
+                    packet_info["dst"] = utils.parse_ip(ip.dst)
+                    packet_info["src"] = utils.parse_ip(ip.src)
                     packet_info["type"] = "IPv6"
                     packet_info["len"] = ip.plen
                     packet_info["ttl"] = ip.hlim
 
                 else:
                     PCAPParser.log_invalid("Non ip/ip6 packet ignored: " + str(buf))
+                    continue
+
+                # Drop this packet if filter set and this ip is not required by
+                # the filter.
+                if check_filter:
+                    drop = True
+                    for f in self.__filter:
+                        dst_net = utils.build_subnet(packet_info["dst"])
+                        src_net = utils.build_subnet(packet_info["src"])
+                        if dst_net.overlaps(f) or src_net.overlaps(f):
+                            drop = False
+                            break
+                    if drop:
+                        continue
 
                 packet_info["proto"] = type(ip.data).__name__
                 packet_info["time"] = "{0:.6f}".format(ts)

@@ -1,5 +1,6 @@
 import os
 import socket
+import ipaddress
 
 from dpkt import tcp
 
@@ -17,25 +18,38 @@ def check_file_exists(file_path):
         return False
 
 
-def byte_to_str(ip_bytes, ip_type):
+def parse_ip(ip_bytes):
     """
-    Convert an IPv4/IPv6 address in bytes to readable string.
+    Convert an IPv4/IPv6 address in bytes to an ipaddress object.
     :param ip_bytes: bytes of IPv4/IPv6 address.
-    :param ip_type: "IP" or "IP6" for iPv4 or IPv6 respectively.
-    :returns: readable IPv4/IPv6 address as a string. None if invalid address.
+    :returns: IP in string format, None if input invalid.
     """
 
     return_ip = None
     try:
-        if ip_type == "IP":
-            return_ip = socket.inet_ntop(socket.AF_INET, ip_bytes)
-        elif ip_type == "IP6":
-            return_ip = socket.inet_ntop(socket.AF_INET6, ip_bytes)
-    except:
-        raise
-        pass
+        return str(ipaddress.ip_address(ip_bytes))
+    except ValueError:
+        return None
 
-    return return_ip
+
+def build_subnet(subnet_str):
+    """
+    Convert an IPv4/IPv6 subnet in string format (e.g. 192.168.1.0/24) into an
+    ipaddress IPv4Network/IPv6Network object.
+    :param subnet_str: subnet in string format.
+    :returns: IPv4Network/IPv6Network object depends on input type, None if
+    input invalid.
+    """
+
+    try:
+        network = ipaddress.IPv4Network(subnet_str)
+    except ipaddress.AddressValueError:
+        try:
+            network = ipaddress.IPv6Network(subnet_str)
+        except ipaddress.AddressValueError:
+            return None
+
+    return network
 
 
 def parse_tcp_flags(flag_bits):
