@@ -134,7 +134,7 @@ class MongoDBManager:
         Insert a list of fomatted packet traces. ONLY to be called by
         data.parser.PCAPParser.load_packet_info, as format checking not done here.
         :param traces: see docstring of that function for input format.
-        :param collection_info: The name of the collection to be inserted into,
+        :param collection_name: The name of the collection to be inserted into,
             create a new collection with random name if unspecified.
         :returns: dict containing collection name and inserted count if insertion
             successful, False otherwise.
@@ -146,7 +146,6 @@ class MongoDBManager:
             if not collection_name:
                 return False
         else:
-            collection_name = collection_info["collection_name"]
             # If a collection name is specified but does not exist, return False.
             if not self.lookup_collection(collection_name):
                 return False
@@ -186,6 +185,23 @@ class MongoDBManager:
         result = [x for x in query_result]
 
         return result
+
+
+    def count_traces(self, collection_name, query_params={}):
+        """
+        Return the number of query-matched packet traces in the named collection.
+        :param collection_name: name of the queried collection.
+        :param query_params: query written in MongoDB query object format.
+        :returns: number of traces found matching the query parameters.
+        """
+
+        if not self.lookup_collection(collection_name):
+            return False
+
+        collection = self.__db[collection_name]
+        query_count = collection.find(filter=query_params).count()
+
+        return query_count
 
 
     def delete_traces(self, collection_name, query_params):
