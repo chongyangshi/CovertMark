@@ -37,19 +37,19 @@ def byte_entropy(input_bytes):
 
 
 def anderson_darling_dist_test(input_bytes, block_size):
-    """ Perform an Anderson-Darling distribution hypothesis test on whether the
-        input_bytes was likely drawn from the same distribution as a random
-        distribution, based on Shannon entropy of individual blocks of block_size.
-        Raises an exception if input_bytes is insufficient to be divided by
-        block_size.
-        :param input_bytes: input in bytes to be tested.
-        :param block_size: an integer block size for entropy-calculation block.
-        :returns {min_threshold, p}, where min_threshold is
-            the minimum threshold in float under which the null hypothesis can
-            be rejected, between 0.25 and 0.01, 1 if non-rejectable (definitely
-            from random distribution), and 0 if always rejectable (definitely
-            not from random distribution);
-            and p is the p value from the test.
+    """
+    Perform an Anderson-Darling distribution hypothesis test on whether the
+    input_bytes was likely drawn from the same distribution as a random
+    distribution, based on Shannon entropy of individual blocks of block_size.
+    Raises an exception if input_bytes is insufficient to be divided by
+    block_size.
+    :param input_bytes: input in bytes to be tested.
+    :param block_size: an integer block size for entropy-calculation block.
+    :returns {min_threshold, p}, where min_threshold is
+        the minimum threshold in float under which the null hypothesis can
+        be rejected, between 0.25 and 0.01, 1 if non-rejectable (definitely
+        from random distribution), and 0 if always rejectable (definitely
+        not from random distribution); and p is the p value from the test.
     """
 
     if not isinstance(input_bytes, bytes) or not isinstance(block_size, int):
@@ -59,7 +59,6 @@ def anderson_darling_dist_test(input_bytes, block_size):
         raise ValueError("Block size is greater than the amount of bytes input.")
 
     # Chop up the input.
-    num_blocks = len(input_bytes) // block_size
     remainders = len(input_bytes) % block_size
     if remainders > 0: # in Python a[:-0] will result in an empty string.
         input_bytes = input_bytes[:-remainders]
@@ -99,16 +98,57 @@ def anderson_darling_dist_test(input_bytes, block_size):
     return results
 
 
+def kolmogorov_smirnov_dist_test(input_bytes, block_size):
+    """
+    Perform a Kolmogorov-Smirnov distribution hypothesis test on on whether the
+    input_bytes was likely drawn from the same distribution as a random
+    distribution, based on Shannon entropy of individual blocks of block_size.
+    Raises an exception if input_bytes is insufficient to be divided by
+    block_size.
+    :param input_bytes: input in bytes to be tested.
+    :param block_size: an integer block size for entropy-calculation block.
+    :returns p: the p-value from the KS two-sample test, hypothesis rejectable
+        if p is very small (usually <0.1), meaning that likely drawn from non-
+        uniform distribution.
+    """
+
+    if not isinstance(input_bytes, bytes) or not isinstance(block_size, int):
+        raise TypeError("input_bytes must be in bytes and block_size must be an integer.")
+
+    if len(input_bytes) < block_size:
+        raise ValueError("Block size is greater than the amount of bytes input.")
+
+    # Chop up the input into equal chunks, discarding remainder.
+    remainders = len(input_bytes) % block_size
+    if remainders > 0: # in Python a[:-0] will result in an empty string.
+        input_bytes = input_bytes[:-remainders]
+    blocks = [input_bytes[i:i+block_size] for i in range(0, len(input_bytes), block_size)]
+
+    # Calculate each block's entropy as well as a uniform random distribution's.
+    block_entropies = [byte_entropy(block) for block in blocks]
+    random_entropies = [byte_entropy(numpy.random.bytes(block_size)) for block in blocks]
+
+    # Perform the KS 2-sample test.
+    statistic, p = scipy.stats.ks_2samp(block_entropies, random_entropies)
+
+    return p
+
+
 # TODO: move this to a proper test.
 if __name__ == "__main__":
     print("Testing with uniformly random blocks, should always return high thresholds:")
     test_bytes = urandom(2048)
     for i in range(1, 11):
         b_size = 2 ** i
-        result = anderson_darling_dist_test(test_bytes, b_size)
-        print("Anderson-Darling with block size {} gives min threshold {}, p = {}".format(b_size, result['min_threshold'], result['p']))
+        result1 = anderson_darling_dist_test(test_bytes, b_size)
+        result2 = kolmogorov_smirnov_dist_test(test_bytes, b_size)
+        print("Anderson-Darling with block size {} gives min threshold {}, p = {}".format(b_size, result1['min_threshold'], result1['p']))
+        print("Kolmogorov-Smirnov with block size {} gives p = {}".format(b_size, result2))
 
-    print("Testing with a non-random block, should always return a low thresholda:")
+    print()
+    print("Testing with a non-random block, should always return a low threshold:")
     test_bytes = "aabcbcabcbcabacbbcabcbcabacbcabbbcabcbcabbacbcbbcabcbcabacbabcbacabcbc".encode('utf-8')
-    result = anderson_darling_dist_test(test_bytes, 4)
-    print("Anderson-Darling with block size {} gives min threshold {}, p = {}".format(4, result['min_threshold'], result['p']))
+    result1 = anderson_darling_dist_test(test_bytes, 4)
+    result2 = kolmogorov_smirnov_dist_test(test_bytes, 4)
+    print("Anderson-Darling with block size {} gives min threshold {}, p = {}".format(4, result1['min_threshold'], result1['p']))
+    print("Kolmogorov-Smirnov with block size {} gives p = {}".format(4, result2))
