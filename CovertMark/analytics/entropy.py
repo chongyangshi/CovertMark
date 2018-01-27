@@ -49,7 +49,7 @@ def anderson_darling_dist_test(input_bytes, block_size):
         the minimum threshold in float under which the null hypothesis can
         be rejected, between 0.25 and 0.01, 1 if non-rejectable (definitely
         from random distribution), and 0 if always rejectable (definitely
-        not from random distribution); and p is the p value from the test.
+        not from random distribution); and p is the p-value from the test.
     """
 
     if not isinstance(input_bytes, bytes) or not isinstance(block_size, int):
