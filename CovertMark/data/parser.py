@@ -29,21 +29,27 @@ class PCAPParser:
 
     def set_ip_filter(self, subjects):
         """
-        Configure the parser to only store a packet if either its source or
-        destination address belongs to an address or subnet specified in subjects.
+        Configure the parser to only store a packet if its source or
+        destination address belongs to an address or subnet as specified.
         Always process single addresses as lowest-level subnets for convenience.
-        Overwrite the previous filter configuration.
+        Calling this method overwrites the previous filter configuration.
         :param subjects: a list of acceptable IPv4/IPv6 addresses or subnets in
-            string format.
+            string format, and their direction. Format: [(NET, POSITION)], where
+            NET represents the IPv4/IPv6 address or subnet to track, and POSITION
+            represents whether this is supposed to be IP_SRC or IP_DST.
         :returns: the number of successfully added filters, overlapping subnets
             are processed separately.
         """
 
         self.__filter = []
         for subject in subjects:
-            subnet = utils.build_subnet(subject)
+
+            if not isinstance(subject, tuple) or (subject[1] not in [constants.IP_SRC, constants.IP_DST]):
+                continue
+
+            subnet = utils.build_subnet(subject[0])
             if subnet:
-                self.__filter.append(subnet)
+                self.__filter.append((subnet, subject[1]))
 
         return len(self.__filter)
 
@@ -101,11 +107,16 @@ class PCAPParser:
                 if check_filter:
                     drop = True
                     for f in self.__filter:
-                        dst_net = utils.build_subnet(packet_info["dst"])
-                        src_net = utils.build_subnet(packet_info["src"])
-                        if dst_net.overlaps(f) or src_net.overlaps(f):
-                            drop = False
-                            break
+                        if f[1] == constants.IP_SRC:
+                            src_net = utils.build_subnet(packet_info["src"])
+                            if src_net.overlaps(f[0]):
+                                drop = False
+                                break
+                        elif f[1] == constants.IP_DST:
+                            dst_net = utils.build_subnet(packet_info["dst"])    
+                            if dst_net.overlaps(f[0]):
+                                drop = False
+                                break
                     if drop:
                         continue
 
