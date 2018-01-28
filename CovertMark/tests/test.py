@@ -27,8 +27,8 @@ for test in ['obfs4', 'unobfuscated']:
             continue
 
         payload = b64decode(t['tcp_info']['payload'])
-        if len(payload) > 8:
-            p = analyser.kolmogorov_smirnov_dist_test(payload, 8)
+        if len(payload) > 149:
+            p = analyser.kolmogorov_smirnov_uniform_test(payload)
             if p < 0.1:
                 non_uniform += 1
             else:
