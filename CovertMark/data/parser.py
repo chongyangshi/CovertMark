@@ -106,16 +106,20 @@ class PCAPParser:
                 # the filter.
                 if check_filter:
                     drop = True
+                    src_net = utils.build_subnet(packet_info["src"])
+                    dst_net = utils.build_subnet(packet_info["dst"])
                     for f in self.__filter:
                         if f[1] == constants.IP_SRC:
-                            src_net = utils.build_subnet(packet_info["src"])
                             if src_net.overlaps(f[0]):
                                 drop = False
+                            else:
+                                drop = True
                                 break
                         elif f[1] == constants.IP_DST:
-                            dst_net = utils.build_subnet(packet_info["dst"])    
                             if dst_net.overlaps(f[0]):
                                 drop = False
+                            else:
+                                drop = True
                                 break
                     if drop:
                         continue

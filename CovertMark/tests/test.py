@@ -16,7 +16,7 @@ for test in positive_negative:
     a = parser.PCAPParser(example_path)
 
     if test == positive_negative[0]:
-        a.set_ip_filter([('37.218.245.14', constants.IP_DST)])
+        a.set_ip_filter([('172.28.192.204', constants.IP_SRC), ('37.218.245.14', constants.IP_DST)])
     else:
         a.set_ip_filter([('172.28.192.204', constants.IP_SRC)])
 
