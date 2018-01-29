@@ -183,36 +183,9 @@ class EntropyAnalyser:
             raise TypeError("input_bytes must be in bytes.")
 
         # Perform the KS uniform distribution test.
-        statistic, p = scipy.stats.kstest(list(input_bytes),
-         scipy.stats.uniform(loc=min(input_bytes), scale=max(input_bytes)).cdf)
+        input_dist = [input_bytes[i:i+1].hex() for i in range(len(input_bytes))]
+        random_bytes = self.request_random_bytes(len(input_dist), 1)
+        uniform_dist = [i.hex() for i in random_bytes]
+        statistic, p = scipy.stats.ks_2samp(input_dist, uniform_dist)
 
         return p
-
-
-# TODO: move this to a proper test.
-if __name__ == "__main__":
-
-    test_analyser = EntropyAnalyser()
-
-    print("Testing with uniformly random blocks, should always return high thresholds:")
-    test_bytes = urandom(2048)
-    for i in range(2, 7):
-        b_size = 2 ** i
-        result1 = test_analyser.anderson_darling_dist_test(test_bytes, b_size)
-        result2 = test_analyser.kolmogorov_smirnov_dist_test(test_bytes, b_size)
-        print("Anderson-Darling with block size {} gives min threshold {}, p = {}".format(b_size, result1['min_threshold'], result1['p']))
-        print("Kolmogorov-Smirnov with block size {} gives p = {}".format(b_size, result2))
-
-    print()
-    result3 = test_analyser.kolmogorov_smirnov_uniform_test(test_bytes)
-    print("Kolmogorov-Smirnov byte uniformity test gives p = {}".format(result3))
-
-    print()
-    print("Testing with a non-random block, should always return a low threshold:")
-    test_bytes = "aabcbcabcbcabacbbcabcbcabacbcabbbcabcbcabbacbcbbcabcbcabacbabcbacabcbc".encode('utf-8')
-    result1 = test_analyser.anderson_darling_dist_test(test_bytes, 4)
-    result2 = test_analyser.kolmogorov_smirnov_dist_test(test_bytes, 4)
-    result3 = test_analyser.kolmogorov_smirnov_uniform_test(test_bytes)
-    print("Anderson-Darling with block size {} gives min threshold {}, p = {}".format(4, result1['min_threshold'], result1['p']))
-    print("Kolmogorov-Smirnov with block size {} gives p = {}".format(4, result2))
-    print("Kolmogorov-Smirnov byte uniformity test gives p = {}".format(result3))
