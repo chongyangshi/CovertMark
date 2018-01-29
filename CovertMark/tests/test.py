@@ -92,4 +92,18 @@ for test in positive_negative:
         print("The single IP of bridge is identified by {} out of {} ({:0.2f}%) length-qualifying client-server traces.".format(either_uniform, qualifying, 100*float(either_uniform)/qualifying))
     print()
 
+    wireshark_output = "Elaborately blocked Wireshark: tcp.payload && "
+    for i, ip in enumerate(list(elaborate_blocked_ips)):
+        wireshark_output += "ip.dst_host == \"" + ip + "\" "
+        if i < len(elaborate_blocked_ips) - 1:
+            wireshark_output += "|| "
+    print(wireshark_output)
+
+    wireshark_output = "Conservatively blocked Wireshark: tcp.payload && "
+    for i, ip in enumerate(list(conservative_blocked_ips)):
+        wireshark_output += "ip.dst_host == \"" + ip + "\" "
+        if i < len(conservative_blocked_ips) - 1:
+            wireshark_output += "|| "
+    print(wireshark_output)
+
     m.delete_collection(name)
