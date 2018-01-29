@@ -204,6 +204,23 @@ class MongoDBManager:
         return query_count
 
 
+    def distinct_traces(self, collection_name, field_name):
+        """
+        Return the number of distinct fields of a column in the named collection.
+        :param collection_name: name of the queried collection.
+        :param field_name: name of column to count distinct traces.
+        :returns: number of distinct fields found.
+        """
+
+        if not self.lookup_collection(collection_name):
+            return False
+
+        collection = self.__db[collection_name]
+        distinct_count = len(collection.find(filter={field_name: {"$ne": None}}).distinct(field_name))
+
+        return distinct_count
+
+
     def delete_traces(self, collection_name, query_params):
         """
         Delete matched packet traces in the named collection.
