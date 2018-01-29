@@ -48,6 +48,13 @@ for test in positive_negative:
         if t['tcp_info'] is None:
             continue
 
+        if t['tls_info'] is not None:
+            # An interesting observation that a majority of identified false
+            # positive traces in the unobfuscated set have TLS records, while
+            # obfs4 traces do not. This forms a simple and effective criteria but
+            # also trivial to circumvent with obfs4 injecting pseudo TLS records.
+            continue
+
         payload = b64decode(t['tcp_info']['payload'])
         if len(payload) > 149:
             p1 = analyser.kolmogorov_smirnov_uniform_test(payload[:2048])
