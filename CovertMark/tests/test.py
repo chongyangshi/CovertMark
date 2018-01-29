@@ -84,11 +84,11 @@ for test in positive_negative:
     print()
 
     if test == 'unobfuscated':
-        print("Elaborate blocking (both uniform) FALSE positive:")
+        print("Elaborate blocking (either uniform) FALSE positive:")
         print("{} out of {} ({:0.2f}%) all traces blocked".format(either_uniform, total, 100*float(either_uniform)/total))
         print("{} IPs blocked out of {} ({:0.2f}%)".format(len(elaborate_blocked_ips), all_dst_ips, 100*len(elaborate_blocked_ips)/float(all_dst_ips)))
     else:
-        print("Elaborate blocking (both uniform) TRUE positive:")
+        print("Elaborate blocking (either uniform) TRUE positive:")
         print("The single IP of bridge is identified by {} out of {} ({:0.2f}%) length-qualifying client-server traces.".format(either_uniform, qualifying, 100*float(either_uniform)/qualifying))
     print()
 
