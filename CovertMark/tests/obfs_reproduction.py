@@ -8,19 +8,26 @@ from base64 import b64decode
 
 m = mongo.MongoDBManager()
 parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+long_path = os.path.join(parent_path, 'examples', 'local')
 analyser = entropy.EntropyAnalyser()
-positive_negative = ['obfs4', 'unobfuscated']
+positive_negative = ['obfs4long', 'unobfuscatedlong']
+OBFS4_MIN = 149
 
 for test in positive_negative:
-    example_path = os.path.join(parent_path, 'examples', test + '.pcap')
+    #example_path = os.path.join(parent_path, 'examples', test + '.pcap')
+    example_path = os.path.join(long_path, test + '.pcap')
+    print("Loading traces from {}...".format(example_path))
     a = parser.PCAPParser(example_path)
 
     if test == positive_negative[0]:
-        a.set_ip_filter([('172.28.192.204', constants.IP_SRC), ('37.218.245.14', constants.IP_DST)])
+        a.set_ip_filter([('10.248.100.93', constants.IP_SRC), ('37.218.245.14', constants.IP_DST)])
     else:
-        a.set_ip_filter([('172.28.192.204', constants.IP_SRC)])
+        a.set_ip_filter([('172.28.195.198', constants.IP_SRC)])
 
     name = a.load_and_insert_new("Test collection.")
+
+    if not name:
+        continue
 
     print()
     total = m.count_traces(name, {})
@@ -56,7 +63,7 @@ for test in positive_negative:
             continue
 
         payload = b64decode(t['tcp_info']['payload'])
-        if len(payload) > 149:
+        if len(payload) > OBFS4_MIN:
             p1 = analyser.kolmogorov_smirnov_uniform_test(payload[:2048])
             if p1 < 0.1:
                 non_uniform += 1
@@ -81,7 +88,7 @@ for test in positive_negative:
     print("Entropy Non-uniform: {}; uniform: {}.".format(entropy_non_uniform, entropy_uniform))
     print()
 
-    if test == 'unobfuscated':
+    if test == positive_negative[1]:
         print("Conservatively blocking (both uniform) FALSE positive:")
         print("{} out of {} ({:0.2f}%) all traces blocked".format(both_uniform, total, 100*float(both_uniform)/total))
         print("{} IPs blocked out of {} ({:0.2f}%)".format(len(conservative_blocked_ips), all_dst_ips, 100*len(conservative_blocked_ips)/float(all_dst_ips)))
@@ -90,7 +97,7 @@ for test in positive_negative:
         print("The single IP of bridge is identified by {} out of {} ({:0.2f}%) length-qualifying client-server traces.".format(both_uniform, qualifying, 100*float(both_uniform)/qualifying))
     print()
 
-    if test == 'unobfuscated':
+    if test == positive_negative[1]:
         print("Elaborate blocking (either uniform) FALSE positive:")
         print("{} out of {} ({:0.2f}%) all traces blocked".format(either_uniform, total, 100*float(either_uniform)/total))
         print("{} IPs blocked out of {} ({:0.2f}%)".format(len(elaborate_blocked_ips), all_dst_ips, 100*len(elaborate_blocked_ips)/float(all_dst_ips)))

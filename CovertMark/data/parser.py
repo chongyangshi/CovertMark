@@ -163,11 +163,15 @@ class PCAPParser:
     def load_and_insert_new(self, description=""):
         """
         Load packet traces from pcap file, and insert into a new collection.
+        N.B. Returned collection name must be verified to not be False.
         :param description: description of the new collection, empty by default.
         :returns: name of the new collection, False if failed.
         """
 
         traces = self.load_packet_info()
+        if len(traces) == 0: # No packet loaded (likely incorrect ip filter.)
+            return False
+
         insertion_result = self.__db.insert_traces(traces)
 
         if len(insertion_result["inserted"].inserted_ids) > 0:
@@ -181,15 +185,17 @@ class PCAPParser:
     def load_and_insert_existing(self, collection_name):
         """
         Load packet traces from pcap file, and insert into an existing collection.
+        N.B. Returned collection name must be verified to not be False.
         :returns: True if insertion successful, False if failed.
         """
 
         traces = self.load_packet_info()
+        if len(traces) == 0: # No packet loaded (likely incorrect ip filter.)
+            return False
         insertion_result = self.__db.insert_traces(traces, collection_name=collection_name)
 
         if len(insertion_result["inserted"].inserted_ids) > 0:
-            collection_name = insertion_result["collection_name"]
-            return collection_name
+            return True
         else:
             return False
 
