@@ -19,7 +19,7 @@ print("In total {} client->server traces by meek.".format(total))
 traces = m.find_traces(name, {"tls_info": {"$ne": None}})
 for trace in traces: # To be done in data.retrieve when properly implemented.
     trace['tcp_info']['payload'] = b64decode(trace['tcp_info']['payload'])
-most_frequent = traffic.ordered_tcp_payload_length_frequency(traces, True)
+most_frequent = traffic.ordered_tcp_payload_length_frequency(traces, True, 1)
 
 top_cluster = most_frequent[0]
 top_two_clusters = top_cluster.union(most_frequent[1])
