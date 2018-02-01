@@ -37,18 +37,30 @@ class PCAPParser:
             string format, and their direction. Format: [(NET, POSITION)], where
             NET represents the IPv4/IPv6 address or subnet to track, and POSITION
             represents whether this is supposed to be IP_SRC or IP_DST.
-        :returns: the number of successfully added filters, overlapping subnets
-            are processed separately.
+            Precedence: for each packet, if there is either no IP_SRC or no IP_DST
+            specified, then it will be seen as matched; otherwise, as long as its
+            src or dst matches one of the IP_SRC/IP_DST filters, it will be
+            seen as matched.
+        :returns: the number of successfully added filters (filter with
+            overlapping subnets represented and processed separately).
         """
 
         self.__filter = []
+        self.__filter_src_rules = []
+        self.__filter_dst_rules = []
+
         for subject in subjects:
 
-            if not isinstance(subject, tuple) or (subject[1] not in [constants.IP_SRC, constants.IP_DST]):
+            if not isinstance(subject, tuple) or \
+             (subject[1] not in [constants.IP_SRC, constants.IP_DST]):
                 continue
 
             subnet = utils.build_subnet(subject[0])
             if subnet:
+                if subject[1] == constants.IP_SRC:
+                    self.__filter_src_rules.append(subnet)
+                else:
+                    self.__filter_dst_rules.append(subnet)
                 self.__filter.append((subnet, subject[1]))
 
         return len(self.__filter)
@@ -103,26 +115,23 @@ class PCAPParser:
                     PCAPParser.log_invalid("Non ip/ip6 packet ignored: " + str(buf))
                     continue
 
-                # Drop this packet if filter set and this ip is not required by
-                # the filter.
+                # Drop this packet if filter rules exclude this packet.
                 if check_filter:
-                    drop = True
+
                     src_net = utils.build_subnet(packet_info["src"])
                     dst_net = utils.build_subnet(packet_info["dst"])
-                    for f in self.__filter:
-                        if f[1] == constants.IP_SRC:
-                            if src_net.overlaps(f[0]):
-                                drop = False
-                            else:
-                                drop = True
-                                break
-                        elif f[1] == constants.IP_DST:
-                            if dst_net.overlaps(f[0]):
-                                drop = False
-                            else:
-                                drop = True
-                                break
-                    if drop:
+
+                    if len(self.__filter_src_rules) > 0:
+                        src_match = any([s.overlaps(src_net) for s in self.__filter_src_rules])
+                    else:
+                        src_match = True # Default acceptance if unspecified.
+
+                    if len(self.__filter_dst_rules) > 0:
+                        dst_match = any([s.overlaps(dst_net) for s in self.__filter_dst_rules])
+                    else:
+                        dst_match = True # Default acceptance if unspecified.
+
+                    if not (src_match and dst_match):
                         continue
 
                 packet_info["proto"] = type(ip.data).__name__
