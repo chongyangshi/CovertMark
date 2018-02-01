@@ -6,6 +6,11 @@ from math import log
 from os import urandom
 
 class EntropyAnalyser:
+    """
+    Entropy and entropy-based distribution tests, primarily designed for obfs4
+    but useful to analyse a wide range of client-to-server packets that include
+    encrypted handshake messages.
+    """
 
     def __init__(self):
         self.random_bytes = numpy.random.bytes(constants.INITIAL_RANDOM_BLOCK_COUNT)
