@@ -41,12 +41,12 @@ for test in positive_negative:
 
     qualifying = len(traces)
     print("In total {} client->server test-qualifying traces on {}.".format(qualifying, test))
-
-    non_uniform = 0
-    uniform = 0
-    entropy_non_uniform = 0
-    entropy_uniform = 0
-    both_uniform = 0
+    #
+    # non_uniform = 0
+    # uniform = 0
+    # entropy_non_uniform = 0
+    # entropy_uniform = 0
+    all_uniform = 0
     either_uniform = 0
     conservative_blocked_ips = set([])
     elaborate_blocked_ips = set([])
@@ -65,36 +65,30 @@ for test in positive_negative:
         payload = b64decode(t['tcp_info']['payload'])
         if len(payload) > OBFS4_MIN:
             p1 = analyser.kolmogorov_smirnov_uniform_test(payload[:2048])
-            if p1 < 0.1:
-                non_uniform += 1
-            else:
-                uniform += 1
             p2 = analyser.kolmogorov_smirnov_dist_test(payload[:2048], 8)
-            if p2 < 0.1:
-                entropy_non_uniform += 1
-            else:
-                entropy_uniform += 1
+            p3 = analyser.anderson_darling_dist_test(payload[:2048], 8)
+            agreement = len(list(filter(lambda x: x >= 0.1, [p1, p2, p3['min_threshold']])))
 
-            if p1 > 0.1 and p2 > 0.1:
-                both_uniform += 1
+            if agreement == 3:
+                all_uniform += 1
                 conservative_blocked_ips.add(t['dst'])
 
-            if p1 > 0.1 or p2 > 0.1:
+            if agreement > 0:
                 either_uniform += 1
                 elaborate_blocked_ips.add(t['dst'])
 
-    print()
-    print("Byte Non-uniform: {}; uniform: {}.".format(non_uniform, uniform))
-    print("Entropy Non-uniform: {}; uniform: {}.".format(entropy_non_uniform, entropy_uniform))
-    print()
+    # print()
+    # print("Byte Non-uniform: {}; uniform: {}.".format(non_uniform, uniform))
+    # print("Entropy Non-uniform: {}; uniform: {}.".format(entropy_non_uniform, entropy_uniform))
+    # print()
 
     if test == positive_negative[1]:
         print("Conservatively blocking (both uniform) FALSE positive:")
-        print("{} out of {} ({:0.2f}%) all traces blocked".format(both_uniform, total, 100*float(both_uniform)/total))
+        print("{} out of {} ({:0.2f}%) all traces blocked".format(all_uniform, total, 100*float(all_uniform)/total))
         print("{} IPs blocked out of {} ({:0.2f}%)".format(len(conservative_blocked_ips), all_dst_ips, 100*len(conservative_blocked_ips)/float(all_dst_ips)))
     else:
         print("Conservatively blocking (both uniform) TRUE positive:")
-        print("The single IP of bridge is identified by {} out of {} ({:0.2f}%) length-qualifying client-server traces.".format(both_uniform, qualifying, 100*float(both_uniform)/qualifying))
+        print("The single IP of bridge is identified by {} out of {} ({:0.2f}%) length-qualifying client-server traces.".format(all_uniform, qualifying, 100*float(all_uniform)/qualifying))
     print()
 
     if test == positive_negative[1]:
