@@ -54,6 +54,21 @@ class Retriever:
         return self._collection
 
 
+    def count(self, trace_filter={}):
+        """
+        Count the number of traces in the currently selected MongoDB collection,
+        :param trace_filter: dictionary containing a MongoDB query filter, can
+            be empty, in which case all traces counted.
+        :returns: the number of traces matching the filter in the currently
+            selected collection. False if invalid filter or no collection
+            selected.
+        """
+
+        return self.__db.count_traces(self._collection, trace_filter)
+
+
+
+
     def retrieve(self, trace_filter={}, limit=0):
         """
         Retrieve traces from the currently selected MongoDB collection into
