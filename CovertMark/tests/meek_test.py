@@ -52,16 +52,28 @@ print("---")
 print("Top two clusters False Positive Rate: {} out of {} client->server traces ({:0.2f}%)".format(top2, total, float(top2)/total*100))
 print("Top two clusters blocked IPs: {} out of {} ({:0.2f}%).".format(len(ips_blocked_2), all_dst_ips, float(len(ips_blocked_2))/all_dst_ips*100))
 
-wireshark_output = "Top cluster blocked Wireshark: tcp.payload && "
+wireshark_output = "Top cluster blocked Wireshark: tcp.payload && ("
 for i, ip in enumerate(list(ips_blocked)):
     wireshark_output += "ip.dst_host == \"" + ip + "\" "
     if i < len(ips_blocked) - 1:
         wireshark_output += "|| "
+wireshark_output += ") && ("
+for i, l in enumerate(list(top_cluster)):
+    wireshark_output += "tcp.len == " + str(l)
+    if i < len(top_cluster) - 1:
+        wireshark_output += " || "
+wireshark_output += ")"
 print(wireshark_output)
 
-wireshark_output = "Top two clusters blocked Wireshark: tcp.payload && "
+wireshark_output = "Top two clusters blocked Wireshark: tcp.payload && ("
 for i, ip in enumerate(list(ips_blocked_2)):
     wireshark_output += "ip.dst_host == \"" + ip + "\" "
     if i < len(ips_blocked_2) - 1:
         wireshark_output += "|| "
+wireshark_output += ") && ("
+for i, l in enumerate(list(top_two_clusters)):
+    wireshark_output += "tcp.len == " + str(l)
+    if i < len(top_two_clusters) - 1:
+        wireshark_output += " || "
+wireshark_output += ")"
 print(wireshark_output)
