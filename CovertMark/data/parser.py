@@ -66,7 +66,8 @@ class PCAPParser:
                         payload: b64encoded_payload},
                     tls_info (None for non-TLS packets):
                         {type: tls_type, ver: tls_version, len: tls_data_length,
-                        records: tls_num_records, data: [b64_encoded_tls_data]}
+                        records: tls_num_records, data: [b64_encoded_tls_data],
+                        data_length = [b64_encoded_tls_data_length]}
                 }]```
         :returns: a list of packets parsed formatted as above.
         """
@@ -149,8 +150,10 @@ class PCAPParser:
                     tls_data["len"] = tls.len
                     tls_data["records"] = len(tls.records) # Number of records.
                     tls_data["data"] = []
+                    tls_data["data_length"] = []
                     for record in tls.records:
                         tls_data["data"].append(b64encode(record.data))
+                        tls_data["data_length"].append(len(record.data))
                 except:
                     tls_data = None
                 packet_info["tls_info"] = tls_data
