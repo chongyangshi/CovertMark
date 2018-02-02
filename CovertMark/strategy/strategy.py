@@ -210,8 +210,9 @@ class DetectionStrategy(ABC):
         print("- Running detection strategy on positive test traces...")
         self._true_positive_rate = self._run_on_positive()
 
-        print("- Validating detection strategy on negative test traces...")
-        self._false_positive_rate = self._run_on_negative()
+        if self._neg_collection is not None:
+            print("- Validating detection strategy on negative test traces...")
+            self._false_positive_rate = self._run_on_negative()
 
         return (self._true_positive_rate, self._false_positive_rate)
 
