@@ -212,6 +212,16 @@ class PCAPParser:
             return False
 
 
+    def clean_up(self, collection):
+        """
+        Drop the collection and its index to clean up space, if the stored traces
+        are temporary only.
+        :param collection: the name of the collection to be cleaned up.
+        """
+
+        self.__db.delete_collection(self, collection)
+
+
     @staticmethod
     def log_invalid(error_content):
         """

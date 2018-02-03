@@ -30,6 +30,9 @@ class MongoDBManager:
         :returns: Boolean True if collection name exists, False otherwise.
         """
 
+        if not collection_name:
+            return False
+
         if not collection_name.isalnum():
             return False
 
