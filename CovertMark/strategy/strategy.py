@@ -44,6 +44,8 @@ class DetectionStrategy(ABC):
         self._strategic_states = {}
         self._true_positive_rate = None
         self._false_positive_rate = None
+        self._false_positive_blocked_rate = 0
+        self._negative_unique_ips = 0
         self._negative_blocked_ips = set([])
 
 
@@ -152,7 +154,11 @@ class DetectionStrategy(ABC):
         if not self._traces_loaded:
             self._load_into_memory()
 
+        # Record distinct destination IP addresses for stat reporting.
+        self._negative_unique_ips = self.__reader.distinct('dst')
+
         self._false_positive_rate = self.negative_run()
+        self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
 
 
     def _split_pt(self, split_ratio=0.7):
@@ -282,11 +288,23 @@ class DetectionStrategy(ABC):
         Assign to self._strategic_states if information needs to be stored
         between runs or carried over into positive test runs.
         Add to self._negative_blocked_ips to tally blocked IPs for reporting.
-        Implement this method.
+        Implement this method, simply return 0 if no negative trace required.
         :returns: False positive identification rate as your strategy interprets.
         """
 
         return 0
+
+
+    def report_blocked_ips(self):
+        """
+        Return a Wireshark-compatible filter expression to allow viewing blocked
+        traces in Wireshark. Useful for studying false positives. Overwrite
+        this method if needed, draw data from self._negative_blocked_ips as set
+        above.
+        :returns: a Wireshark-compatible filter expression string.
+        """
+
+        return ""
 
 
 if __name__ == "__main__":

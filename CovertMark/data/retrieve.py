@@ -60,13 +60,22 @@ class Retriever:
         :param trace_filter: dictionary containing a MongoDB query filter, can
             be empty, in which case all traces counted.
         :returns: the number of traces matching the filter in the currently
-            selected collection. False if invalid filter or no collection
-            selected.
+            selected collection.
         """
 
         return self.__db.count_traces(self._collection, trace_filter)
 
 
+    def distinct(self, column):
+        """
+        Count the number of distinct fields in the currently selected MongoDB
+        collection's specified column.
+        :param field: name of the column for counting distinct addresses.
+        :returns: the number of traces matching the filter in the currently
+            selected collection.
+        """
+
+        return self.__db.distinct_traces(self._collection, column)
 
 
     def retrieve(self, trace_filter={}, limit=0):
