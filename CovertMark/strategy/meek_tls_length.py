@@ -92,6 +92,11 @@ class MeekLengthStrategy(DetectionStrategy):
             wireshark_output += "ip.dst_host == \"" + ip + "\" "
             if i < len(self._negative_blocked_ips) - 1:
                 wireshark_output += "|| "
+        wireshark_output += ") && ("
+        for i, l in enumerate(list(self._strategic_states['top_cluster'])):
+            wireshark_output += "tcp.len == " + str(l)
+            if i < len(self._strategic_states['top_cluster']) - 1:
+                wireshark_output += " || "
         wireshark_output += ")"
 
         return wireshark_output
