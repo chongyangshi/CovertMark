@@ -98,7 +98,7 @@ class Obfs4Strategy(DetectionStrategy):
         blocked_ips = {i: set([]) for i in criteria}
         reporting = 'majority'
 
-        for t in self._pt_traces:
+        for t in self._neg_traces:
             payload = t['tcp_info']['payload']
 
             if len(payload) > self.OBFS4_MIN_LENGTH:
@@ -147,11 +147,22 @@ class Obfs4Strategy(DetectionStrategy):
 
 if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+    # Shorter example.
     obfs4_path = os.path.join(parent_path, 'examples', 'obfs4.pcap')
     unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
     detector = Obfs4Strategy(obfs4_path, unobfuscated_path)
     detector.run(pt_ip_filters=[('172.28.192.204', data.constants.IP_SRC),
         ('37.218.245.14', data.constants.IP_DST)],
         negative_ip_filters=[('172.28.192.204', data.constants.IP_SRC)])
+
+    # Longer local example.
+    # obfs4_path = os.path.join(parent_path, 'examples', 'local', 'obfs4long.pcap')
+    # unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscatedlong.pcap')
+    # detector = Obfs4Strategy(obfs4_path, unobfuscated_path)
+    # detector.run(pt_ip_filters=[('10.248.100.93', data.constants.IP_SRC),
+    #     ('37.218.245.14', data.constants.IP_DST)],
+    #     negative_ip_filters=[('172.28.195.198', data.constants.IP_SRC)])
+
     detector.clean_up_mongo()
     print(detector.report_blocked_ips())

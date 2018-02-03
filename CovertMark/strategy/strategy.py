@@ -113,6 +113,7 @@ class DetectionStrategy(ABC):
         self.__reader = data.retrieve.Retriever()
 
         self.__reader.select(self._pt_collection)
+        self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
         self._pt_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
         self._pt_collection_total = self.__reader.count(trace_filter={})
 
@@ -125,6 +126,7 @@ class DetectionStrategy(ABC):
             return True
 
         self.__reader.select(self._neg_collection)
+        self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
         self._neg_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
         self._neg_collection_total = self.__reader.count(trace_filter={})
 
@@ -169,6 +171,7 @@ class DetectionStrategy(ABC):
         self._false_positive_rate = self.negative_run()
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
         return self._false_positive_rate
+
 
     def _split_pt(self, split_ratio=0.7):
         """
@@ -272,6 +275,7 @@ class DetectionStrategy(ABC):
             self.debug_print("- Validating detection strategy on negative test traces...")
             self._false_positive_rate = self._run_on_negative()
             self.debug_print("Reported false positive rate: {}".format(self._false_positive_rate))
+            self.debug_print("False positive IPs blocked rate: {}".format(self._false_positive_blocked_rate))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
