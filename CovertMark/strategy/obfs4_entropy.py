@@ -129,9 +129,7 @@ class Obfs4Strategy(DetectionStrategy):
     def report_blocked_ips(self):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
-        traces in Wireshark. Useful for studying false positives. Overwrite
-        this method if needed, draw data from self._negative_blocked_ips as set
-        above.
+        traces in Wireshark. Useful for studying false positives. 
         :returns: a Wireshark-compatible filter expression string.
         """
 
