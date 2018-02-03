@@ -219,7 +219,7 @@ class PCAPParser:
         :param collection: the name of the collection to be cleaned up.
         """
 
-        self.__db.delete_collection(self, collection)
+        self.__db.delete_collection(collection)
 
 
     @staticmethod
