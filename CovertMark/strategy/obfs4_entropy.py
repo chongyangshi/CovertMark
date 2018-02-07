@@ -11,6 +11,9 @@ class Obfs4Strategy(DetectionStrategy):
     traces.
     """
 
+    # TODO: exclude SSH (hard) and HTTP traffic as obfs4 traffic do not have
+    # signatures.
+
     NAME = "Obfs4 Detection Strategy"
     DESCRIPTION = "Detecting Obfs4 based on payload byte-uniformity and entropy-distribution."
     _MONGO_KEY = "Obfs4" # Alphanumeric key for MongoDB.
@@ -129,7 +132,7 @@ class Obfs4Strategy(DetectionStrategy):
     def report_blocked_ips(self):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
-        traces in Wireshark. Useful for studying false positives. 
+        traces in Wireshark. Useful for studying false positives.
         :returns: a Wireshark-compatible filter expression string.
         """
 
@@ -147,20 +150,22 @@ if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     # Shorter example.
-    obfs4_path = os.path.join(parent_path, 'examples', 'obfs4.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
-    detector = Obfs4Strategy(obfs4_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[('172.28.192.204', data.constants.IP_SRC),
-        ('37.218.245.14', data.constants.IP_DST)],
-        negative_ip_filters=[('172.28.192.204', data.constants.IP_SRC)])
+    # obfs4_path = os.path.join(parent_path, 'examples', 'obfs4.pcap')
+    # unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
+    # detector = Obfs4Strategy(obfs4_path, unobfuscated_path)
+    # detector.run(pt_ip_filters=[('172.28.192.204', data.constants.IP_SRC),
+    #     ('37.218.245.14', data.constants.IP_DST)],
+    #     negative_ip_filters=[('172.28.192.204', data.constants.IP_SRC)])
 
     # Longer local example.
-    # obfs4_path = os.path.join(parent_path, 'examples', 'local', 'obfs4long.pcap')
-    # unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscatedlong.pcap')
-    # detector = Obfs4Strategy(obfs4_path, unobfuscated_path)
-    # detector.run(pt_ip_filters=[('10.248.100.93', data.constants.IP_SRC),
-    #     ('37.218.245.14', data.constants.IP_DST)],
-    #     negative_ip_filters=[('172.28.195.198', data.constants.IP_SRC)])
+    obfs4_path = os.path.join(parent_path, 'examples', 'local', 'obfs4long.pcap')
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscatedlongext.pcap')
+    detector = Obfs4Strategy(obfs4_path, unobfuscated_path)
+    detector.run(pt_ip_filters=[('10.248.100.93', data.constants.IP_SRC),
+        ('37.218.245.14', data.constants.IP_DST)],
+        negative_ip_filters=[('172.28.195.198', data.constants.IP_SRC),
+        ('172.28.194.2', data.constants.IP_SRC),
+        ('172.28.193.192', data.constants.IP_SRC)])
 
     detector.clean_up_mongo()
     print(detector.report_blocked_ips())
