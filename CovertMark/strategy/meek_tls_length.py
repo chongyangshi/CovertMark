@@ -114,14 +114,22 @@ if __name__ == "__main__":
     #     negative_ip_filters=[('172.28.192.204', data.constants.IP_SRC)])
 
     # Longer local example.
+    # meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
+    # unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscatedlongext.pcap')
+    # detector = MeekLengthStrategy(meek_path, unobfuscated_path)
+    # detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_SRC),
+    #     ('13.32.68.163', data.constants.IP_DST)],
+    #     negative_ip_filters=[('172.28.195.198', data.constants.IP_SRC),
+    #     ('172.28.194.2', data.constants.IP_SRC),
+    #     ('172.28.193.192', data.constants.IP_SRC)])
+
+    # Longer ACS example.
     meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscatedlongext.pcap')
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscated_acstest.pcap')
     detector = MeekLengthStrategy(meek_path, unobfuscated_path)
     detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_SRC),
         ('13.32.68.163', data.constants.IP_DST)],
-        negative_ip_filters=[('172.28.195.198', data.constants.IP_SRC),
-        ('172.28.194.2', data.constants.IP_SRC),
-        ('172.28.193.192', data.constants.IP_SRC)])
+        negative_ip_filters=[('128.232.17.20', data.constants.IP_SRC)])
 
     detector.clean_up_mongo()
     print(detector.report_blocked_ips())
