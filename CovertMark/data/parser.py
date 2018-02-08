@@ -167,6 +167,17 @@ class PCAPParser:
                     tls_data = None
                 packet_info["tls_info"] = tls_data
 
+                # check and record useful features of HTTP Requests, if exist.
+                try:
+                    http_request = dpkt.http.Request(ip.data.data)
+                    http_data = {}
+                    http_data['headers'] = http_request.headers
+                    http_data['uri'] = http_request.uri
+                    http_data['version'] = http_request.version
+                except:
+                    http_data = None
+                packet_info["http_info"] = http_data
+
                 packet_list.append(packet_info)
 
         return packet_list
