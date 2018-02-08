@@ -222,11 +222,11 @@ class DetectionStrategy(ABC):
         else:
             raise RuntimeError("! Failure to parse PCAP files.")
 
-        self.debug_print("- Setting strategic filter...")
+        self.debug_print("- Setting initial strategic filter...")
         self.set_strategic_filter()
         self.debug_print("Pre-examination filter: {}".format(self._strategic_packet_filter))
 
-        self.debug_print("- Loading packets according to the strategic filter...")
+        self.debug_print("- Loading packets according to the initial strategic filter...")
         self._load_into_memory()
         self.debug_print("Positive: {} traces, examining {}.".format(self._pt_collection_total, len(self._pt_traces)))
         self.debug_print("Negative: {} traces, examining {}.".format(self._neg_collection_total, len(self._neg_traces)))
@@ -281,7 +281,7 @@ class DetectionStrategy(ABC):
 
 
     @abstractmethod
-    def set_strategic_filter(self):
+    def set_strategic_filter(self, new_filter={}):
         """
         While packets not related to the PT in the positive case should have
         been removed from positive traces when parsing the pcap file
@@ -290,14 +290,18 @@ class DetectionStrategy(ABC):
         specified here in the strategic filter. The syntax follows MongoDB
         queries on the trace syntax:
         (see CovertMark.data.parser.PCAPParser.load_packet_info.)
-        Implement this method by assigning to self._strategic_packet_filter
-        :param strategic_filter: MongoDB trace querying filter, examples:
+        Implement this method by assigning to self._strategic_packet_filter,
+        optionally you can call this method again between positve and negative
+        runs to adjust the filter as necessary with a new filter.
+        self._load_into_memory() should be called again after each change of
+        filter to reload the postive and negative traces with the new filter.
+        :param new_filter: MongoDB trace querying filter, examples:
          - Only examine TCP packets: {"tcp_info": {"$ne": None}}
          - Only examine TCP packets with non-empty payload:
             {"tcp_info": {"$ne": None}, "tcp_info.payload": {"$ne": b''}}
         """
 
-        self._strategic_packet_filter = {}
+        self._strategic_packet_filter = new_filter
 
 
     def test_validation_split(self, split_ratio):
