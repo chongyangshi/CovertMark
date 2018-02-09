@@ -11,8 +11,6 @@ class Obfs4Strategy(DetectionStrategy):
     traces.
     """
 
-    # TODO: exclude SSH (hard) and HTTP traffic as obfs4 traffic do not have
-    # signatures.
 
     NAME = "Obfs4 Detection Strategy"
     DESCRIPTION = "Detecting Obfs4 based on payload byte-uniformity and entropy-distribution."
@@ -38,7 +36,8 @@ class Obfs4Strategy(DetectionStrategy):
         # also trivial to circumvent with obfs4 injecting pseudo TLS records.
 
         self._strategic_packet_filter = {"tcp_info": {"$ne": None},
-         "tcp_info.payload": {"$ne": b''}, "tls_info": {"$eq": None}}
+         "tcp_info.payload": {"$ne": b''}, "tls_info": {"$eq": None},
+         "http_info": {"$eq": None}}
 
 
     def test_validation_split(self, split_ratio):
