@@ -137,7 +137,7 @@ class DetectionStrategy(ABC):
         return True
 
 
-    def _run_on_positive(self):
+    def _run_on_positive(self, **kwargs):
         """
         Wrapper for self.positive_run, testing the detection strategy on positive
         PT traces.
@@ -149,11 +149,11 @@ class DetectionStrategy(ABC):
         if not self._traces_loaded:
             self._load_into_memory()
 
-        self._true_positive_rate = self.positive_run()
+        self._true_positive_rate = self.positive_run(**kwargs)
         return self._true_positive_rate
 
 
-    def _run_on_negative(self):
+    def _run_on_negative(self, **kwargs):
         """
         Wrapper for self.negative_run, testing the detection strategy on positive
         PT traces.
@@ -168,7 +168,7 @@ class DetectionStrategy(ABC):
         # Record distinct destination IP addresses for stat reporting.
         self._negative_unique_ips = self.__reader.distinct('dst')
 
-        self._false_positive_rate = self.negative_run()
+        self._false_positive_rate = self.negative_run(**kwargs)
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
         return self._false_positive_rate
 
@@ -317,7 +317,7 @@ class DetectionStrategy(ABC):
 
 
     @abstractmethod
-    def positive_run(self):
+    def positive_run(self, **kwargs):
         """
         Perform PT detection strategy on positive test traces.
         Available data:
@@ -338,7 +338,7 @@ class DetectionStrategy(ABC):
 
 
     @abstractmethod
-    def negative_run(self):
+    def negative_run(self, **kwargs):
         """
         Perform PT detection strategy on negative test traces to test for False
             Positive rate.
