@@ -197,7 +197,7 @@ class Obfs4Strategy(DetectionStrategy):
 
                 self.debug_print("- Testing p={}, {} byte block on negative traces...".format(p, b))
                 fp = self._run_on_negative(block_size=b, p_threshold=p)
-                self.debug_print("p={}, {} byte block gives true negative rate {}.".format(p, b, fp))
+                self.debug_print("p={}, {} byte block gives false positive rate {}.".format(p, b, fp))
 
         # Find the best true positive and false positive performance.
         tps = self._strategic_states['accuracy_true']
@@ -209,11 +209,11 @@ class Obfs4Strategy(DetectionStrategy):
 
         # Score the configurations based on their difference from the best one.
         # As it is guaranteed for the difference to be between 0 and 1,
-        # 1 - loge(diff*100) is used to create a descending score exponentially
-        # rewarding low difference values.
+        # log1p(100) - loge(diff*100) is used to create a descending score
+        # exponentially rewarding low difference values.
         configs = list(tps.keys())
-        true_positives_scores = [(1 - log1p(abs(tps[best_true_positive] - tps[i])*100)) for i in configs]
-        false_positives_scores = [(1 - log1p(abs(tps[best_false_positive] - fps[i])*100)) for i in configs]
+        true_positives_scores = [(log1p(100) - log1p(abs(tps[best_true_positive] - tps[i])*100)) for i in configs]
+        false_positives_scores = [(log1p(100) - log1p(abs(tps[best_false_positive] - fps[i])*100)) for i in configs]
         average_scores = [(true_positives_scores[i] * (1-self.FALSE_POSITIVE_SCORE_WEIGHT) + false_positives_scores[i] * self.FALSE_POSITIVE_SCORE_WEIGHT) for i in range(len(true_positives_scores))]
         best_config = configs[average_scores.index(max(average_scores))]
 
