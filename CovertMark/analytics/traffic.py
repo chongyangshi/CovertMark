@@ -89,3 +89,67 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
         clusters.append(set(lengths[members, 0]))
 
     return clusters
+
+
+def window_traces_fixed_size(traces, window_size):
+    """
+    Segment traces into fixed-trace-size windows, discarding any remainder.
+    :param traces: a list of parsed packets.
+    :param window_size: a positive integer defining the fixed frame-count of
+        each windowed segment, in chronological order.
+    :returns: a 2-D list containing windowed traces.
+    """
+
+    if not isinstance(window_size, int) or window_size < 1:
+        raise ValueError("Invalid window size.")
+
+    if len(traces) < window_size:
+        return [] # Empty list if insufficient size of input.
+
+    segments = [traces[i:i+window_size] for i in range(0, len(traces), window_size)]
+
+    if len(segments[-1]) != window_size:
+        segments = segments[:-1]
+
+    return segments
+
+
+def window_traces_time_series(traces, chronological_window, sort=True):
+    """
+    Segment traces into fixed chronologically-sized windows.
+    :param traces: a list of parsed packets.
+    :param window_size: a positive integer defining the number of **microseconds**
+        covered by each windowed segment, in chronological order.
+    :param sort: if True, traces will be sorted again into chronological order,
+        useful if packet times not guaranteed to be chronologically ascending.
+        True by default.
+    :returns: a 2-D list containing windowed traces.
+    """
+
+    # In Python, even though 'time' is stored as timestap strings by MongoDB,
+    # they can be compared as if in float, e.g.:
+    # >>> '1518028414.084873' > '1518028414.084874'
+    # False
+    # Therefore, no explicit conversion is required for sorted(), min() and max().
+
+    # Sorted by time if required.
+    if sort:
+        traces = sorted(traces, key=itemgetter('time'))
+
+    # Convert to microseconds.
+    min_time = float(min(traces, key=itemgetter('time'))['time']) * 1000000
+    max_time = float(max(traces, key=itemgetter('time'))['time']) * 1000000
+    if (max_time - min_time) < chronological_window:
+        return [] # Empty list if trace duration too small.
+
+    ts = [(t, t+chronological_window) for t in range(min_time, max_time, chronological_window)]
+    segments = [[] for i in ts]
+    c_segment = 0
+
+    for trace in traces:
+        trace_t = trace['time']
+        while (not ts[c_segment][0] < trace_t < ts[c_segment][1]) and (trace_t <= max_time):
+            c_segment += 1
+        segments[c_segment].append(trace)
+
+    return segments
