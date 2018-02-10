@@ -136,19 +136,23 @@ def window_traces_time_series(traces, chronological_window, sort=True):
     if sort:
         traces = sorted(traces, key=itemgetter('time'))
 
-    # Convert to microseconds.
-    min_time = float(min(traces, key=itemgetter('time'))['time']) * 1000000
-    max_time = float(max(traces, key=itemgetter('time'))['time']) * 1000000
+    # Convert to microseconds then integer timestamps, and move to zero
+    # for performance.
+    min_time = int(float(min(traces, key=itemgetter('time'))['time']) * 1000000)
+    max_time = int(float(max(traces, key=itemgetter('time'))['time']) * 1000000)
+    start_time = 0
+    end_time = max_time - min_time
     if (max_time - min_time) < chronological_window:
         return [] # Empty list if trace duration too small.
 
-    ts = [(t, t+chronological_window) for t in range(min_time, max_time, chronological_window)]
+    ts = [(t, t+chronological_window) for t in range(start_time, end_time, chronological_window)]
     segments = [[] for i in ts]
     c_segment = 0
+    c_segment_max = len(ts) - 1
 
     for trace in traces:
-        trace_t = trace['time']
-        while (not ts[c_segment][0] < trace_t < ts[c_segment][1]) and (trace_t <= max_time):
+        trace_t = float(trace['time']) * 1000000 - min_time # Same movement as done above.
+        while (not ts[c_segment][0] <= trace_t < ts[c_segment][1]) and (c_segment < c_segment_max):
             c_segment += 1
         segments[c_segment].append(trace)
 
