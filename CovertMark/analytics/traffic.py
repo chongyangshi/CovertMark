@@ -1,4 +1,5 @@
 from analytics import constants, entropy
+import data.utils
 
 import numpy as np
 from scipy import stats
@@ -91,17 +92,22 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
     return clusters
 
 
-def window_traces_fixed_size(traces, window_size):
+def window_traces_fixed_size(traces, window_size, source_ip=None):
     """
     Segment traces into fixed-trace-size windows, discarding any remainder.
     :param traces: a list of parsed packets.
     :param window_size: a positive integer defining the fixed frame-count of
         each windowed segment, in chronological order.
+    :param source_ip: if not None, ignore packets with source not matching the
+        source_ip.
     :returns: a 2-D list containing windowed traces.
     """
 
     if not isinstance(window_size, int) or window_size < 1:
         raise ValueError("Invalid window size.")
+
+    if source_ip is not None:
+        trades = list(filter(lambda x: x['src'] == source_ip, traces))
 
     if len(traces) < window_size:
         return [] # Empty list if insufficient size of input.
@@ -114,7 +120,7 @@ def window_traces_fixed_size(traces, window_size):
     return segments
 
 
-def window_traces_time_series(traces, chronological_window, sort=True):
+def window_traces_time_series(traces, chronological_window, sort=True, source_ip=None):
     """
     Segment traces into fixed chronologically-sized windows.
     :param traces: a list of parsed packets.
@@ -123,8 +129,13 @@ def window_traces_time_series(traces, chronological_window, sort=True):
     :param sort: if True, traces will be sorted again into chronological order,
         useful if packet times not guaranteed to be chronologically ascending.
         True by default.
+    :param source_ip: if not None, ignore packets with source not matching the
+        source_ip.
     :returns: a 2-D list containing windowed traces.
     """
+
+    if source_ip is not None:
+        trades = list(filter(lambda x: x['src'] == source_ip, traces))
 
     # In Python, even though 'time' is stored as timestap strings by MongoDB,
     # they can be compared as if in float, e.g.:
