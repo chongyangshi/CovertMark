@@ -107,7 +107,7 @@ def window_traces_fixed_size(traces, window_size, source_ip=None):
         raise ValueError("Invalid window size.")
 
     if source_ip is not None:
-        trades = list(filter(lambda x: x['src'] == source_ip, traces))
+        traces = list(filter(lambda x: x['src'] == source_ip, traces))
 
     if len(traces) < window_size:
         return [] # Empty list if insufficient size of input.
@@ -135,7 +135,7 @@ def window_traces_time_series(traces, chronological_window, sort=True, source_ip
     """
 
     if source_ip is not None:
-        trades = list(filter(lambda x: x['src'] == source_ip, traces))
+        traces = list(filter(lambda x: x['src'] == source_ip, traces))
 
     # In Python, even though 'time' is stored as timestap strings by MongoDB,
     # they can be compared as if in float, e.g.:
@@ -168,3 +168,49 @@ def window_traces_time_series(traces, chronological_window, sort=True, source_ip
         segments[c_segment].append(trace)
 
     return segments
+
+
+def get_window_stats(windowed_traces, source_ip, destination_ip):
+    """
+    Calculate the following features for the windowed traces:
+        {
+            'mean_entropy_up': mean entropy of upstream TCP payloads;
+            'stdv_entropy_up': standard deviation of upstream TCP payload
+                entropies;
+            'mean_interval_up': upstream mean TCP ACK intervals;
+            'stdv_interval_up': upstream standard deviation of TCP ACK intervals;
+            'mode_interval_up': the mode of interval between TCP frames, with
+                intervals between 0, 1000, 10000, 100000, 1000000 microseconds,
+                with value represented as the upper range of each interval. Only
+                the first of all frames bearing the unique sequence number is
+                 counted;
+            'top1_tcp_len_up': the most common upstream TCP payload length;
+            'top2_tcp_len_up': the second most common upstream TCP payload length;
+            'mean_tcp_len_up': mean upstream TCP payload length, over number of
+                unique SEQs;
+            'stdv_tcp_len_up': standard deviation of upstream TCP payload length.
+            'push_ratio_up': ratio of TCP ACKs with PSH flags set, indicating
+                reuse of TCP handshake for additional data;
+            (All attributes above, except for downstream and named '..._down');
+            'up_down_ratio': ratio of upstream to downstream packets.
+        }
+        :param windowed_traces: a segment of TCP traces.
+        :param source_ip: the IP address defined as source (suspected PT client).
+        :param destination_ip: the IP address defined as destination (suspected
+            PT server).
+        :returns: a dictionary containing the stats as described above.
+    """
+
+    seqs_seen_up = set([])
+    entropies_up = []
+    intervals_up = {i: 0 for i in [1000, 10000, 100000, 1000000]}
+    payload_lengths_up = {}
+    psh_up = 0
+    ack_up = 0
+
+    seqs_seen_down = set([])
+    entropies_down = []
+    intervals_down = {i: 0 for i in [1000, 10000, 100000, 1000000]}
+    payload_lengths_down = {}
+    psh_down = 0
+    ack_down = 0
