@@ -105,14 +105,28 @@ class LRStrategy(DetectionStrategy):
             if ip[1] == data.constants.IP_EITHER:
                 client_ip = ip[0]
                 break
-        self.debug_print("The suspected PT client is assumed as {}.".format(client_ip))
-        features = []
+        self.debug_print("The suspected PT client in positive cases is assumed as {}.".format(client_ip))
         for window in positive_windows:
-            features.append([i[1] for i in sorted(analytics.traffic.get_window_stats(window, client_ip).items(), key=itemgetter(0))])
-        features = np.asarray(features, dtype=np.float64)
-        print(features)
-        negative_features = []
+            feature_dict = analytics.traffic.get_window_stats(window, client_ip)
+            if any([i[1] is None for i in feature_dict]):
+                continue
+            positive_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+        positive_features = np.asarray(positive_features, dtype=np.float64)
 
+        negative_features = []
+        for ip in negative_ip_filters:
+            if ip[1] == data.constants.IP_EITHER:
+                client_ip = ip[0]
+                break
+        self.debug_print("The suspected PT client in negative cases is assumed as {}.".format(client_ip))
+        for window in negative_windows:
+            feature_dict = analytics.traffic.get_window_stats(window, client_ip)
+            if any([i[1] is None for i in feature_dict]):
+                continue
+            negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+        negative_features = np.asarray(negative_features, dtype=np.float64)
+
+        print(positive_features.shape, negative_features.shape)
 
 
         return (self._true_positive_rate, self._false_positive_rate)

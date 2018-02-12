@@ -275,7 +275,10 @@ def get_window_stats(windowed_traces, client_ip):
         stats['top2_tcp_len_up'] = up_counts_sorted[1][0] if len(up_counts_sorted) > 1 else None
         stats['mean_tcp_len_up'] = np.mean(payload_lengths_up)
         stats['stdv_tcp_len_up'] = np.std(payload_lengths_up)
-        stats['push_ratio_up'] = float(psh_up) / ack_up
+        if ack_up > 0:
+            stats['push_ratio_up'] = float(psh_up) / ack_up
+        else:
+            stats['push_ratio_up'] = None
 
     else: # Default to None if insufficient frames to check.
         stats['mean_entropy_up'] = None
@@ -339,7 +342,10 @@ def get_window_stats(windowed_traces, client_ip):
         stats['top2_tcp_len_down'] = down_counts_sorted[1][0] if len(down_counts_sorted) > 1 else None
         stats['mean_tcp_len_down'] = np.mean(payload_lengths_down)
         stats['stdv_tcp_len_down'] = np.std(payload_lengths_down)
-        stats['push_ratio_down'] = float(psh_down) / ack_down
+        if ack_down > 0:
+            stats['push_ratio_down'] = float(psh_down) / ack_down
+        else:
+            stats['push_ratio_down'] = None
 
     else:
         # Default to None if insufficient frames to check.
