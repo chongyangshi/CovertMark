@@ -221,110 +221,137 @@ def get_window_stats(windowed_traces, client_ip):
     ack_down = 0
     traces_down = list(filter(lambda x: x['dst'] == client_ip, windowed_traces))
 
-    if len(traces_up) < 1 or len(traces_down) < 1:
-        raise ValueError("Input windowed traces do not match client_ip.")
-
-    stats['up_down_ratio'] = float(len(traces_up)) / len(traces_down)
+    if len(traces_up) > 0 and len(traces_down) > 0:
+        stats['up_down_ratio'] = float(len(traces_up)) / len(traces_down)
+    else:
+        stats['up_down_ratio'] = None
 
     # Now tally upstream frames.
-    prev_time = None
-    for trace in traces_up:
+    if len(traces_up) > 1:
+        prev_time = None
+        for trace in traces_up:
 
-        # Ignore non-TCP packets.
-        if trace['tcp_info'] == None:
-            continue
+            # Ignore non-TCP packets.
+            if trace['tcp_info'] == None:
+                continue
 
-        # Entropy tally.
-        trace_tcp = trace['tcp_info']
-        entropies_up.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
+            # Entropy tally.
+            trace_tcp = trace['tcp_info']
+            entropies_up.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
 
-        # Interval information.
-        if trace_tcp['seq'] not in seqs_seen_up:
-            seqs_seen_up.add(trace_tcp['seq'])
+            # Interval information.
+            if trace_tcp['seq'] not in seqs_seen_up:
+                seqs_seen_up.add(trace_tcp['seq'])
 
-            if prev_time is None:
-                prev_time = float(trace['time']) * 1000000
-            else:
-                interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
-                intervals_up.append(interval)
-                # If the interval is above 1 second, ignore its bin membership.
-                for k in interval_ranges:
-                    if interval < k:
-                        intervals_up_bins[k] += 1
-                prev_time = float(trace['time']) * 1000000
+                if prev_time is None:
+                    prev_time = float(trace['time']) * 1000000
+                else:
+                    interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
+                    intervals_up.append(interval)
+                    # If the interval is above 1 second, ignore its bin membership.
+                    for k in interval_ranges:
+                        if interval < k:
+                            intervals_up_bins[k] += 1
+                    prev_time = float(trace['time']) * 1000000
 
-        # Payload length tally.
-        payload_lengths_up.append(len(trace_tcp['payload']))
+            # Payload length tally.
+            payload_lengths_up.append(len(trace_tcp['payload']))
 
-        # ACK/PSH information.
-        if trace_tcp['flags']['ACK'] == True:
-            ack_up += 1
-            if trace_tcp['flags']['PSH'] == True:
-                psh_up += 1
+            # ACK/PSH information.
+            if trace_tcp['flags']['ACK'] == True:
+                ack_up += 1
+                if trace_tcp['flags']['PSH'] == True:
+                    psh_up += 1
 
-    stats['mean_entropy_up'] = np.mean(entropies_up)
-    stats['stdv_entropy_up'] = np.std(entropies_up)
-    stats['mean_interval_up'] = np.mean(intervals_up)
-    stats['stdv_interval_up'] = np.std(intervals_up)
-    stats['mode_interval_up'] = max(intervals_up_bins.items(), key=itemgetter(1))[0]
+        stats['mean_entropy_up'] = np.mean(entropies_up)
+        stats['stdv_entropy_up'] = np.std(entropies_up)
+        stats['mean_interval_up'] = np.mean(intervals_up)
+        stats['stdv_interval_up'] = np.std(intervals_up)
+        stats['mode_interval_up'] = max(intervals_up_bins.items(), key=itemgetter(1))[0]
 
-    up_counts = Counter(payload_lengths_up).items()
-    up_counts_sorted = sorted(up_counts, key=itemgetter(1))
-    stats['top1_tcp_len_up'] = up_counts_sorted[0][0] if len(up_counts_sorted) > 0 else None
-    stats['top2_tcp_len_up'] = up_counts_sorted[1][0] if len(up_counts_sorted) > 1 else None
-    stats['mean_tcp_len_up'] = np.mean(payload_lengths_up)
-    stats['stdv_tcp_len_up'] = np.std(payload_lengths_up)
-    stats['push_ratio_up'] = float(psh_up) / ack_up
+        up_counts = Counter(payload_lengths_up).items()
+        up_counts_sorted = sorted(up_counts, key=itemgetter(1))
+        stats['top1_tcp_len_up'] = up_counts_sorted[0][0] if len(up_counts_sorted) > 0 else None
+        stats['top2_tcp_len_up'] = up_counts_sorted[1][0] if len(up_counts_sorted) > 1 else None
+        stats['mean_tcp_len_up'] = np.mean(payload_lengths_up)
+        stats['stdv_tcp_len_up'] = np.std(payload_lengths_up)
+        stats['push_ratio_up'] = float(psh_up) / ack_up
+
+    else: # Default to None if insufficient frames to check.
+        stats['mean_entropy_up'] = None
+        stats['stdv_entropy_up'] = None
+        stats['mean_interval_up'] = None
+        stats['stdv_interval_up'] = None
+        stats['mode_interval_up'] = None
+        stats['top1_tcp_len_up'] = None
+        stats['top2_tcp_len_up'] = None
+        stats['mean_tcp_len_up'] = None
+        stats['stdv_tcp_len_up'] = None
+        stats['push_ratio_up'] = None
 
     # Now tally downstream frames.
-    prev_time = None
-    for trace in traces_down:
+    if len(traces_down) > 0:
+        prev_time = None
+        for trace in traces_down:
 
-        # Ignore non-TCP packets.
-        if trace['tcp_info'] == None:
-            continue
+            # Ignore non-TCP packets.
+            if trace['tcp_info'] == None:
+                continue
 
-        # Entropy tally.
-        trace_tcp = trace['tcp_info']
-        entropies_down.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
+            # Entropy tally.
+            trace_tcp = trace['tcp_info']
+            entropies_down.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
 
-        # Interval information.
-        if trace_tcp['seq'] not in seqs_seen_down:
-            seqs_seen_down.add(trace_tcp['seq'])
+            # Interval information.
+            if trace_tcp['seq'] not in seqs_seen_down:
+                seqs_seen_down.add(trace_tcp['seq'])
 
-            if prev_time is None:
-                prev_time = float(trace['time']) * 1000000
-            else:
-                interval = abs(float(trace['time']) * 1000000 - prev_time)
-                intervals_down.append(interval)
-                # If the interval is above 1 second, ignore its bin membership.
-                for k in interval_ranges:
-                    if interval < k:
-                        intervals_down_bins[k] += 1
-                prev_time = float(trace['time']) * 1000000
+                if prev_time is None:
+                    prev_time = float(trace['time']) * 1000000
+                else:
+                    interval = abs(float(trace['time']) * 1000000 - prev_time)
+                    intervals_down.append(interval)
+                    # If the interval is above 1 second, ignore its bin membership.
+                    for k in interval_ranges:
+                        if interval < k:
+                            intervals_down_bins[k] += 1
+                    prev_time = float(trace['time']) * 1000000
 
 
-        # Payload length tally.
-        payload_lengths_down.append(len(trace_tcp['payload']))
+            # Payload length tally.
+            payload_lengths_down.append(len(trace_tcp['payload']))
 
-        # ACK/PSH information.
-        if trace_tcp['flags']['ACK'] == True:
-            ack_down += 1
-            if trace_tcp['flags']['PSH'] == True:
-                psh_down += 1
+            # ACK/PSH information.
+            if trace_tcp['flags']['ACK'] == True:
+                ack_down += 1
+                if trace_tcp['flags']['PSH'] == True:
+                    psh_down += 1
 
-    stats['mean_entropy_down'] = np.mean(entropies_down)
-    stats['stdv_entropy_down'] = np.std(entropies_down)
-    stats['mean_interval_down'] = np.mean(intervals_down)
-    stats['stdv_interval_down'] = np.std(intervals_down)
-    stats['mode_interval_down'] = max(intervals_down_bins.items(), key=itemgetter(1))[0]
+        stats['mean_entropy_down'] = np.mean(entropies_down)
+        stats['stdv_entropy_down'] = np.std(entropies_down)
+        stats['mean_interval_down'] = np.mean(intervals_down)
+        stats['stdv_interval_down'] = np.std(intervals_down)
+        stats['mode_interval_down'] = max(intervals_down_bins.items(), key=itemgetter(1))[0]
 
-    down_counts = Counter(payload_lengths_down).items()
-    down_counts_sorted = sorted(down_counts, key=itemgetter(1))
-    stats['top1_tcp_len_down'] = down_counts_sorted[0][0] if len(down_counts_sorted) > 0 else None
-    stats['top2_tcp_len_down'] = down_counts_sorted[1][0] if len(down_counts_sorted) > 1 else None
-    stats['mean_tcp_len_down'] = np.mean(payload_lengths_down)
-    stats['stdv_tcp_len_down'] = np.std(payload_lengths_down)
-    stats['push_ratio_down'] = float(psh_down) / ack_down
+        down_counts = Counter(payload_lengths_down).items()
+        down_counts_sorted = sorted(down_counts, key=itemgetter(1))
+        stats['top1_tcp_len_down'] = down_counts_sorted[0][0] if len(down_counts_sorted) > 0 else None
+        stats['top2_tcp_len_down'] = down_counts_sorted[1][0] if len(down_counts_sorted) > 1 else None
+        stats['mean_tcp_len_down'] = np.mean(payload_lengths_down)
+        stats['stdv_tcp_len_down'] = np.std(payload_lengths_down)
+        stats['push_ratio_down'] = float(psh_down) / ack_down
+
+    else:
+        # Default to None if insufficient frames to check.
+        stats['mean_entropy_down'] = None
+        stats['stdv_entropy_down'] = None
+        stats['mean_interval_down'] = None
+        stats['stdv_interval_down'] = None
+        stats['mode_interval_down'] = None
+        stats['top1_tcp_len_down'] = None
+        stats['top2_tcp_len_down'] = None
+        stats['mean_tcp_len_down'] = None
+        stats['stdv_tcp_len_down'] = None
+        stats['push_ratio_down'] = None
 
     return stats

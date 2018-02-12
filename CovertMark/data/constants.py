@@ -5,3 +5,4 @@ TLS_VERSION = {769: "1.0", 770: "1.1", 771: "1.2", 772: "1.3"}
 MONGODB_SERVER = "mongodb://localhost:27017/"
 IP_SRC = 0
 IP_DST = 1
+IP_EITHER = 2

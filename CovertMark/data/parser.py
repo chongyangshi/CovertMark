@@ -36,11 +36,12 @@ class PCAPParser:
         :param subjects: a list of acceptable IPv4/IPv6 addresses or subnets in
             string format, and their direction. Format: [(NET, POSITION)], where
             NET represents the IPv4/IPv6 address or subnet to track, and POSITION
-            represents whether this is supposed to be IP_SRC or IP_DST.
+            represents whether this is supposed to be IP_SRC, IP_DST, or IP_EITHER.
             Precedence: for each packet, if there is either no IP_SRC or no IP_DST
             specified, then it will be seen as matched; otherwise, as long as its
             src or dst matches one of the IP_SRC/IP_DST filters, it will be
-            seen as matched.
+            seen as matched. In the case of IP_EITHER, the filter will match
+            both source and destination occurances of that IP.
         :returns: the number of successfully added filters (filter with
             overlapping subnets represented and processed separately).
         """
@@ -59,7 +60,11 @@ class PCAPParser:
             if subnet:
                 if subject[1] == constants.IP_SRC:
                     self.__filter_src_rules.append(subnet)
-                else:
+                elif subject[1] == constants.IP_DST:
+                    self.__filter_dst_rules.append(subnet)
+                elif subject[1] == constants.IP_EITHER:
+                    # Either source or desitination.
+                    self.__filter_src_rules.append(subnet)
                     self.__filter_dst_rules.append(subnet)
                 self.__filter.append((subnet, subject[1]))
 
