@@ -171,7 +171,7 @@ def window_traces_time_series(traces, chronological_window, sort=True, source_ip
     return segments
 
 
-def get_window_stats(windowed_traces, source_ip, destination_ip):
+def get_window_stats(windowed_traces, client_ip):
     """
     Calculate the following features for the windowed traces:
         {
@@ -196,9 +196,7 @@ def get_window_stats(windowed_traces, source_ip, destination_ip):
         }
         :param windowed_traces: a segment of TCP traces, ASSUMED TO BE SORTED BY
             TIME in ascending order.
-        :param source_ip: the IP address defined as source (suspected PT client).
-        :param destination_ip: the IP address defined as destination (suspected
-            PT server).
+        :param client_ip: the IP address of the suspected PT client.
         :returns: a dictionary containing the stats as described above.
     """
 
@@ -209,22 +207,22 @@ def get_window_stats(windowed_traces, source_ip, destination_ip):
     entropies_up = []
     intervals_up = []
     intervals_up_bins = {i: 0 for i in interval_ranges}
-    payload_lengths_up = {}
+    payload_lengths_up = []
     psh_up = 0
     ack_up = 0
-    traces_up = list(filter(lambda x: x['src'] == source_ip and x['dst'] == destination_ip, traces))
+    traces_up = list(filter(lambda x: x['src'] == client_ip, windowed_traces))
 
     seqs_seen_down = set([])
     entropies_down = []
     intervals_down = []
     intervals_down_bins = {i: 0 for i in interval_ranges}
-    payload_lengths_down = {}
+    payload_lengths_down = []
     psh_down = 0
     ack_down = 0
-    traces_down = list(filter(lambda x: x['src'] == destination_ip and x['dst'] == source_ip, traces))
+    traces_down = list(filter(lambda x: x['dst'] == client_ip, windowed_traces))
 
     if len(traces_up) < 1 or len(traces_down) < 1:
-        raise ValueError("Input windowed traces do not match source_ip and destination_ip.")
+        raise ValueError("Input windowed traces do not match client_ip.")
 
     stats['up_down_ratio'] = float(len(traces_up)) / len(traces_down)
 
@@ -247,11 +245,11 @@ def get_window_stats(windowed_traces, source_ip, destination_ip):
             if prev_time is None:
                 prev_time = float(trace['time']) * 1000000
             else:
-                interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though errornous.
+                interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
                 intervals_up.append(interval)
                 # If the interval is above 1 second, ignore its bin membership.
                 for k in interval_ranges:
-                    if interval < interval_ranges[k]:
+                    if interval < k:
                         intervals_up_bins[k] += 1
                 prev_time = float(trace['time']) * 1000000
 
@@ -268,7 +266,7 @@ def get_window_stats(windowed_traces, source_ip, destination_ip):
     stats['stdv_entropy_up'] = np.std(entropies_up)
     stats['mean_interval_up'] = np.mean(intervals_up)
     stats['stdv_interval_up'] = np.std(intervals_up)
-    stats['mode_interval_up'] = max(intervals_up_bins.values())
+    stats['mode_interval_up'] = max(intervals_up_bins.items(), key=itemgetter(1))[0]
 
     up_counts = Counter(payload_lengths_up).items()
     up_counts_sorted = sorted(up_counts, key=itemgetter(1))
@@ -297,11 +295,11 @@ def get_window_stats(windowed_traces, source_ip, destination_ip):
             if prev_time is None:
                 prev_time = float(trace['time']) * 1000000
             else:
-                interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though errornous.
+                interval = abs(float(trace['time']) * 1000000 - prev_time)
                 intervals_down.append(interval)
                 # If the interval is above 1 second, ignore its bin membership.
                 for k in interval_ranges:
-                    if interval < interval_ranges[k]:
+                    if interval < k:
                         intervals_down_bins[k] += 1
                 prev_time = float(trace['time']) * 1000000
 
@@ -319,12 +317,14 @@ def get_window_stats(windowed_traces, source_ip, destination_ip):
     stats['stdv_entropy_down'] = np.std(entropies_down)
     stats['mean_interval_down'] = np.mean(intervals_down)
     stats['stdv_interval_down'] = np.std(intervals_down)
-    stats['mode_interval_down'] = max(intervals_down_bins.values())
+    stats['mode_interval_down'] = max(intervals_down_bins.items(), key=itemgetter(1))[0]
 
-    up_counts = Counter(payload_lengths_down).items()
-    up_counts_sorted = sorted(up_counts, key=itemgetter(1))
-    stats['top1_tcp_len_down'] = up_counts_sorted[0][0] if len(up_counts_sorted) > 0 else None
-    stats['top2_tcp_len_down'] = up_counts_sorted[1][0] if len(up_counts_sorted) > 1 else None
+    down_counts = Counter(payload_lengths_down).items()
+    down_counts_sorted = sorted(down_counts, key=itemgetter(1))
+    stats['top1_tcp_len_down'] = down_counts_sorted[0][0] if len(down_counts_sorted) > 0 else None
+    stats['top2_tcp_len_down'] = down_counts_sorted[1][0] if len(down_counts_sorted) > 1 else None
     stats['mean_tcp_len_down'] = np.mean(payload_lengths_down)
     stats['stdv_tcp_len_down'] = np.std(payload_lengths_down)
     stats['push_ratio_down'] = float(psh_down) / ack_down
+
+    return stats
