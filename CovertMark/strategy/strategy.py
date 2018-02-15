@@ -226,6 +226,8 @@ class DetectionStrategy(ABC):
             else:
                 if self.__reader.select(pt_collection) and self.__reader.select(negative_collection):
                     load_existing = True
+                    self._pt_collection = pt_collection
+                    self._neg_collection = negative_collection
                     self.debug_print("Will load existing traces as specified...")
                 else:
                     self.debug_print("Will parse PCAP files as collections do not exist in the database.")
