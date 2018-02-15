@@ -2,6 +2,7 @@ import analytics, data
 from strategy.strategy import DetectionStrategy
 
 import os
+from sys import exit
 from datetime import date, datetime
 from operator import itemgetter
 from math import log1p, isnan
@@ -165,6 +166,8 @@ class LRStrategy(DetectionStrategy):
         all_features = np.asarray(all_features, dtype=np.float64)
         all_labels = [1 for i in range(len(positive_features))] + [0 for i in range(len(negative_features))]
         all_labels = np.asarray(all_labels, dtype=np.int8)
+        positive_features = []
+        negative_features = [] # Explicit removal from memory.
 
         # Rescale to zero centered uniform variance data.
         self._strategic_states['all_features'] = preprocessing.scale(all_features,
@@ -172,6 +175,8 @@ class LRStrategy(DetectionStrategy):
         self._strategic_states['all_feature_labels'] = all_labels
         self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
         self._split_pt(pt_split_ratio)
+        all_features = []
+        all_labels = []
 
         if not self._pt_split:
             self.debug_print("Training/validation case splitting failed, check data.")
@@ -199,6 +204,17 @@ class LRStrategy(DetectionStrategy):
 
 if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+    # Short test.
+    # lr_path = os.path.join(parent_path, 'examples', 'meek.pcap')
+    # unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
+    # detector = LRStrategy(lr_path, unobfuscated_path)
+    # detector.run(pt_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)],
+    #     negative_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)],
+    #     pt_collection='traces201802153dcbf0853209323e50ac89078adcb262dec30e41',
+    #     negative_collection='traces20180215e40876e6e3ad9c79ab78b6adc1202a389c6213a5')
+    #
+    # exit(0)
 
     # Longer ACS Test.
     lr_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
