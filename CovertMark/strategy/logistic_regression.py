@@ -26,7 +26,7 @@ class LRStrategy(DetectionStrategy):
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
         self.LR = linear_model.LogisticRegression(penalty='l1', dual=False,
-         solver='saga', n_jobs=-1)
+         solver='saga', n_jobs=-1, max_iter=5000)
 
 
     def set_strategic_filter(self):
@@ -88,10 +88,10 @@ class LRStrategy(DetectionStrategy):
                     false_negatives += 1
 
         self._strategic_states["total"] = total_positives + total_negatives
-        self._strategic_states["TPR"] = float(true_positives) / self._strategic_states["total"]
-        self._strategic_states["FPR"] = float(false_positives) / self._strategic_states["total"]
-        self._strategic_states["TNR"] = float(true_negatives) / self._strategic_states["total"]
-        self._strategic_states["FNR"] = float(false_negatives) / self._strategic_states["total"]
+        self._strategic_states["TPR"] = float(true_positives) / total_positives
+        self._strategic_states["FPR"] = float(false_positives) / total_positives
+        self._strategic_states["TNR"] = float(true_negatives) / total_negatives
+        self._strategic_states["FNR"] = float(false_negatives) / total_negatives
 
         return self._strategic_states["TPR"]
 
@@ -198,9 +198,9 @@ if __name__ == "__main__":
 
     # Longer ACS Test.
     lr_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscated_acstest.pcap')
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscatedlong.pcap')
     detector = LRStrategy(lr_path, unobfuscated_path)
     detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
-        negative_ip_filters=[('128.232.17.20', data.constants.IP_EITHER)])
+        negative_ip_filters=[('172.28.195.198', data.constants.IP_EITHER)])
 
     detector.clean_up_mongo()
