@@ -20,7 +20,8 @@ def check_file_exists(file_path):
 
 def parse_ip(ip_bytes):
     """
-    Convert an IPv4/IPv6 address in bytes to an ipaddress object.
+    Convert an IPv4/IPv6 address in bytes to a valid IP address in string format,
+        if it is indeed valid.
     :param ip_bytes: bytes of IPv4/IPv6 address.
     :returns: IP in string format, None if input invalid.
     """
