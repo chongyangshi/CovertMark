@@ -187,7 +187,7 @@ class DetectionStrategy(ABC):
         if not self._traces_loaded:
             self._load_into_memory()
 
-        splits = self.test_validation_split(test_proportion)
+        splits = self.test_validation_split(split_ratio)
         if splits and isinstance(splits, tuple):
             test, validation = splits
             # Only validate split if a non-empty split has been performed.

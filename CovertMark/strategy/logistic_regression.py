@@ -4,8 +4,9 @@ from strategy.strategy import DetectionStrategy
 import os
 from datetime import date, datetime
 from operator import itemgetter
-from math import log1p
+from math import log1p, isnan
 import numpy as np
+from sklearn import preprocessing, model_selection, linear_model
 
 class LRStrategy(DetectionStrategy):
     """
@@ -36,10 +37,20 @@ class LRStrategy(DetectionStrategy):
 
     def test_validation_split(self, split_ratio):
         """
-        Not used, manual preprocessing is used instead.
+        We call testing data used in training as test, and data used in negative
+        run unseen during training as validaton.
         """
 
-        return ([], [])
+        if not isinstance(split_ratio, float) or not (0 <= split_ratio <= 1):
+            raise ValueError("Invalid split ratio: {}".format(split_ratio))
+
+        split = model_selection.train_test_split(self._strategic_states['all_features'],
+         self._strategic_states['all_feature_labels'], train_size=split_ratio,
+          shuffle=True)
+        self._strategic_states['training_labels'] = split[2]
+        self._strategic_states['validation_labels'] = split[3]
+
+        return (split[0], split[1])
 
 
     def positive_run(self, **kwargs):
@@ -82,7 +93,7 @@ class LRStrategy(DetectionStrategy):
         return wireshark_output
 
 
-    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=False, pt_split_ratio=0.7):
+    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True, pt_split_ratio=0.5):
         """
         Overriding default run() to test over multiple block sizes and p-value
         thresholds.
@@ -98,35 +109,57 @@ class LRStrategy(DetectionStrategy):
         self.debug_print("- Extracting features from windowed traffic...")
         if (not any([i[1] == data.constants.IP_EITHER for i in pt_ip_filters])) or \
             (not any([i[1] == data.constants.IP_EITHER for i in negative_ip_filters])):
-            raise ValueError("This strategy requires a valid source+destination IP set in the input filters!")
+            raise ValueError("This strategy requires a valid source+destination IP/subnet set for the input filters!")
 
         positive_features = []
         for ip in pt_ip_filters:
             if ip[1] == data.constants.IP_EITHER:
                 client_ip = ip[0]
                 break
-        self.debug_print("The suspected PT client in positive cases is assumed as {}.".format(client_ip))
+        self.debug_print("The suspected PT client(s) in positive cases are assumed as {}.".format(client_ip))
         for window in positive_windows:
             feature_dict = analytics.traffic.get_window_stats(window, client_ip)
-            if any([i[1] is None for i in feature_dict]):
+            if any([(not feature_dict[i]) or isnan(feature_dict[i]) for i in feature_dict]):
                 continue
             positive_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
-        positive_features = np.asarray(positive_features, dtype=np.float64)
 
         negative_features = []
         for ip in negative_ip_filters:
             if ip[1] == data.constants.IP_EITHER:
                 client_ip = ip[0]
                 break
-        self.debug_print("The suspected PT client in negative cases is assumed as {}.".format(client_ip))
+        self.debug_print("The suspected PT client(s) in negative cases are assumed as {}.".format(client_ip))
         for window in negative_windows:
             feature_dict = analytics.traffic.get_window_stats(window, client_ip)
-            if any([i[1] is None for i in feature_dict]):
+            if any([(not feature_dict[i]) or isnan(feature_dict[i]) for i in feature_dict]):
                 continue
             negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
-        negative_features = np.asarray(negative_features, dtype=np.float64)
 
-        print(positive_features.shape, negative_features.shape)
+        self.debug_print("Prepared {} PT windows, {} negative windows.".format(\
+         len(positive_features), len(negative_features)))
+        all_features = positive_features + negative_features
+        all_features = np.asarray(all_features, dtype=np.float64)
+        all_labels = [1 for i in range(len(positive_features))] + [0 for i in range(len(negative_features))]
+        all_labels = np.asarray(all_labels, dtype=np.int8)
+
+        # Rescale to zero centered uniform variance data.
+        self._strategic_states['all_features'] = preprocessing.scale(all_features,
+         axis=0, copy=False)
+        self._strategic_states['all_feature_labels'] = all_labels
+        self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
+        self._split_pt(pt_split_ratio)
+
+        if not self._pt_split:
+            self.debug_print("Training/validation case splitting failed, check data.")
+            return False
+
+        # self._pt_test_traces / self._pt_validation_traces set by split wrapper.
+        self._pt_test_labels = self._strategic_states['training_labels']
+        self._pt_validation_labels = self._strategic_states['validation_labels']
+
+        # No longer required, no idea if it actually frees up memory in interpreter.
+        self._strategic_states = {}
+
 
 
         return (self._true_positive_rate, self._false_positive_rate)
@@ -136,11 +169,11 @@ if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     # Longer ACS Test.
-    lr_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscated_acstest.pcap')
+    lr_path = os.path.join(parent_path, 'examples', 'meek.pcap')
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
     detector = LRStrategy(lr_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
-        negative_ip_filters=[('128.232.17.20', data.constants.IP_EITHER)])
+    detector.run(pt_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)],
+        negative_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)])
 
     detector.clean_up_mongo()
     print(detector.report_blocked_ips())
