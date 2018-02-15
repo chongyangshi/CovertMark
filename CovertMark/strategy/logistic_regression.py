@@ -113,18 +113,22 @@ class LRStrategy(DetectionStrategy):
         return "Unavailable for logistic regression."
 
 
-    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True, pt_split_ratio=0.5):
+    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
+     pt_split_ratio=0.5, pt_collection=None, negative_collection=None):
         """
         Overriding default run() to test over multiple block sizes and p-value
         thresholds.
         """
 
-        self._run(pt_ip_filters, negative_ip_filters)
+        self._run(pt_ip_filters, negative_ip_filters, pt_collection=pt_collection,
+         negative_collection=negative_collection)
 
         self.debug_print("Loaded {} positive traces, {} negative traces.".format(len(self._pt_traces), len(self._neg_traces)))
         self.debug_print("- Applying windowing to the traces...")
         positive_windows = analytics.traffic.window_traces_fixed_size(self._pt_traces, 100)
+        self._pt_traces = None # Give memory when processing large files.
         negative_windows = analytics.traffic.window_traces_fixed_size(self._neg_traces, 100)
+        self._neg_traces = None
 
         self.debug_print("- Extracting features from windowed traffic...")
         if (not any([i[1] == data.constants.IP_EITHER for i in pt_ip_filters])) or \
@@ -198,9 +202,11 @@ if __name__ == "__main__":
 
     # Longer ACS Test.
     lr_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscatedlong.pcap')
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
     detector = LRStrategy(lr_path, unobfuscated_path)
     detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
-        negative_ip_filters=[('172.28.195.198', data.constants.IP_EITHER)])
+        negative_ip_filters=[('128.232.17.0/24', data.constants.IP_EITHER)],
+        pt_collection="traces20180215b45401603f80f37f2147e5e3318b16ed240eb95c",
+        negative_collection="traces2018021566c3651129c1c3e367e2bf399ae38249f7aeb6bc")
 
     detector.clean_up_mongo()

@@ -179,13 +179,15 @@ class Obfs4Strategy(DetectionStrategy):
         return wireshark_output
 
 
-    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=False, pt_split_ratio=0.7):
+    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=False,
+     pt_split_ratio=0.7, pt_collection=None, negative_collection=None):
         """
         Overriding default run() to test over multiple block sizes and p-value
         thresholds.
         """
 
-        self._run(pt_ip_filters, negative_ip_filters)
+        self._run(pt_ip_filters, negative_ip_filters,
+         pt_collection=pt_collection, negative_collection=negative_collection)
         self.debug_print("- Running iterations of detection strategy on positive and negative test traces...")
 
         for p in self.P_THRESHOLDS:

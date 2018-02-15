@@ -23,6 +23,7 @@ class DetectionStrategy(ABC):
             self.__neg_parser = data.parser.PCAPParser(negative_pcap)
         else:
             self.__neg_parser = None
+        self.__reader = data.retrieve.Retriever()
 
         # MongoDB collections.
         self._pt_collection = None
@@ -109,8 +110,6 @@ class DetectionStrategy(ABC):
         both.
         :returns: True if successfully loaded, False otherwise.
         """
-
-        self.__reader = data.retrieve.Retriever()
 
         self.__reader.select(self._pt_collection)
         self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
@@ -210,17 +209,33 @@ class DetectionStrategy(ABC):
         print(msg)
 
 
-    def _run(self, pt_ip_filters, negative_ip_filters):
+    def _run(self, pt_ip_filters, negative_ip_filters, pt_collection=None, negative_collection=None):
         """
         Inner method to execute the required portion of strategy setup.
+        To skip parsing traces again and use existing collections in MongoDB,
+        both pt_collection and negative_collection need to be set to valid names.
         """
 
         self.debug_print("Executing detection strategy: " + self.NAME)
         self.debug_print(self.DESCRIPTION)
-        if self._parse_packets(pt_ip_filters, negative_filters=negative_ip_filters):
-            self.debug_print("- Parsed PCAP file(s) according to input IP filters.")
-        else:
-            raise RuntimeError("! Failure to parse PCAP files.")
+
+        load_existing = False
+        if pt_collection is not None or negative_collection is not None:
+            if pt_collection is None or negative_collection is None:
+                self.debug_print("Will parse PCAP files as collections are not correctly specified.")
+            else:
+                if self.__reader.select(pt_collection) and self.__reader.select(negative_collection):
+                    load_existing = True
+                    self.debug_print("Will load existing traces as specified...")
+                else:
+                    self.debug_print("Will parse PCAP files as collections do not exist in the database.")
+
+        if not load_existing:
+            self.debug_print("- Parsing PCAP files...")
+            if self._parse_packets(pt_ip_filters, negative_filters=negative_ip_filters):
+                self.debug_print("- Parsed PCAP file(s) according to input IP filters.")
+            else:
+                raise RuntimeError("! Failure to parse PCAP files.")
 
         self.debug_print("- Setting initial strategic filter...")
         self.set_strategic_filter()
@@ -246,7 +261,8 @@ class DetectionStrategy(ABC):
 
     # ========================To be implemented below==========================#
 
-    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=False, pt_split_ratio=0.7):
+    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=False,
+     pt_split_ratio=0.7, pt_collection=None, negative_collection=None):
         """
         Run the detection strategy. See other methods for detailed syntax of
         IP and strategic filters. Override if custom procedures required, such
@@ -258,10 +274,15 @@ class DetectionStrategy(ABC):
             validation sets. False otherwise.
         :param pt_split_ratio: if pt_split is set to True, this is the ratio the
             test set will occupy versus the validation set.
+        :param pt_collection: set pt_collection to be the name of an existing
+            collection in MongoDB to skip parsing again.
+        :param negative_collection: set negative_collection to be the name of an
+            existing collection in MongoDB to skip parsing again.
         :returns: tuple(self._true_positive_rate, self._false_positive_rate)
         """
 
-        self._run(pt_ip_filters, negative_ip_filters)
+        self._run(pt_ip_filters, negative_ip_filters,
+         pt_collection=pt_collection, negative_collection=negative_collection)
 
         if pt_split:
             self.debug_print("- Splitting positive test traces into the ratio of {}/{}".format(pt_split_ratio, 1-pt_split_ratio))
