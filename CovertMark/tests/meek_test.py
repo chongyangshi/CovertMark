@@ -10,8 +10,8 @@ m = mongo.MongoDBManager()
 parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 long_path = os.path.join(parent_path, 'examples', 'local')
 
-a = parser.PCAPParser(os.path.join(long_path, 'meeklong.pcap'))
-a.set_ip_filter([('192.168.0.42', constants.IP_SRC), ('13.32.68.163', constants.IP_DST)])
+a = parser.PCAPParser(os.path.join(long_path, 'meeklonger.pcap'))
+a.set_ip_filter([('10.248.98.196', constants.IP_SRC), ('54.192.2.159', constants.IP_DST)])
 name = a.load_and_insert_new("meek")
 total = m.count_traces(name, {})
 print("In total {} client->server traces by meek.".format(total))
@@ -19,10 +19,11 @@ print("In total {} client->server traces by meek.".format(total))
 traces = m.find_traces(name, {"tls_info": {"$ne": None}})
 for trace in traces: # To be done in data.retrieve when properly implemented.
     trace['tcp_info']['payload'] = b64decode(trace['tcp_info']['payload'])
-most_frequent = traffic.ordered_tcp_payload_length_frequency(traces, True, 1)
+most_frequent = traffic.ordered_tcp_payload_length_frequency(traces, True, 2)
 
 top_cluster = most_frequent[0]
 top_two_clusters = top_cluster.union(most_frequent[1])
+print(top_two_clusters)
 
 a = parser.PCAPParser(os.path.join(long_path, 'unobfuscatedlong.pcap'))
 a.set_ip_filter([('172.28.195.198', constants.IP_SRC)])

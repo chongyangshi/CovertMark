@@ -17,6 +17,7 @@ class MeekLengthStrategy(DetectionStrategy):
     _MONGO_KEY = "MeekL" # Alphanumeric key for MongoDB.
 
     DEBUG = True
+    MEANSHIFT_BW = 2
 
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
@@ -47,7 +48,7 @@ class MeekLengthStrategy(DetectionStrategy):
         MeanShift bandwidth/max difference is set to 1.
         """
 
-        most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, True, 1)
+        most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, True, self.MEANSHIFT_BW)
         top_cluster = most_frequent[0]
         top_cluster_identified = 0
         for trace in self._pt_traces:
@@ -124,12 +125,12 @@ if __name__ == "__main__":
     #     ('172.28.193.192', data.constants.IP_SRC)])
 
     # Longer ACS example.
-    meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscated_acstest.pcap')
+    meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklonger.pcap')
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
     detector = MeekLengthStrategy(meek_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_SRC),
-        ('13.32.68.163', data.constants.IP_DST)],
-        negative_ip_filters=[('128.232.17.20', data.constants.IP_SRC)])
+    detector.run(pt_ip_filters=[('10.248.98.196', data.constants.IP_SRC),
+        ('54.192.2.159', data.constants.IP_DST)],
+        negative_ip_filters=[('128.232.17.0/24', data.constants.IP_SRC)])
 
-    detector.clean_up_mongo()
+    # detector.clean_up_mongo()
     print(detector.report_blocked_ips())
