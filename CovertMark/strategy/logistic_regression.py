@@ -22,6 +22,7 @@ class LRStrategy(DetectionStrategy):
     _MONGO_KEY = "lr" # Alphanumeric key for MongoDB.
 
     DEBUG = True
+    WINDOW_SIZE = 200
 
 
     def __init__(self, pt_pcap, negative_pcap=None):
@@ -126,9 +127,9 @@ class LRStrategy(DetectionStrategy):
 
         self.debug_print("Loaded {} positive traces, {} negative traces.".format(len(self._pt_traces), len(self._neg_traces)))
         self.debug_print("- Applying windowing to the traces...")
-        positive_windows = analytics.traffic.window_traces_fixed_size(self._pt_traces, 100)
+        positive_windows = analytics.traffic.window_traces_fixed_size(self._pt_traces, self.WINDOW_SIZE)
         self._pt_traces = None # Give memory when processing large files.
-        negative_windows = analytics.traffic.window_traces_fixed_size(self._neg_traces, 100)
+        negative_windows = analytics.traffic.window_traces_fixed_size(self._neg_traces, self.WINDOW_SIZE)
         self._neg_traces = None
 
         self.debug_print("- Extracting features from windowed traffic...")
@@ -222,7 +223,7 @@ if __name__ == "__main__":
     detector = LRStrategy(lr_path, unobfuscated_path)
     detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
         negative_ip_filters=[('128.232.17.0/24', data.constants.IP_EITHER)],
-        pt_collection="traces20180215b45401603f80f37f2147e5e3318b16ed240eb95c",
-        negative_collection="traces2018021566c3651129c1c3e367e2bf399ae38249f7aeb6bc")
+        pt_collection="traces2018021537ccd52f6b2c50fdf537b2410e827eadc7b7a57e",
+        negative_collection="traces201802154682874596c24e86ab5a28a659f5fbb97f76173f")
 
     detector.clean_up_mongo()
