@@ -20,7 +20,10 @@ class MeekLengthStrategy(DetectionStrategy):
 
     DEBUG = True
     MEANSHIFT_BWS = [1, 2, 3, 5, 10]
-    FALSE_POSITIVE_SCORE_WEIGHT = 0.9
+    MINIMUM_TPR = 0.40
+    # While this method does not require high TPR, a minimum threshold needs to
+    # be maintained to ensure fitness.
+
 
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
@@ -155,26 +158,37 @@ class MeekLengthStrategy(DetectionStrategy):
             fp = self._run_on_negative(bandwidth=bw)
             self.debug_print("False positive rate on bandwidth {} for top cluster: {}".format(bw, fp))
 
-        # Find the best true positive and false positive performance.
+        # Round performance to four decimal places.
         tps = self._strategic_states['TPR']
         fps = self._strategic_states['FPR']
-        best_true_positives = [i[0] for i in sorted(tps.items(), key=itemgetter(1), reverse=True)] # True positive in descending order.
-        best_false_positives = [i[0] for i in sorted(fps.items(), key=itemgetter(1))] # False positive in ascending order.
-        best_true_positive = best_true_positives[0]
-        best_false_positive = best_false_positives[0]
 
-        # Score the configurations based on their difference from the best one.
-        # As it is guaranteed for the difference to be between 0 and 1,
-        # log1p(100) - loge(diff*100) is used to create a descending score
-        # exponentially rewarding low difference values.
-        configs = list(tps.keys())
-        true_positives_scores = [(log1p(100) - log1p(abs(tps[best_true_positive] - tps[i])*100)) for i in configs]
-        false_positives_scores = [(log1p(100) - log1p(abs(tps[best_false_positive] - fps[i])*100)) for i in configs]
-        average_scores = [(true_positives_scores[i] * (1-self.FALSE_POSITIVE_SCORE_WEIGHT) + false_positives_scores[i] * self.FALSE_POSITIVE_SCORE_WEIGHT) for i in range(len(true_positives_scores))]
-        best_config = configs[average_scores.index(max(average_scores))]
+        # Find the best true positive and false positive performance.
+        # Descending order of TPR, then ascending by bandwidth and cluster size to maximise efficiency.
+        best_true_positives = [i[0] for i in sorted(tps.items(), key=lambda x: (x[1], -x[0][0], -x[0][1]), reverse=True)]
+        # False positive in ascending order, then by bandwidth and cluster size ascending.
+        best_false_positives = [i[0] for i in sorted(fps.items(), key=lambda x: (x[1], x[0][0], x[0][1]))]
+
+        # Walk down the list of lowest false positives to find the first config
+        # satisfying the minimum true positive rate requirement.
+        best_config = None
+        for config in best_false_positives:
+            if tps[config] >= self.MINIMUM_TPR:
+                best_config = config
+                break
+
+        # If none satisfies the minimum true positive rate requirement, report
+        # as failure.
+        if best_config is None:
+            self.debug_print("No bandwidth and cluster size achieved the minimum true positive rate required ({}), giving up.".format(self.MINIMUM_TPR))
+            return (None, None)
 
         self._true_positive_rate = tps[best_config]
         self._false_positive_rate = fps[best_config]
+        if best_config[1] == 1:
+            self._strategic_states['top_cluster'] = self._strategic_states['top_cluster'][best_config[0]]
+        else:
+            self._strategic_states['top_cluster'] = self._strategic_states['top_two_clusters'][best_config[0]]
+
         self.debug_print("Best classification performance:")
         self.debug_print("Bandwidth: {}, using top {} cluster(s).".format(best_config[0], best_config[1]))
         self.debug_print("True positive rate: {}; False positive rate: {}".format(self._true_positive_rate, self._false_positive_rate))
@@ -190,12 +204,14 @@ if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     # Shorter example.
-    meek_path = os.path.join(parent_path, 'examples', 'meek.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
-    detector = MeekLengthStrategy(meek_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[('172.28.192.46', data.constants.IP_SRC),
-        ('13.33.51.7', data.constants.IP_DST)],
-        negative_ip_filters=[('172.28.192.204', data.constants.IP_SRC)])
+    # meek_path = os.path.join(parent_path, 'examples', 'meek.pcap')
+    # unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
+    # detector = MeekLengthStrategy(meek_path, unobfuscated_path)
+    # detector.run(pt_ip_filters=[('172.28.192.46', data.constants.IP_SRC),
+    #     ('13.33.51.7', data.constants.IP_DST)],
+    #     negative_ip_filters=[('172.28.192.204', data.constants.IP_SRC)],
+    #     pt_collection="traces20180217a1a60caecdc1ce9931db55b6696c86338b3a9b3e",
+    #     negative_collection="traces2018021750d58c2a2eaced13d138ebe723360a0fa59ad348")
 
     # Longer local example.
     # meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
@@ -207,13 +223,15 @@ if __name__ == "__main__":
     #     ('172.28.194.2', data.constants.IP_SRC),
     #     ('172.28.193.192', data.constants.IP_SRC)])
 
-    # Longer ACS example.
-    # meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklonger.pcap')
-    # unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
-    # detector = MeekLengthStrategy(meek_path, unobfuscated_path)
-    # detector.run(pt_ip_filters=[('10.248.98.196', data.constants.IP_SRC),
-    #     ('54.192.2.159', data.constants.IP_DST)],
-    #     negative_ip_filters=[('128.232.17.0/24', data.constants.IP_SRC)])
+    # # Longer ACS example.
+    meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklonger.pcap')
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
+    detector = MeekLengthStrategy(meek_path, unobfuscated_path)
+    detector.run(pt_ip_filters=[('10.248.98.196', data.constants.IP_SRC),
+        ('54.192.2.159', data.constants.IP_DST)],
+        negative_ip_filters=[('128.232.17.0/24', data.constants.IP_SRC)],
+        pt_collection="traces20180217bedd6553b1ad347c547c6440db8625a30124958b",
+        negative_collection="traces201802179204e6b362c82a2e90f71e261570f36a69ff064e")
 
     # detector.clean_up_mongo()
     print(detector.report_blocked_ips())

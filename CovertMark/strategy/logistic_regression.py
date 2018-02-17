@@ -223,7 +223,7 @@ if __name__ == "__main__":
     detector = LRStrategy(lr_path, unobfuscated_path)
     detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
         negative_ip_filters=[('128.232.17.0/24', data.constants.IP_EITHER)],
-        pt_collection="traces2018021537ccd52f6b2c50fdf537b2410e827eadc7b7a57e",
-        negative_collection="traces201802154682874596c24e86ab5a28a659f5fbb97f76173f")
+        pt_collection="traces20180217bedd6553b1ad347c547c6440db8625a30124958b",
+        negative_collection="traces201802179204e6b362c82a2e90f71e261570f36a69ff064e")
 
     detector.clean_up_mongo()
