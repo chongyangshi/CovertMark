@@ -170,6 +170,7 @@ class LRStrategy(DetectionStrategy):
                 continue
             positive_ips.append(ips)
             positive_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+        positive_windows = []
 
         negative_features = []
         negative_ips = []
@@ -184,7 +185,8 @@ class LRStrategy(DetectionStrategy):
                 continue
             negative_ips.append(ips)
             negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
-
+        negative_windows = []
+        
         self.debug_print("Prepared {} positive windows, {} negative windows.".format(\
          len(positive_features), len(negative_features)))
         if len(positive_features) < 1 or len(negative_features) < 1:
