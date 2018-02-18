@@ -2,7 +2,7 @@ import analytics, data
 from strategy.strategy import DetectionStrategy
 
 import os
-from sys import exit
+from sys import exit, argv
 from datetime import date, datetime
 from operator import itemgetter
 from math import log1p, isnan
@@ -218,12 +218,17 @@ if __name__ == "__main__":
     # exit(0)
 
     # Longer ACS Test.
-    lr_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
-    detector = LRStrategy(lr_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
-        negative_ip_filters=[('128.232.17.0/24', data.constants.IP_EITHER)],
-        pt_collection="traces20180217bedd6553b1ad347c547c6440db8625a30124958b",
-        negative_collection="traces201802179204e6b362c82a2e90f71e261570f36a69ff064e")
+    # lr_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
+    # unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
+    # detector = LRStrategy(lr_path, unobfuscated_path)
+    # detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
+    #     negative_ip_filters=[('128.232.17.0/24', data.constants.IP_EITHER)],
+    #     pt_collection="traces20180217bedd6553b1ad347c547c6440db8625a30124958b",
+    #     negative_collection="traces201802179204e6b362c82a2e90f71e261570f36a69ff064e")
 
-    detector.clean_up_mongo()
+    lr_path = os.path.join(parent_path, 'examples', 'local', argv[1])
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
+    detector = LRStrategy(lr_path, unobfuscated_path)
+    detector.run(pt_ip_filters=[(argv[3], data.constants.IP_EITHER)],
+     negative_ip_filters=[(argv[4], data.constants.IP_EITHER)],
+     pt_collection=argv[5], negative_collection=argv[6])

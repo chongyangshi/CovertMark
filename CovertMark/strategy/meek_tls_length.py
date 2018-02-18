@@ -223,15 +223,23 @@ if __name__ == "__main__":
     #     ('172.28.194.2', data.constants.IP_SRC),
     #     ('172.28.193.192', data.constants.IP_SRC)])
 
-    # # Longer ACS example.
-    meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklonger.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
-    detector = MeekLengthStrategy(meek_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[('10.248.98.196', data.constants.IP_SRC),
-        ('54.192.2.159', data.constants.IP_DST)],
-        negative_ip_filters=[('128.232.17.0/24', data.constants.IP_SRC)],
-        pt_collection="traces20180217bedd6553b1ad347c547c6440db8625a30124958b",
-        negative_collection="traces201802179204e6b362c82a2e90f71e261570f36a69ff064e")
+    # Longer ACS example.
+    # meek_path = os.path.join(parent_path, 'examples', 'local', 'meeklonger.pcap')
+    # unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
+    # detector = MeekLengthStrategy(meek_path, unobfuscated_path)
+    # detector.run(pt_ip_filters=[('10.248.98.196', data.constants.IP_SRC),
+    #     ('54.192.2.159', data.constants.IP_DST)],
+    #     negative_ip_filters=[('128.232.17.0/24', data.constants.IP_SRC)],
+    #     pt_collection="traces20180217bedd6553b1ad347c547c6440db8625a30124958b",
+    #     negative_collection="traces201802179204e6b362c82a2e90f71e261570f36a69ff064e")
 
     # detector.clean_up_mongo()
+
+    pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
+    detector = MeekLengthStrategy(pt_path, unobfuscated_path)
+    detector.run(pt_ip_filters=[(argv[3], data.constants.IP_EITHER)],
+     negative_ip_filters=[(argv[4], data.constants.IP_EITHER)],
+     pt_collection=argv[5], negative_collection=argv[6])
+
     print(detector.report_blocked_ips())

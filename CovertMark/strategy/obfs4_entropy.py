@@ -2,6 +2,7 @@ import analytics, data
 from strategy.strategy import DetectionStrategy
 
 import os
+from sys import exit, argv
 from datetime import date, datetime
 from operator import itemgetter
 from math import log1p
@@ -254,12 +255,18 @@ if __name__ == "__main__":
     #     ('172.28.193.192', data.constants.IP_SRC)])
 
     # Longer ACS Test.
-    obfs4_path = os.path.join(parent_path, 'examples', 'local', 'obfs4long.pcap')
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscated_acstest.pcap')
-    detector = Obfs4Strategy(obfs4_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[('10.248.100.93', data.constants.IP_SRC),
-        ('37.218.245.14', data.constants.IP_DST)],
-        negative_ip_filters=[('128.232.17.20', data.constants.IP_SRC)])
+    # obfs4_path = os.path.join(parent_path, 'examples', 'local', 'obfs4long.pcap')
+    # unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'unobfuscated_acstest.pcap')
+    # detector = Obfs4Strategy(obfs4_path, unobfuscated_path)
+    # detector.run(pt_ip_filters=[('10.248.100.93', data.constants.IP_SRC),
+    #     ('37.218.245.14', data.constants.IP_DST)],
+    #     negative_ip_filters=[('128.232.17.20', data.constants.IP_SRC)])
 
-    detector.clean_up_mongo()
+    pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
+    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
+    detector = Obfs4Strategy(pt_path, unobfuscated_path)
+    detector.run(pt_ip_filters=[(argv[3], data.constants.IP_EITHER)],
+     negative_ip_filters=[(argv[4], data.constants.IP_EITHER)],
+     pt_collection=argv[5], negative_collection=argv[6])
+
     print(detector.report_blocked_ips())
