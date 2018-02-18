@@ -183,6 +183,8 @@ class LRStrategy(DetectionStrategy):
 
         self.debug_print("Prepared {} positive windows, {} negative windows.".format(\
          len(positive_features), len(negative_features)))
+        if len(positive_features) < 1 or len(negative_features) < 1:
+            raise ValueError("No windows to work with, did you misconfigure the input filters?")
         all_features = positive_features + negative_features
         all_features = np.asarray(all_features, dtype=np.float64)
         all_labels = [1 for i in range(len(positive_features))] + [0 for i in range(len(negative_features))]
