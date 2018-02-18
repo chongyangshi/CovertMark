@@ -193,13 +193,17 @@ def get_window_stats(windowed_traces, client_ip):
         :param windowed_traces: a segment of TCP traces, ASSUMED TO BE SORTED BY
             TIME in ascending order.
         :param client_ip: the IP address of the suspected PT client.
-        :returns: a dictionary containing the stats as described above.
+        :returns: a dictionary containing the stats as described above, and a
+            set of IP addresses seen in the window.
     """
 
     client_subnet = data.utils.build_subnet(client_ip)
+    if not client_subnet:
+        return {}, set([]) # client_ip does not match the traces.
 
     stats = {}
     interval_ranges = [1000, 10000, 100000, 1000000]
+    ips = set([])
 
     seqs_seen_up = set([])
     entropies_up = []
@@ -232,6 +236,7 @@ def get_window_stats(windowed_traces, client_ip):
             # Ignore non-TCP packets.
             if trace['tcp_info'] == None:
                 continue
+            ips.add(trace['dst'])
 
             # Entropy tally.
             trace_tcp = trace['tcp_info']
@@ -292,6 +297,7 @@ def get_window_stats(windowed_traces, client_ip):
             # Ignore non-TCP packets.
             if trace['tcp_info'] == None:
                 continue
+            ips.add(trace['src'])
 
             # Entropy tally.
             trace_tcp = trace['tcp_info']
@@ -346,4 +352,4 @@ def get_window_stats(windowed_traces, client_ip):
         stats['mean_tcp_len_down'] = None
         stats['push_ratio_down'] = None
 
-    return stats
+    return stats, ips

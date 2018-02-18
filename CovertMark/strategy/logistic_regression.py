@@ -48,11 +48,19 @@ class LRStrategy(DetectionStrategy):
         if not isinstance(split_ratio, float) or not (0 <= split_ratio <= 1):
             raise ValueError("Invalid split ratio: {}".format(split_ratio))
 
+        # Orde-preserving split of features, their labels, and their IPs.
         split = model_selection.train_test_split(self._strategic_states['all_features'],
-         self._strategic_states['all_feature_labels'], train_size=split_ratio,
-          shuffle=True)
+         self._strategic_states['all_feature_labels'], self._strategic_states['all_ips'],
+         train_size=split_ratio, shuffle=True)
         self._strategic_states['training_labels'] = split[2]
         self._strategic_states['validation_labels'] = split[3]
+        self._strategic_states['training_ips'] = split[4]
+        self._strategic_states['validation_ips'] = split[5]
+
+        # Memory recycle.
+        self._strategic_states['all_features'] = []
+        self._strategic_states['all_feature_labels'] = []
+        self._strategic_states['all_ips'] = []
 
         return (split[0], split[1])
 
@@ -75,6 +83,7 @@ class LRStrategy(DetectionStrategy):
         total_negatives = 0
         true_negatives = 0
         false_negatives = 0
+        self._negative_blocked_ips = set([])
         for i in range(0, len(prediction)):
             if prediction[i] == 1: # Positive identification
                 total_positives += 1
@@ -82,6 +91,7 @@ class LRStrategy(DetectionStrategy):
                     true_positives += 1
                 else:
                     false_positives += 1
+                    self._negative_blocked_ips = self._negative_blocked_ips.union(self._pt_validation_ips[i])
             else:
                 total_negatives += 1
                 if self._pt_validation_labels[i] == 0:
@@ -94,6 +104,7 @@ class LRStrategy(DetectionStrategy):
         self._strategic_states["FPR"] = float(false_positives) / total_positives
         self._strategic_states["TNR"] = float(true_negatives) / total_negatives
         self._strategic_states["FNR"] = float(false_negatives) / total_negatives
+        self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
 
         return self._strategic_states["TPR"]
 
@@ -108,11 +119,16 @@ class LRStrategy(DetectionStrategy):
 
     def report_blocked_ips(self):
         """
-        It is not possible to pin point blocked IPs in the false positive cases,
-        as the traces have been windowed.
+        Cannot distinguish directions in this case.
         """
+        wireshark_output = "tcp && ("
+        for i, ip in enumerate(list(self._negative_blocked_ips)):
+            wireshark_output += "ip.dst_host == \"" + ip + "\" "
+            if i < len(self._negative_blocked_ips) - 1:
+                wireshark_output += "|| "
+        wireshark_output += ")"
 
-        return "Unavailable for logistic regression."
+        return wireshark_output
 
 
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
@@ -138,27 +154,31 @@ class LRStrategy(DetectionStrategy):
             raise ValueError("This strategy requires a valid source+destination IP/subnet set for the input filters!")
 
         positive_features = []
+        positive_ips = []
         for ip in pt_ip_filters:
             if ip[1] == data.constants.IP_EITHER:
                 client_ip = ip[0]
                 break
         self.debug_print("The suspected PT client(s) in positive cases are assumed as {}.".format(client_ip))
         for window in positive_windows:
-            feature_dict = analytics.traffic.get_window_stats(window, client_ip)
+            feature_dict, ips = analytics.traffic.get_window_stats(window, client_ip)
             if any([(not feature_dict[i]) or isnan(feature_dict[i]) for i in feature_dict]):
                 continue
+            positive_ips.append(ips)
             positive_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
 
         negative_features = []
+        negative_ips = []
         for ip in negative_ip_filters:
             if ip[1] == data.constants.IP_EITHER:
                 client_ip = ip[0]
                 break
         self.debug_print("The suspected PT client(s) in negative cases are assumed as {}.".format(client_ip))
         for window in negative_windows:
-            feature_dict = analytics.traffic.get_window_stats(window, client_ip)
+            feature_dict, ips = analytics.traffic.get_window_stats(window, client_ip)
             if any([(not feature_dict[i]) or isnan(feature_dict[i]) for i in feature_dict]):
                 continue
+            negative_ips.append(ips)
             negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
 
         self.debug_print("Prepared {} positive windows, {} negative windows.".format(\
@@ -167,17 +187,22 @@ class LRStrategy(DetectionStrategy):
         all_features = np.asarray(all_features, dtype=np.float64)
         all_labels = [1 for i in range(len(positive_features))] + [0 for i in range(len(negative_features))]
         all_labels = np.asarray(all_labels, dtype=np.int8)
+        all_ips = positive_ips + negative_ips
         positive_features = []
         negative_features = [] # Explicit removal from memory.
+        positive_ips = []
+        negative_ips = []
 
         # Rescale to zero centered uniform variance data.
         self._strategic_states['all_features'] = preprocessing.scale(all_features,
          axis=0, copy=False)
         self._strategic_states['all_feature_labels'] = all_labels
-        self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
-        self._split_pt(pt_split_ratio)
+        self._strategic_states['all_ips'] = all_ips
         all_features = []
         all_labels = []
+        all_ips = []
+        self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
+        self._split_pt(pt_split_ratio)
 
         if not self._pt_split:
             self.debug_print("Training/validation case splitting failed, check data.")
@@ -186,6 +211,7 @@ class LRStrategy(DetectionStrategy):
         # self._pt_test_traces / self._pt_validation_traces set by split wrapper.
         self._pt_test_labels = self._strategic_states['training_labels']
         self._pt_validation_labels = self._strategic_states['validation_labels']
+        self._pt_validation_ips = self._strategic_states['validation_ips']
 
         # Stored states no longer required.
         self._strategic_states = {}
@@ -199,6 +225,7 @@ class LRStrategy(DetectionStrategy):
          self._strategic_states['TPR']*100, self._strategic_states['TNR']*100))
         self.debug_print("FPR: {:0.2f}%, FNR: {:0.2f}%".format(\
          self._strategic_states['FPR']*100, self._strategic_states['FNR']*100))
+        self.debug_print("Falsely blocked {} ({:0.2f}%) of IPs in validation.".format(len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
@@ -211,10 +238,9 @@ if __name__ == "__main__":
     # unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
     # detector = LRStrategy(lr_path, unobfuscated_path)
     # detector.run(pt_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)],
-    #     negative_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)],
-    #     pt_collection='traces201802153dcbf0853209323e50ac89078adcb262dec30e41',
-    #     negative_collection='traces20180215e40876e6e3ad9c79ab78b6adc1202a389c6213a5')
-    #
+    #     negative_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)])
+    # detector.clean_up_mongo()
+    # print(detector.report_blocked_ips())
     # exit(0)
 
     # Longer ACS Test.
@@ -232,3 +258,4 @@ if __name__ == "__main__":
     detector.run(pt_ip_filters=[(argv[3], data.constants.IP_EITHER)],
      negative_ip_filters=[(argv[4], data.constants.IP_EITHER)],
      pt_collection=argv[5], negative_collection=argv[6])
+    print(detector.report_blocked_ips())

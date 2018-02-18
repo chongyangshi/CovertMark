@@ -128,6 +128,9 @@ class DetectionStrategy(ABC):
         self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
         self._neg_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
         self._neg_collection_total = self.__reader.count(trace_filter={})
+        
+        # Record distinct destination IP addresses for stat reporting.
+        self._negative_unique_ips = self.__reader.distinct('dst')
 
         if len(self._neg_traces) == 0:
             return False
@@ -163,9 +166,6 @@ class DetectionStrategy(ABC):
 
         if not self._traces_loaded:
             self._load_into_memory()
-
-        # Record distinct destination IP addresses for stat reporting.
-        self._negative_unique_ips = self.__reader.distinct('dst')
 
         self._false_positive_rate = self.negative_run(**kwargs)
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
