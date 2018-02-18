@@ -176,10 +176,7 @@ def get_window_stats(windowed_traces, client_ip):
     Calculate the following features for the windowed traces:
         {
             'mean_entropy_up': mean entropy of upstream TCP payloads;
-            'stdv_entropy_up': standard deviation of upstream TCP payload
-                entropies;
             'mean_interval_up': upstream mean TCP ACK intervals;
-            'stdv_interval_up': upstream standard deviation of TCP ACK intervals;
             'mode_interval_up': the mode of interval between TCP frames, with
                 intervals between 0, 1000, 10000, 100000, 1000000 microseconds,
                 with value represented as the upper range of each interval. Only
@@ -188,7 +185,6 @@ def get_window_stats(windowed_traces, client_ip):
             'top1_tcp_len_up': the most common upstream TCP payload length;
             'top2_tcp_len_up': the second most common upstream TCP payload length;
             'mean_tcp_len_up': mean upstream TCP payload length.
-            'stdv_tcp_len_up': standard deviation of upstream TCP payload length.
             'push_ratio_up': ratio of TCP ACKs with PSH flags set, indicating
                 reuse of TCP handshake for additional data;
             (All attributes above, except for downstream and named '..._down');
@@ -266,9 +262,7 @@ def get_window_stats(windowed_traces, client_ip):
                     psh_up += 1
 
         stats['mean_entropy_up'] = np.mean(entropies_up)
-        stats['stdv_entropy_up'] = np.std(entropies_up)
         stats['mean_interval_up'] = np.mean(intervals_up)
-        stats['stdv_interval_up'] = np.std(intervals_up)
         stats['mode_interval_up'] = max(intervals_up_bins.items(), key=itemgetter(1))[0]
 
         up_counts = Counter(payload_lengths_up).items()
@@ -276,7 +270,6 @@ def get_window_stats(windowed_traces, client_ip):
         stats['top1_tcp_len_up'] = up_counts_sorted[0][0] if len(up_counts_sorted) > 0 else 0
         stats['top2_tcp_len_up'] = up_counts_sorted[1][0] if len(up_counts_sorted) > 1 else 0
         stats['mean_tcp_len_up'] = np.mean(payload_lengths_up)
-        stats['stdv_tcp_len_up'] = np.std(payload_lengths_up)
         if ack_up > 0:
             stats['push_ratio_up'] = float(psh_up) / ack_up
         else:
@@ -284,14 +277,11 @@ def get_window_stats(windowed_traces, client_ip):
 
     else: # Default to None if insufficient frames to check.
         stats['mean_entropy_up'] = None
-        stats['stdv_entropy_up'] = None
         stats['mean_interval_up'] = None
-        stats['stdv_interval_up'] = None
         stats['mode_interval_up'] = None
         stats['top1_tcp_len_up'] = None
         stats['top2_tcp_len_up'] = None
         stats['mean_tcp_len_up'] = None
-        stats['stdv_tcp_len_up'] = None
         stats['push_ratio_up'] = None
 
     # Now tally downstream frames.
@@ -333,9 +323,7 @@ def get_window_stats(windowed_traces, client_ip):
                     psh_down += 1
 
         stats['mean_entropy_down'] = np.mean(entropies_down)
-        stats['stdv_entropy_down'] = np.std(entropies_down)
         stats['mean_interval_down'] = np.mean(intervals_down)
-        stats['stdv_interval_down'] = np.std(intervals_down)
         stats['mode_interval_down'] = max(intervals_down_bins.items(), key=itemgetter(1))[0]
 
         down_counts = Counter(payload_lengths_down).items()
@@ -343,7 +331,6 @@ def get_window_stats(windowed_traces, client_ip):
         stats['top1_tcp_len_down'] = down_counts_sorted[0][0] if len(down_counts_sorted) > 0 else 0
         stats['top2_tcp_len_down'] = down_counts_sorted[1][0] if len(down_counts_sorted) > 1 else 0
         stats['mean_tcp_len_down'] = np.mean(payload_lengths_down)
-        stats['stdv_tcp_len_down'] = np.std(payload_lengths_down)
         if ack_down > 0:
             stats['push_ratio_down'] = float(psh_down) / ack_down
         else:
@@ -352,14 +339,11 @@ def get_window_stats(windowed_traces, client_ip):
     else:
         # Default to None if insufficient frames to check.
         stats['mean_entropy_down'] = None
-        stats['stdv_entropy_down'] = None
         stats['mean_interval_down'] = None
-        stats['stdv_interval_down'] = None
         stats['mode_interval_down'] = None
         stats['top1_tcp_len_down'] = None
         stats['top2_tcp_len_down'] = None
         stats['mean_tcp_len_down'] = None
-        stats['stdv_tcp_len_down'] = None
         stats['push_ratio_down'] = None
 
     return stats
