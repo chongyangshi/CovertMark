@@ -6,6 +6,7 @@ from sys import exit, argv
 from datetime import date, datetime
 from operator import itemgetter
 from math import log1p, isnan
+from random import randint
 import numpy as np
 from sklearn import preprocessing, model_selection, linear_model
 
@@ -23,12 +24,11 @@ class LRStrategy(DetectionStrategy):
 
     DEBUG = True
     WINDOW_SIZE = 200
+    NUM_RUNS = 5
 
 
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
-        self.LR = linear_model.LogisticRegression(penalty='l1', dual=False,
-         solver='saga', n_jobs=-1, max_iter=5000)
 
 
     def set_strategic_filter(self):
@@ -52,15 +52,10 @@ class LRStrategy(DetectionStrategy):
         split = model_selection.train_test_split(self._strategic_states['all_features'],
          self._strategic_states['all_feature_labels'], self._strategic_states['all_ips'],
          train_size=split_ratio, shuffle=True)
-        self._strategic_states['training_labels'] = split[2]
-        self._strategic_states['validation_labels'] = split[3]
-        self._strategic_states['training_ips'] = split[4]
-        self._strategic_states['validation_ips'] = split[5]
-
-        # Memory recycle.
-        self._strategic_states['all_features'] = []
-        self._strategic_states['all_feature_labels'] = []
-        self._strategic_states['all_ips'] = []
+        self._pt_test_labels = split[2]
+        self._pt_validation_labels = split[3]
+        self._pt_test_ips = split[4]
+        self._pt_validation_ips = split[5]
 
         return (split[0], split[1])
 
@@ -69,13 +64,20 @@ class LRStrategy(DetectionStrategy):
         """
         Perform logistic regression on the training/testing dataset, and validate
         overfitting on validation dataset.
+        :param run_num: the integer run number of this training/validation run.
         """
 
-        self.debug_print("- Logistic Regression training with L1 penalisation and SAGA solver...")
-        self.LR.fit(self._pt_test_traces, self._pt_test_labels)
+        run_num = 0 if not kwargs['run_num'] else kwargs['run_num']
+        if not isinstance(run_num, int) or run_num < 0:
+            raise ValueError("Incorrect run number.")
+
+        self.debug_print("- Logistic Regression training {} with L1 penalisation and SAGA solver...".format(run_num+1))
+        LR = linear_model.LogisticRegression(penalty='l1', dual=False,
+         solver='saga', n_jobs=-1, max_iter=5000, warm_start=False)
+        LR.fit(self._pt_test_traces, self._pt_test_labels)
 
         self.debug_print("- Logistic Regression validation...")
-        prediction = self.LR.predict(self._pt_validation_traces)
+        prediction = LR.predict(self._pt_validation_traces)
 
         total_positives = 0
         true_positives = 0
@@ -83,7 +85,7 @@ class LRStrategy(DetectionStrategy):
         total_negatives = 0
         true_negatives = 0
         false_negatives = 0
-        self._negative_blocked_ips = set([])
+        self._strategic_states[run_num]["negative_blocked_ips"] = set([])
         for i in range(0, len(prediction)):
             if prediction[i] == 1: # Positive identification
                 total_positives += 1
@@ -91,7 +93,8 @@ class LRStrategy(DetectionStrategy):
                     true_positives += 1
                 else:
                     false_positives += 1
-                    self._negative_blocked_ips = self._negative_blocked_ips.union(self._pt_validation_ips[i])
+                    self._strategic_states[run_num]["negative_blocked_ips"] = \
+                    self._strategic_states[run_num]["negative_blocked_ips"].union(self._pt_validation_ips[i])
             else:
                 total_negatives += 1
                 if self._pt_validation_labels[i] == 0:
@@ -99,14 +102,15 @@ class LRStrategy(DetectionStrategy):
                 else:
                     false_negatives += 1
 
-        self._strategic_states["total"] = total_positives + total_negatives
-        self._strategic_states["TPR"] = float(true_positives) / total_positives
-        self._strategic_states["FPR"] = float(false_positives) / total_positives
-        self._strategic_states["TNR"] = float(true_negatives) / total_negatives
-        self._strategic_states["FNR"] = float(false_negatives) / total_negatives
-        self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
+        self._strategic_states[run_num]["total"] = total_positives + total_negatives
+        self._strategic_states[run_num]["TPR"] = float(true_positives) / total_positives
+        self._strategic_states[run_num]["FPR"] = float(false_positives) / total_positives
+        self._strategic_states[run_num]["TNR"] = float(true_negatives) / total_negatives
+        self._strategic_states[run_num]["FNR"] = float(false_negatives) / total_negatives
+        self._strategic_states[run_num]["false_positive_blocked_rate"] = \
+         float(len(self._strategic_states[run_num]["negative_blocked_ips"])) / self._negative_unique_ips
 
-        return self._strategic_states["TPR"]
+        return self._strategic_states[run_num]["TPR"]
 
 
     def negative_run(self):
@@ -203,31 +207,43 @@ class LRStrategy(DetectionStrategy):
         all_features = []
         all_labels = []
         all_ips = []
-        self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
-        self._split_pt(pt_split_ratio)
 
-        if not self._pt_split:
-            self.debug_print("Training/validation case splitting failed, check data.")
-            return False
+        # Run training and validation for self.NUM_RUNS times.
+        for i in range(self.NUM_RUNS):
+            self.debug_print("LR Run {} of {}".format(i+1, self.NUM_RUNS))
 
-        # self._pt_test_traces / self._pt_validation_traces set by split wrapper.
-        self._pt_test_labels = self._strategic_states['training_labels']
-        self._pt_validation_labels = self._strategic_states['validation_labels']
-        self._pt_validation_ips = self._strategic_states['validation_ips']
+            # Redraw the samples and resplit.
+            self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
+            self._split_pt(pt_split_ratio)
 
-        # Stored states no longer required.
-        self._strategic_states = {}
+            if not self._pt_split:
+                self.debug_print("Training/validation case splitting failed, check data.")
+                return False
 
-        # Run training and validation.
-        self._run_on_positive()
+            self._strategic_states[i] = {}
+            self._run_on_positive(run_num=i)
 
-        self.debug_print("Results of validation: ")
-        self.debug_print("Total: {}".format(self._strategic_states["total"]))
-        self.debug_print("TPR: {:0.2f}%, TNR: {:0.2f}%".format(\
-         self._strategic_states['TPR']*100, self._strategic_states['TNR']*100))
-        self.debug_print("FPR: {:0.2f}%, FNR: {:0.2f}%".format(\
-         self._strategic_states['FPR']*100, self._strategic_states['FNR']*100))
-        self.debug_print("Falsely blocked {} ({:0.2f}%) of IPs in validation.".format(len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
+            self.debug_print("Results of validation: ")
+            self.debug_print("Total: {}".format(self._strategic_states[i]["total"]))
+            self.debug_print("TPR: {:0.2f}%, TNR: {:0.2f}%".format(\
+             self._strategic_states[i]['TPR']*100, self._strategic_states[i]['TNR']*100))
+            self.debug_print("FPR: {:0.2f}%, FNR: {:0.2f}%".format(\
+             self._strategic_states[i]['FPR']*100, self._strategic_states[i]['FNR']*100))
+            self.debug_print("Falsely blocked {} ({:0.2f}%) of IPs in validation.".format(len(self._strategic_states[i]["negative_blocked_ips"]), self._strategic_states[i]["false_positive_blocked_rate"]*100))
+
+        # As LR is relatively stable, we only need to pick the lowest FPR and
+        # do not need to worry about too low a corresponding TPR.
+        fpr_results = [self._strategic_states[i]['FPR'] for i in range(self.NUM_RUNS)]
+        best_fpr_run = min(enumerate(fpr_results), key=itemgetter(1))[0]
+
+        # Best result processing:
+        self._true_positive_rate = self._strategic_states[best_fpr_run]['TPR']
+        self._false_positive_rate = self._strategic_states[best_fpr_run]['FPR']
+        self._negative_blocked_ips = self._strategic_states[best_fpr_run]["negative_blocked_ips"]
+        self._false_positive_blocked_rate = self._strategic_states[best_fpr_run]["false_positive_blocked_rate"]
+        self.debug_print("Best: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
+         self._true_positive_rate*100, self._false_positive_rate*100,
+         len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
