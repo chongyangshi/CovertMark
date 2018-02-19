@@ -7,6 +7,7 @@ from datetime import date, datetime
 from operator import itemgetter
 from math import log1p, isnan
 from random import randint
+from collections import defaultdict
 import numpy as np
 from sklearn import preprocessing, model_selection, linear_model
 
@@ -25,6 +26,7 @@ class LRStrategy(DetectionStrategy):
     DEBUG = True
     WINDOW_SIZE = 200
     NUM_RUNS = 5
+    OCCURANCE_THRESHOLD = 2
 
 
     def __init__(self, pt_pcap, negative_pcap=None):
@@ -86,15 +88,41 @@ class LRStrategy(DetectionStrategy):
         true_negatives = 0
         false_negatives = 0
         self._strategic_states[run_num]["negative_blocked_ips"] = set([])
+        self._strategic_states[run_num]["ip_occurances"] = defaultdict(int)
         for i in range(0, len(prediction)):
-            if prediction[i] == 1: # Positive identification
-                total_positives += 1
-                if self._pt_validation_labels[i] == 1:
-                    true_positives += 1
+            ips_this_window = self._pt_validation_ips[i]
+
+            if prediction[i] == 1:
+                # The classifier believes that this window contains PT.
+                # However we only block an IP and flag a window if the IP appears
+                # in more than self.OCCURANCE_THRESHOLD windows seen so far.
+                positive_decision = False
+                for ip in ips_this_window:
+                    self._strategic_states[run_num]["ip_occurances"][ip] += 1
+                    if self._strategic_states[run_num]["ip_occurances"][ip] >= self.OCCURANCE_THRESHOLD:
+                        # Threshold for this IP to be classified as PT is met.
+                        positive_decision = True
+
+                # Tally decision for the whole window.
+                if positive_decision:
+                    total_positives += 1
                 else:
-                    false_positives += 1
-                    self._strategic_states[run_num]["negative_blocked_ips"] = \
-                    self._strategic_states[run_num]["negative_blocked_ips"].union(self._pt_validation_ips[i])
+                    total_negatives += 1
+
+                # Check how we did against the unseen label.
+                if self._pt_validation_labels[i] == 1:
+                    if positive_decision: # We were right to block here.
+                        true_positives += 1
+                    else: # We missed it this time, due to being conservative.
+                        false_negatives += 1
+                else:
+                    if positive_decision: # False positive! We blocked an innocent IP.
+                        false_positives += 1
+                        for ip in ips_this_window: # Tally it.
+                            self._strategic_states[run_num]["negative_blocked_ips"].add(ip)
+                    else: # We were right to not block here.
+                        true_negatives += 1
+
             else:
                 total_negatives += 1
                 if self._pt_validation_labels[i] == 0:
@@ -186,7 +214,7 @@ class LRStrategy(DetectionStrategy):
             negative_ips.append(ips)
             negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
         negative_windows = []
-        
+
         self.debug_print("Prepared {} positive windows, {} negative windows.".format(\
          len(positive_features), len(negative_features)))
         if len(positive_features) < 1 or len(negative_features) < 1:
@@ -246,6 +274,8 @@ class LRStrategy(DetectionStrategy):
         self.debug_print("Best: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
          self._true_positive_rate*100, self._false_positive_rate*100,
          len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
+        ips = str(sorted(self._strategic_states[best_fpr_run]["ip_occurances"].items(), key=itemgetter(1)))
+        self.debug_print("Appearances of IPs in classifier's positvie windows in this run (actually blocked at >= {} occurances): {}".format(self.OCCURANCE_THRESHOLD, ips))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
