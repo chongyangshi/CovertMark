@@ -136,7 +136,8 @@ class LRStrategy(DetectionStrategy):
         self._strategic_states[run_num]["TNR"] = float(true_negatives) / total_negatives
         self._strategic_states[run_num]["FNR"] = float(false_negatives) / total_negatives
         self._strategic_states[run_num]["false_positive_blocked_rate"] = \
-         float(len(self._strategic_states[run_num]["negative_blocked_ips"])) / self._negative_unique_ips
+         float(len(self._strategic_states[run_num]["negative_blocked_ips"])) / \
+         self._strategic_states['_negative_unique_ips']
 
         return self._strategic_states[run_num]["TPR"]
 
@@ -166,77 +167,78 @@ class LRStrategy(DetectionStrategy):
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
      pt_split_ratio=0.5, pt_collection=None, negative_collection=None):
         """
-        Overriding default run() to test over multiple block sizes and p-value
-        thresholds.
+        This method requires positive-negative mixed pcaps with start time synchronised.
+        Set pt_ip_filters and negative_ip_filters as usual, but they are also used
+        to distinguish true and false positive cases in this strategy. Only
+        pt_collection is used for the mixed pcap.
         """
 
-        self._run(pt_ip_filters, negative_ip_filters, pt_collection=pt_collection,
-         negative_collection=negative_collection)
+        if pt_ip_filters == negative_ip_filters:
+            raise ValueError("Mix PCAP in use, you need to be more specific about what IPs are PT clients in input filters.")
 
-        self.debug_print("Loaded {} positive traces, {} negative traces.".format(len(self._pt_traces), len(self._neg_traces)))
+        # Merge the filters to path all applicable traffic in the mixed pcap.
+        merged_filters = pt_ip_filters + negative_ip_filters
+        client_ips = [ip[0] for ip in merged_filters if ip[1] == data.constants.IP_EITHER]
+        positive_ips = [ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER]
+        negative_ips = [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER]
+        if len(client_ips) < 1:
+            raise ValueError("This strategy requires a valid source+destination (IP_EITHER) IP/subnet in the input filter!")
+        self.debug_print("We assume the following clients within the censor's network are being watched: {}.".format(', '.join(client_ips)))
+        self.debug_print("The following clients within the censor's network are using PT: {}.".format(', '.join(positive_ips)))
+        self.debug_print("The following clients within the censor's network are not using PT: {}.".format(', '.join(negative_ips)))
+
+        # Now the modified setup.
+        self.debug_print("Loading traces...")
+        self._run(merged_filters, [], pt_collection=pt_collection, negative_collection=None)
+        # Rewrite the membership due to use of mixed pcap.
+        self.set_case_membership([ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER],
+                                 [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER])
+
+        self.debug_print("Loaded {} mixed traces".format(len(self._pt_traces)))
         self.debug_print("- Applying windowing to the traces...")
         positive_windows = analytics.traffic.window_traces_fixed_size(self._pt_traces, self.WINDOW_SIZE)
-        self._pt_traces = None # Give memory when processing large files.
-        negative_windows = analytics.traffic.window_traces_fixed_size(self._neg_traces, self.WINDOW_SIZE)
-        self._neg_traces = None
+        self._pt_traces = None # Releases memory when processing large files.
+        self.debug_print("Prepared {} windows.".format(len(positive_windows)))
 
-        self.debug_print("- Extracting features from windowed traffic...")
-        if (not any([i[1] == data.constants.IP_EITHER for i in pt_ip_filters])) or \
-            (not any([i[1] == data.constants.IP_EITHER for i in negative_ip_filters])):
-            raise ValueError("This strategy requires a valid source+destination IP/subnet set for the input filters!")
-
-        positive_features = []
-        positive_ips = []
-        for ip in pt_ip_filters:
-            if ip[1] == data.constants.IP_EITHER:
-                client_ip = ip[0]
-                break
-        self.debug_print("The suspected PT client(s) in positive cases are assumed as {}.".format(client_ip))
+        self.debug_print("- Extracting feature rows from windowed traffic...")
+        features = []
+        labels = []
+        ips_in_windows = []
+        positives = 0
+        negatives = 0
         for window in positive_windows:
-            feature_dict, ips = analytics.traffic.get_window_stats(window, client_ip)
+            feature_dict, ips, client_ips_seen = analytics.traffic.get_window_stats(window, client_ips)
             if any([(not feature_dict[i]) or isnan(feature_dict[i]) for i in feature_dict]):
                 continue
-            positive_ips.append(ips)
-            positive_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+            ips_in_windows.append(ips)
+            if any([self.in_positive_filter(ip) for ip in list(client_ips_seen)]):
+                labels.append(1)
+                positives += 1
+            else:
+                labels.append(0)
+                negatives += 1
+            features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
         positive_windows = []
 
-        negative_features = []
-        negative_ips = []
-        for ip in negative_ip_filters:
-            if ip[1] == data.constants.IP_EITHER:
-                client_ip = ip[0]
-                break
-        self.debug_print("The suspected PT client(s) in negative cases are assumed as {}.".format(client_ip))
-        for window in negative_windows:
-            feature_dict, ips = analytics.traffic.get_window_stats(window, client_ip)
-            if any([(not feature_dict[i]) or isnan(feature_dict[i]) for i in feature_dict]):
-                continue
-            negative_ips.append(ips)
-            negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
-        negative_windows = []
+        self.debug_print("Extracted {} rows of features.".format(len(features)))
+        self.debug_print("Of which {} rows represent windows containing PT traces, {} rows don't.".format(positives, negatives))
+        if len(features) < 1:
+            raise ValueError("No feature rows to work with, did you misconfigure the input filters?")
 
-        self.debug_print("Prepared {} positive windows, {} negative windows.".format(\
-         len(positive_features), len(negative_features)))
-        if len(positive_features) < 1 or len(negative_features) < 1:
-            raise ValueError("No windows to work with, did you misconfigure the input filters?")
-        all_features = positive_features + negative_features
-        all_features = np.asarray(all_features, dtype=np.float64)
-        all_labels = [1 for i in range(len(positive_features))] + [0 for i in range(len(negative_features))]
-        all_labels = np.asarray(all_labels, dtype=np.int8)
-        all_ips = positive_ips + negative_ips
-        positive_features = []
-        negative_features = [] # Explicit removal from memory.
-        positive_ips = []
-        negative_ips = []
+        all_features = np.asarray(features, dtype=np.float64)
+        all_labels = np.asarray(labels, dtype=np.int8)
+        features = []
+        labels = [] # Explicit removal from memory.
 
         # Rescale to zero centered uniform variance data.
         self._strategic_states['all_features'] = preprocessing.scale(all_features,
          axis=0, copy=False)
         self._strategic_states['all_feature_labels'] = all_labels
-        self._strategic_states['all_ips'] = all_ips
+        self._strategic_states['all_ips'] = ips_in_windows
+        self._strategic_states['_negative_unique_ips'] = len(list(filter(lambda x: not self.in_negative_filter(x), ips_in_windows)))
         all_features = []
         all_labels = []
-        all_ips = []
+        ips_in_windows = []
 
         # Run training and validation for self.NUM_RUNS times.
         for i in range(self.NUM_RUNS):
@@ -283,29 +285,18 @@ class LRStrategy(DetectionStrategy):
 if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-    # Short test.
-    # lr_path = os.path.join(parent_path, 'examples', 'meek.pcap')
-    # unobfuscated_path = os.path.join(parent_path, 'examples', 'unobfuscated.pcap')
-    # detector = LRStrategy(lr_path, unobfuscated_path)
-    # detector.run(pt_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)],
-    #     negative_ip_filters=[('172.28.192.0/24', data.constants.IP_EITHER)])
-    # detector.clean_up_mongo()
-    # print(detector.report_blocked_ips())
-    # exit(0)
+    # Shorter test.
+    mixed_path = os.path.join(parent_path, 'examples', 'local', 'meeklong_unobfuscatedlong_merge.pcap')
+    detector = LRStrategy(mixed_path)
+    detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
+        negative_ip_filters=[('172.28.195.198', data.constants.IP_EITHER)])
+    detector.clean_up_mongo()
+    print(detector.report_blocked_ips())
+    exit(0)
 
-    # Longer ACS Test.
-    # lr_path = os.path.join(parent_path, 'examples', 'local', 'meeklong.pcap')
-    # unobfuscated_path = os.path.join(parent_path, 'examples', 'local', 'cantab.pcap')
-    # detector = LRStrategy(lr_path, unobfuscated_path)
-    # detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
-    #     negative_ip_filters=[('128.232.17.0/24', data.constants.IP_EITHER)],
-    #     pt_collection="traces20180217bedd6553b1ad347c547c6440db8625a30124958b",
-    #     negative_collection="traces201802179204e6b362c82a2e90f71e261570f36a69ff064e")
-
-    lr_path = os.path.join(parent_path, 'examples', 'local', argv[1])
-    unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
-    detector = LRStrategy(lr_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[(argv[3], data.constants.IP_EITHER)],
-     negative_ip_filters=[(argv[4], data.constants.IP_EITHER)],
-     pt_collection=argv[5], negative_collection=argv[6])
+    mixed_path = os.path.join(parent_path, 'examples', 'local', argv[1])
+    detector = LRStrategy(mixed_path)
+    detector.run(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
+     negative_ip_filters=[(argv[3], data.constants.IP_EITHER)],
+     pt_collection=argv[4], negative_collection=None)
     print(detector.report_blocked_ips())

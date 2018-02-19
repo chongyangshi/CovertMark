@@ -38,6 +38,8 @@ class DetectionStrategy(ABC):
         self._pt_validation_traces = []
         self._pt_split = False
         self._neg_traces = []
+        self._positive_subnets = []
+        self._negative_subnets = []
 
         # The strategic filter to examine a subset of loaded traces.
         self._strategic_packet_filter = {}
@@ -54,9 +56,9 @@ class DetectionStrategy(ABC):
         self.DEBUG = False
 
 
-    def _parse_packets(self, pt_filters, negative_filters=[]):
+    def _parse_PT_packets(self, pt_filters):
         """
-        Parse both positive and negative test traces stored in the PCAP files.
+        Parse positive test traces stored in the PCAP files.
 
         N.B. Filters at this stage are intended to be used to remove unrelated
         traces accidentally captured in the process, so that they do not affect
@@ -74,33 +76,40 @@ class DetectionStrategy(ABC):
              ('13.32.68.100', data.constants.IP_DST)]
             For filter matching rules, see CovertMark.data.parser.PCAPParser.set_ip_filter.
             For an empty (allow-all) filter, use {}.
-        :param negative_filters: Negative filters if required for housekeeping,
-            although in principle they should not remove any candidate traces
-            that may result in false positive detection. Allow-all by default.
-        :returns: True if a non-zero amount of traces were parsed for both pcaps,
-            False otherwise.
+        :returns: True if a non-zero amount of traces were parsed, False otherwise.
         """
 
         assert(self._MONGO_KEY.isalnum)
 
         self.__pt_parser.set_ip_filter(pt_filters)
+        self.set_case_membership([i[0] for i in pt_filters], None)
         desp = self._MONGO_KEY + "Positive" + date.today().strftime("%Y%m%d")
         self._pt_collection = self.__pt_parser.load_and_insert_new(description=desp)
 
-        # Parse negative traces if pcap set.
-        if self.__neg_parser is not None:
-            self.__neg_parser.set_ip_filter(negative_filters)
-            desp = self._MONGO_KEY + "Negative" + date.today().strftime("%Y%m%d")
-            self._neg_collection = self.__neg_parser.load_and_insert_new(description=desp)
-            if self._pt_collection and self._neg_collection:
-                return True
-            else:
-                return False
+        if self._pt_collection:
+            return True
         else:
-            if self._pt_collection:
-                return True
-            else:
-                return False
+            return False
+
+
+    def _parse_negative_packets(self, negative_filters):
+        """
+        Parse negative test traces stored in the PCAP files.
+        :param negative_filters: same format as positive filters above. Allow-all
+            by default.
+        :returns: True if a non-zero amount of traces were parsed, False otherwise.
+        """
+
+        assert(self._MONGO_KEY.isalnum)
+
+        self.__neg_parser.set_ip_filter(negative_filters)
+        self.set_case_membership(None, [i[0] for i in negative_filters])
+        desp = self._MONGO_KEY + "Negative" + date.today().strftime("%Y%m%d")
+        self._neg_collection = self.__neg_parser.load_and_insert_new(description=desp)
+        if self._neg_collection:
+            return True
+        else:
+            return False
 
 
     def _load_into_memory(self):
@@ -128,7 +137,7 @@ class DetectionStrategy(ABC):
         self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
         self._neg_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
         self._neg_collection_total = self.__reader.count(trace_filter={})
-        
+
         # Record distinct destination IP addresses for stat reporting.
         self._negative_unique_ips = self.__reader.distinct('dst')
 
@@ -137,6 +146,67 @@ class DetectionStrategy(ABC):
 
         self._traces_loaded = True
         return True
+
+
+    def set_case_membership(self, positive_ips, negative_ips):
+        """
+        Set an internal list of positive and negative subnets for membership
+        checking with self.in_positive_filter and self.in_negative_filter. This
+        is useful if a mixed pcap needs to be parsed into self._pt_traces only.
+        If only one of the two needs to be set, pass in None in the corresponding
+        other parameter.
+        :param positve_ips: list of subnets that are positive, i.e. PT clients.
+        :param negative_ips: list of subnets that are negative, i.e. innocent
+            clients.
+        """
+
+        if positive_ips:
+            positive_subnets = [data.utils.build_subnet(i) for i in positive_ips]
+            if all(positive_subnets):
+                self._positive_subnets = positive_subnets
+
+        if negative_ips:
+            negative_subnets = [data.utils.build_subnet(i) for i in negative_ips]
+            if all(negative_subnets):
+                self._negative_subnets = negative_subnets
+
+        return True
+
+
+    def in_positive_filter(self, ip):
+        """
+        :param input IP or subnet.
+        :returns True if IP or subnet specified is in the positive input filter,
+            False otherwise, or if input invalid.
+        """
+
+        ip_subnet = data.utils.build_subnet(ip)
+        if not ip_subnet:
+            return False
+
+        for i in self._positive_subnets:
+            if i.overlaps(ip_subnet):
+                return True
+
+        return False
+
+
+    def in_negative_filter(self, ip):
+        """
+        :param input IP or subnet.
+        :returns True if IP or subnet specified is in the negative input filter,
+            False otherwise, or if input invalid.
+        """
+
+        ip_subnet = data.utils.build_subnet(ip)
+        if not ip_subnet:
+            return False
+
+        for i in self._negative_subnets:
+            if i.overlaps(ip_subnet):
+                return True
+
+        return False
 
 
     def _run_on_positive(self, **kwargs):
@@ -219,25 +289,43 @@ class DetectionStrategy(ABC):
         self.debug_print("Executing detection strategy: " + self.NAME)
         self.debug_print(self.DESCRIPTION)
 
-        load_existing = False
-        if pt_collection is not None or negative_collection is not None:
-            if pt_collection is None or negative_collection is None:
-                self.debug_print("Will parse PCAP files as collections are not correctly specified.")
-            else:
-                if self.__reader.select(pt_collection) and self.__reader.select(negative_collection):
-                    load_existing = True
-                    self._pt_collection = pt_collection
-                    self._neg_collection = negative_collection
-                    self.debug_print("Will load existing traces as specified...")
-                else:
-                    self.debug_print("Will parse PCAP files as collections do not exist in the database.")
+        reparsing_positive = True
 
-        if not load_existing:
-            self.debug_print("- Parsing PCAP files...")
-            if self._parse_packets(pt_ip_filters, negative_filters=negative_ip_filters):
-                self.debug_print("- Parsed PCAP file(s) according to input IP filters.")
+        if not self.__neg_parser:
+            reparsing_negative = False
+        else:
+            reparsing_negative = True
+
+        if pt_collection is not None:
+            if self.__reader.select(pt_collection):
+                reparsing_positive = False
+                self._pt_collection = pt_collection
+                self.debug_print("Loading existing PT traces...")
             else:
-                raise RuntimeError("! Failure to parse PCAP files.")
+                self.debug_print("- Re-parsing PT PCAP file as {} does not exist in MongoDB...".format(pt_collection))
+
+        if reparsing_positive:
+            self.debug_print("Parsing PT PCAP...")
+            if self._parse_PT_packets(pt_ip_filters):
+                self.debug_print("Parsed PCAP file according to input positive IP filters.")
+            else:
+                raise RuntimeError("! Failure to parse positive PCAP files.")
+
+        if negative_collection is not None:
+            if self.__reader.select(negative_collection):
+                reparsing_negative = False
+                self._neg_collection = negative_collection
+                self.debug_print("Loading existing negative traces...")
+            else:
+                self.debug_print("Re-parsing negative traces as {} does not exist in MongoDB...".format(negative_collection))
+
+        if reparsing_negative:
+            self.debug_print("Parsing negative PCAP...")
+            if self._parse_negative_packets(negative_ip_filters):
+                self.debug_print("Parsed PCAP file according to input negative IP filters.")
+            else:
+                raise RuntimeError("! Failure to parse negative PCAP file.")
+
 
         self.debug_print("- Setting initial strategic filter...")
         self.set_strategic_filter()
@@ -308,7 +396,7 @@ class DetectionStrategy(ABC):
         """
         While packets not related to the PT in the positive case should have
         been removed from positive traces when parsing the pcap file
-        (self._parse_packets), if this strategy only examines certain packets
+        (self._parse_PT_packets), if this strategy only examines certain packets
         in the traces, such as client-to-server packets only, they should be
         specified here in the strategic filter. The syntax follows MongoDB
         queries on the trace syntax:
