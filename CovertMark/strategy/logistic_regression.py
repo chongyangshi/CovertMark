@@ -11,6 +11,8 @@ from collections import defaultdict
 import numpy as np
 from sklearn import preprocessing, model_selection, linear_model
 
+DEFAULT_OCCURANCE_THRESHOLD = 2
+
 class LRStrategy(DetectionStrategy):
     """
     A generic Logistic Regression-based strategy for observing patterns of traffic
@@ -24,9 +26,9 @@ class LRStrategy(DetectionStrategy):
     _MONGO_KEY = "lr" # Alphanumeric key for MongoDB.
 
     DEBUG = True
-    WINDOW_SIZE = 200
+    WINDOW_SIZE = 50
     NUM_RUNS = 5
-    OCCURANCE_THRESHOLD = 2
+    OCCURANCE_THRESHOLD = DEFAULT_OCCURANCE_THRESHOLD
 
 
     def __init__(self, pt_pcap, negative_pcap=None):
@@ -95,11 +97,11 @@ class LRStrategy(DetectionStrategy):
             if prediction[i] == 1:
                 # The classifier believes that this window contains PT.
                 # However we only block an IP and flag a window if the IP appears
-                # in more than self.OCCURANCE_THRESHOLD windows seen so far.
+                # in more than self._occurance_threshold windows seen so far.
                 positive_decision = False
                 for ip in ips_this_window:
                     self._strategic_states[run_num]["ip_occurances"][ip] += 1
-                    if self._strategic_states[run_num]["ip_occurances"][ip] >= self.OCCURANCE_THRESHOLD:
+                    if self._strategic_states[run_num]["ip_occurances"][ip] >= self._occurance_threshold:
                         # Threshold for this IP to be classified as PT is met.
                         positive_decision = True
 
@@ -165,7 +167,8 @@ class LRStrategy(DetectionStrategy):
 
 
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
-     pt_split_ratio=0.5, pt_collection=None, negative_collection=None):
+     pt_split_ratio=0.5, pt_collection=None, negative_collection=None,
+     occurance_threshold=DEFAULT_OCCURANCE_THRESHOLD):
         """
         This method requires positive-negative mixed pcaps with start time synchronised.
         Set pt_ip_filters and negative_ip_filters as usual, but they are also used
@@ -193,6 +196,8 @@ class LRStrategy(DetectionStrategy):
         # Rewrite the membership due to use of mixed pcap.
         self.set_case_membership([ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER],
                                  [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER])
+        # Set threshold.
+        self._occurance_threshold = occurance_threshold
 
         self.debug_print("Loaded {} mixed traces".format(len(self._pt_traces)))
         self.debug_print("- Applying windowing to the traces...")
@@ -277,7 +282,7 @@ class LRStrategy(DetectionStrategy):
          self._true_positive_rate*100, self._false_positive_rate*100,
          len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
         ips = str(sorted(self._strategic_states[best_fpr_run]["ip_occurances"].items(), key=itemgetter(1)))
-        self.debug_print("Appearances of IPs in classifier's positvie windows in this run (actually blocked at >= {} occurances): {}".format(self.OCCURANCE_THRESHOLD, ips))
+        self.debug_print("Appearances of IPs in classifier's positvie windows in this run (actually blocked at >= {} occurances): {}".format(self._occurance_threshold, ips))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
@@ -286,17 +291,17 @@ if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     # Shorter test.
-    mixed_path = os.path.join(parent_path, 'examples', 'local', 'meeklong_unobfuscatedlong_merge.pcap')
-    detector = LRStrategy(mixed_path)
-    detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
-        negative_ip_filters=[('172.28.195.198', data.constants.IP_EITHER)])
-    detector.clean_up_mongo()
-    print(detector.report_blocked_ips())
-    exit(0)
+    # mixed_path = os.path.join(parent_path, 'examples', 'local', 'meeklong_unobfuscatedlong_merge.pcap')
+    # detector = LRStrategy(mixed_path)
+    # detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
+    #     negative_ip_filters=[('172.28.195.198', data.constants.IP_EITHER)])
+    # detector.clean_up_mongo()
+    # print(detector.report_blocked_ips())
+    # exit(0)
 
     mixed_path = os.path.join(parent_path, 'examples', 'local', argv[1])
     detector = LRStrategy(mixed_path)
     detector.run(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
      negative_ip_filters=[(argv[3], data.constants.IP_EITHER)],
-     pt_collection=argv[4], negative_collection=None)
+     pt_collection=argv[4], negative_collection=None, occurance_threshold=int(argv[5]))
     print(detector.report_blocked_ips())
