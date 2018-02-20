@@ -183,6 +183,8 @@ class LRStrategy(DetectionStrategy):
         Set pt_ip_filters and negative_ip_filters as usual, but they are also used
         to distinguish true and false positive cases in this strategy. Only
         pt_collection is used for the mixed pcap.
+        Input traces are assumed to be chronologically ordered, misfunctioning
+        otherwise.
         """
 
         if pt_ip_filters == negative_ip_filters:

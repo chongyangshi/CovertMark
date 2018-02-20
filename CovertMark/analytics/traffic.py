@@ -5,7 +5,7 @@ import numpy as np
 from scipy import stats
 from sklearn.cluster import MeanShift, estimate_bandwidth
 from operator import itemgetter
-from collections import Counter
+from collections import Counter, defaultdict
 
 """
 Record and analyse windowed and non-windowed packet flow statistics.
@@ -93,22 +93,17 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
     return clusters
 
 
-def window_traces_fixed_size(traces, window_size, source_ip=None):
+def window_traces_fixed_size(traces, window_size):
     """
-    Segment traces into fixed-trace-size windows, discarding any remainder.
+    Segment traces into fixed-size windows, discarding any remainder.
     :param traces: a list of parsed packets.
     :param window_size: a positive integer defining the fixed frame-count of
         each windowed segment, in chronological order.
-    :param source_ip: if not None, ignore packets with source not matching the
-        source_ip.
     :returns: a 2-D list containing windowed traces.
     """
 
     if not isinstance(window_size, int) or window_size < 1:
         raise ValueError("Invalid window size.")
-
-    if source_ip is not None:
-        traces = list(filter(lambda x: x['src'] == source_ip, traces))
 
     if len(traces) < window_size:
         return [] # Empty list if insufficient size of input.
@@ -121,7 +116,7 @@ def window_traces_fixed_size(traces, window_size, source_ip=None):
     return segments
 
 
-def window_traces_time_series(traces, chronological_window, sort=True, source_ip=None):
+def window_traces_time_series(traces, chronological_window, sort=True):
     """
     Segment traces into fixed chronologically-sized windows.
     :param traces: a list of parsed packets.
@@ -130,19 +125,8 @@ def window_traces_time_series(traces, chronological_window, sort=True, source_ip
     :param sort: if True, traces will be sorted again into chronological order,
         useful if packet times not guaranteed to be chronologically ascending.
         True by default.
-    :param source_ip: if not None, ignore packets with source not matching the
-        source_ip.
     :returns: a 2-D list containing windowed traces.
     """
-
-    if source_ip is not None:
-        traces = list(filter(lambda x: x['src'] == source_ip, traces))
-
-    # In Python, even though 'time' is stored as timestap strings by MongoDB,
-    # they can be compared as if in float, e.g.:
-    # >>> '1518028414.084873' > '1518028414.084874'
-    # False
-    # Therefore, no explicit conversion is required for sorted(), min() and max().
 
     # Sorted by time if required.
     if sort:
@@ -169,6 +153,56 @@ def window_traces_time_series(traces, chronological_window, sort=True, source_ip
         segments[c_segment].append(trace)
 
     return segments
+
+
+def group_traces_by_ip_fixed_size(traces, clients, window_size):
+    """
+    Group traces into fixed-size segments that contain bidirectional traffic
+    from and towards individual predefined clients, individual inputs should
+    normally come from time-windowing by self.window_traces_time_series (e.g. 60s)
+    to simulate realistic firewall operation conditions.
+    :param traces: a list of parsed packets, packets in the 1D list are assumed
+        to be chronologically ordered.
+    :param clients: a predefined list of Python subnets objects describing
+        clients that are considered within the firewall's control.
+    :param window_size: threshold to start a new segment.
+    :returns: a dictionary indexed by a tuple of individual client and target pair,
+        containing one 2D list for each pair. Each 2D list contains segmented
+        traces by fixed size, with remainders retained.
+    """
+
+    if len(clients) < 1:
+        return []
+
+    client_traces = defaultdict(list)
+    for trace in traces:
+
+        trace_srcnet = data.utils.build_subnet(trace['src'])
+        trace_dstnet = data.utils.build_subnet(trace['dst'])
+        trace_client = None
+
+        for client in clients:
+            if client.overlaps(trace_srcnet):
+                trace_client = client
+                target = trace['dst']
+                break
+
+            elif client.overlaps(trace_dstnet):
+                trace_client = client
+                target = trace['src']
+                break
+
+        if not trace_client:
+            continue # Irrelevant trace.
+
+        # Append here first.
+        client_traces[(str(trace_client), target)].append(trace)
+
+    # Now segment for each client/target pair by fixed size.
+    for c in client_traces:
+        client_traces[c] = [client_traces[c][i:i+window_size] for i in range(0, len(client_traces[c]), window_size)]
+
+    return client_traces
 
 
 def get_window_stats(windowed_traces, client_ips):
