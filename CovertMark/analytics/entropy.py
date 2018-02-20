@@ -52,8 +52,8 @@ class EntropyAnalyser:
         :returns: the base 2 shannon entropy of input_bytes.
         """
 
-        if not isinstance(input_bytes, bytes):
-            return None
+        if not isinstance(input_bytes, bytes) or len(input_bytes) == 0:
+            return 0
 
         byte_array = [input_bytes[i:i+1] for i in range(len(input_bytes))]
         occurances = {}

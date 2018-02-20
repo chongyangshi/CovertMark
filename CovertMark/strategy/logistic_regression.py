@@ -94,36 +94,45 @@ class LRStrategy(DetectionStrategy):
         for i in range(0, len(prediction)):
             ips_this_window = self._pt_validation_ips[i]
 
+            # if prediction[i] == 1:
+            #     # The classifier believes that this window contains PT.
+            #     # However we only block an IP and flag a window if the IP appears
+            #     # in more than self._occurance_threshold windows seen so far.
+            #     positive_decision = False
+            #     for ip in ips_this_window:
+            #         self._strategic_states[run_num]["ip_occurances"][ip] += 1
+            #         if self._strategic_states[run_num]["ip_occurances"][ip] >= self._occurance_threshold:
+            #             # Threshold for this IP to be classified as PT is met.
+            #             positive_decision = True
+            #
+            #     # Tally decision for the whole window.
+            #     if positive_decision:
+            #         total_positives += 1
+            #     else:
+            #         total_negatives += 1
+            #
+            #     # Check how we did against the unseen label.
+            #     if self._pt_validation_labels[i] == 1:
+            #         if positive_decision: # We were right to block here.
+            #             true_positives += 1
+            #         else: # We missed it this time, due to being conservative.
+            #             false_negatives += 1
+            #     else:
+            #         if positive_decision: # False positive! We blocked an innocent IP.
+            #             false_positives += 1
+            #             for ip in ips_this_window: # Tally it.
+            #                 self._strategic_states[run_num]["negative_blocked_ips"].add(ip)
+            #         else: # We were right to not block here.
+            #             true_negatives += 1
+
             if prediction[i] == 1:
-                # The classifier believes that this window contains PT.
-                # However we only block an IP and flag a window if the IP appears
-                # in more than self._occurance_threshold windows seen so far.
-                positive_decision = False
-                for ip in ips_this_window:
-                    self._strategic_states[run_num]["ip_occurances"][ip] += 1
-                    if self._strategic_states[run_num]["ip_occurances"][ip] >= self._occurance_threshold:
-                        # Threshold for this IP to be classified as PT is met.
-                        positive_decision = True
-
-                # Tally decision for the whole window.
-                if positive_decision:
-                    total_positives += 1
-                else:
-                    total_negatives += 1
-
-                # Check how we did against the unseen label.
+                total_positives += 1
                 if self._pt_validation_labels[i] == 1:
-                    if positive_decision: # We were right to block here.
-                        true_positives += 1
-                    else: # We missed it this time, due to being conservative.
-                        false_negatives += 1
+                    true_positives += 1
+                    for ip in ips_this_window:
+                        self._strategic_states[run_num]["negative_blocked_ips"].add(ip)
                 else:
-                    if positive_decision: # False positive! We blocked an innocent IP.
-                        false_positives += 1
-                        for ip in ips_this_window: # Tally it.
-                            self._strategic_states[run_num]["negative_blocked_ips"].add(ip)
-                    else: # We were right to not block here.
-                        true_negatives += 1
+                    false_positives += 1
 
             else:
                 total_negatives += 1
@@ -213,7 +222,7 @@ class LRStrategy(DetectionStrategy):
         negatives = 0
         for window in positive_windows:
             feature_dict, ips, client_ips_seen = analytics.traffic.get_window_stats(window, client_ips)
-            if any([(not feature_dict[i]) or isnan(feature_dict[i]) for i in feature_dict]):
+            if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                 continue
             ips_in_windows.append(ips)
             if any([self.in_positive_filter(ip) for ip in list(client_ips_seen)]):

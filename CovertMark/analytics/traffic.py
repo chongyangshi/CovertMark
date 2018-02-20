@@ -271,7 +271,10 @@ def get_window_stats(windowed_traces, client_ips):
                     psh_up += 1
 
         stats['mean_entropy_up'] = np.mean(entropies_up)
-        stats['mean_interval_up'] = np.mean(intervals_up)
+        if len(intervals_up) == 0: # Cap at 1 second.
+            stats['mean_interval_up'] = 1000000
+        else:
+            stats['mean_interval_up'] = np.mean(intervals_up)
         stats['mode_interval_up'] = max(intervals_up_bins.items(), key=itemgetter(1))[0]
 
         up_counts = Counter(payload_lengths_up).items()
@@ -284,14 +287,14 @@ def get_window_stats(windowed_traces, client_ips):
         else:
             stats['push_ratio_up'] = 0
 
-    else: # Default to None if insufficient frames to check.
-        stats['mean_entropy_up'] = None
-        stats['mean_interval_up'] = None
-        stats['mode_interval_up'] = None
-        stats['top1_tcp_len_up'] = None
-        stats['top2_tcp_len_up'] = None
-        stats['mean_tcp_len_up'] = None
-        stats['push_ratio_up'] = None
+    else: # Default to zeros if insufficient frames to check.
+        stats['mean_entropy_up'] = 0
+        stats['mean_interval_up'] = 1000000
+        stats['mode_interval_up'] = 1000000
+        stats['top1_tcp_len_up'] = 0
+        stats['top2_tcp_len_up'] = 0
+        stats['mean_tcp_len_up'] = 0
+        stats['push_ratio_up'] = 0
 
     # Now tally downstream frames.
     if len(traces_down) > 0:
@@ -334,7 +337,10 @@ def get_window_stats(windowed_traces, client_ips):
                     psh_down += 1
 
         stats['mean_entropy_down'] = np.mean(entropies_down)
-        stats['mean_interval_down'] = np.mean(intervals_down)
+        if len(intervals_down) == 0: # Cap at 1 second.
+            stats['mean_interval_down'] = 1000000
+        else:
+            stats['mean_interval_down'] = np.mean(intervals_down)
         stats['mode_interval_down'] = max(intervals_down_bins.items(), key=itemgetter(1))[0]
 
         down_counts = Counter(payload_lengths_down).items()
@@ -348,13 +354,13 @@ def get_window_stats(windowed_traces, client_ips):
             stats['push_ratio_down'] = 0
 
     else:
-        # Default to None if insufficient frames to check.
-        stats['mean_entropy_down'] = None
-        stats['mean_interval_down'] = None
-        stats['mode_interval_down'] = None
-        stats['top1_tcp_len_down'] = None
-        stats['top2_tcp_len_down'] = None
-        stats['mean_tcp_len_down'] = None
-        stats['push_ratio_down'] = None
+        # Default to least optimistic if insufficient frames to check.
+        stats['mean_entropy_down'] = 0
+        stats['mean_interval_down'] = 1000000
+        stats['mode_interval_down'] = 1000000
+        stats['top1_tcp_len_down'] = 0
+        stats['top2_tcp_len_down'] = 0
+        stats['mean_tcp_len_down'] = 0
+        stats['push_ratio_down'] = 0
 
     return stats, ips, client_ips_seen
