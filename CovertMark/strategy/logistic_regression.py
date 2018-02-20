@@ -11,8 +11,6 @@ from collections import defaultdict
 import numpy as np
 from sklearn import preprocessing, model_selection, linear_model
 
-DEFAULT_OCCURANCE_THRESHOLD = 2
-
 class LRStrategy(DetectionStrategy):
     """
     A generic Logistic Regression-based strategy for observing patterns of traffic
@@ -26,10 +24,9 @@ class LRStrategy(DetectionStrategy):
     _MONGO_KEY = "lr" # Alphanumeric key for MongoDB.
 
     DEBUG = True
-    WINDOW_SIZE = 50
+    WINDOW_SIZE = 25
+    TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
-    OCCURANCE_THRESHOLD = DEFAULT_OCCURANCE_THRESHOLD
-
 
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
@@ -92,46 +89,13 @@ class LRStrategy(DetectionStrategy):
         self._strategic_states[run_num]["negative_blocked_ips"] = set([])
         self._strategic_states[run_num]["ip_occurances"] = defaultdict(int)
         for i in range(0, len(prediction)):
-            ips_this_window = self._pt_validation_ips[i]
-
-            # if prediction[i] == 1:
-            #     # The classifier believes that this window contains PT.
-            #     # However we only block an IP and flag a window if the IP appears
-            #     # in more than self._occurance_threshold windows seen so far.
-            #     positive_decision = False
-            #     for ip in ips_this_window:
-            #         self._strategic_states[run_num]["ip_occurances"][ip] += 1
-            #         if self._strategic_states[run_num]["ip_occurances"][ip] >= self._occurance_threshold:
-            #             # Threshold for this IP to be classified as PT is met.
-            #             positive_decision = True
-            #
-            #     # Tally decision for the whole window.
-            #     if positive_decision:
-            #         total_positives += 1
-            #     else:
-            #         total_negatives += 1
-            #
-            #     # Check how we did against the unseen label.
-            #     if self._pt_validation_labels[i] == 1:
-            #         if positive_decision: # We were right to block here.
-            #             true_positives += 1
-            #         else: # We missed it this time, due to being conservative.
-            #             false_negatives += 1
-            #     else:
-            #         if positive_decision: # False positive! We blocked an innocent IP.
-            #             false_positives += 1
-            #             for ip in ips_this_window: # Tally it.
-            #                 self._strategic_states[run_num]["negative_blocked_ips"].add(ip)
-            #         else: # We were right to not block here.
-            #             true_negatives += 1
 
             if prediction[i] == 1:
                 total_positives += 1
                 if self._pt_validation_labels[i] == 1:
                     true_positives += 1
-                    for ip in ips_this_window:
-                        self._strategic_states[run_num]["negative_blocked_ips"].add(ip)
                 else:
+                    self._strategic_states[run_num]["negative_blocked_ips"].add(self._pt_validation_ips[i])
                     false_positives += 1
 
             else:
@@ -148,7 +112,7 @@ class LRStrategy(DetectionStrategy):
         self._strategic_states[run_num]["FNR"] = float(false_negatives) / total_negatives
         self._strategic_states[run_num]["false_positive_blocked_rate"] = \
          float(len(self._strategic_states[run_num]["negative_blocked_ips"])) / \
-         self._strategic_states['_negative_unique_ips']
+         self._strategic_states['negative_unique_ips']
 
         return self._strategic_states[run_num]["TPR"]
 
@@ -176,8 +140,7 @@ class LRStrategy(DetectionStrategy):
 
 
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
-     pt_split_ratio=0.5, pt_collection=None, negative_collection=None,
-     occurance_threshold=DEFAULT_OCCURANCE_THRESHOLD):
+     pt_split_ratio=0.5, pt_collection=None, negative_collection=None):
         """
         This method requires positive-negative mixed pcaps with start time synchronised.
         Set pt_ip_filters and negative_ip_filters as usual, but they are also used
@@ -207,37 +170,53 @@ class LRStrategy(DetectionStrategy):
         # Rewrite the membership due to use of mixed pcap.
         self.set_case_membership([ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER],
                                  [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER])
-        # Set threshold.
-        self._occurance_threshold = occurance_threshold
 
         self.debug_print("Loaded {} mixed traces".format(len(self._pt_traces)))
-        self.debug_print("- Applying windowing to the traces...")
-        positive_windows = analytics.traffic.window_traces_fixed_size(self._pt_traces, self.WINDOW_SIZE)
+        self.debug_print("- Segmenting traces into {} second windows...".format(self.TIME_SEGMENT_SIZE))
+        time_windows = analytics.traffic.window_traces_time_series(self._pt_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
         self._pt_traces = None # Releases memory when processing large files.
-        self.debug_print("Prepared {} windows.".format(len(positive_windows)))
+        self.debug_print("In total we have {} time segments.".format(len(time_windows)))
 
-        self.debug_print("- Extracting feature rows from windowed traffic...")
+        self.debug_print("- Extracting feature rows from windows in time segments...")
         features = []
         labels = []
-        ips_in_windows = []
-        positives = 0
-        negatives = 0
-        for window in positive_windows:
-            feature_dict, ips, client_ips_seen = analytics.traffic.get_window_stats(window, client_ips)
-            if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
-                continue
-            ips_in_windows.append(ips)
-            if any([self.in_positive_filter(ip) for ip in list(client_ips_seen)]):
-                labels.append(1)
-                positives += 1
-            else:
-                labels.append(0)
-                negatives += 1
-            features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
-        positive_windows = []
+        window_ips = []
+        negative_ips = set([])
+        all_subnets = [data.utils.build_subnet(ip) for ip in client_ips]
+        known_PT_subnets = [data.utils.build_subnet(ip) for ip in positive_ips]
+        for time_window in time_windows:
+            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, all_subnets, self.WINDOW_SIZE)
+
+            for client_target in traces_by_client:
+
+                # Mark the shared target.
+                window_ip = client_target[1]
+
+                # Generate training and validation labels.
+                client = client_target[0]
+                if any([i.overlaps(data.utils.build_subnet(client)) for i in known_PT_subnets]):
+                    label = 1 # PT traffic.
+                else:
+                    label = 0 # non-PT traffic.
+                    negative_ips.add(window_ip) # Recorded regardless of feature exclusion.
+
+                for window in traces_by_client[client_target]:
+                    # Extract features, IP information not needed as each window will
+                    # contain one individual client's traffic with a single only.
+                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client])
+                    if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
+                        continue
+
+                    # Commit this window if the features came back fine.
+                    features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+                    labels.append(label)
+                    window_ips.append(window_ip)
+
+        time_windows = []
+        traces_by_client = []
 
         self.debug_print("Extracted {} rows of features.".format(len(features)))
-        self.debug_print("Of which {} rows represent windows containing PT traces, {} rows don't.".format(positives, negatives))
+        self.debug_print("Of which {} rows represent windows containing PT traces, {} rows don't.".format(labels.count(1), labels.count(0)))
         if len(features) < 1:
             raise ValueError("No feature rows to work with, did you misconfigure the input filters?")
 
@@ -250,11 +229,12 @@ class LRStrategy(DetectionStrategy):
         self._strategic_states['all_features'] = preprocessing.scale(all_features,
          axis=0, copy=False)
         self._strategic_states['all_feature_labels'] = all_labels
-        self._strategic_states['all_ips'] = ips_in_windows
-        self._strategic_states['_negative_unique_ips'] = len(list(filter(lambda x: not self.in_negative_filter(x), ips_in_windows)))
+        self._strategic_states['all_ips'] = window_ips
+        self._strategic_states['negative_unique_ips'] = len(negative_ips)
         all_features = []
         all_labels = []
-        ips_in_windows = []
+        window_ips = []
+        negative_ips = None
 
         # Run training and validation for self.NUM_RUNS times.
         for i in range(self.NUM_RUNS):
@@ -292,8 +272,6 @@ class LRStrategy(DetectionStrategy):
         self.debug_print("Best: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
          self._true_positive_rate*100, self._false_positive_rate*100,
          len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
-        ips = str(sorted(self._strategic_states[best_fpr_run]["ip_occurances"].items(), key=itemgetter(1)))
-        self.debug_print("Appearances of IPs in classifier's positvie windows in this run (actually blocked at >= {} occurances): {}".format(self._occurance_threshold, ips))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
@@ -314,5 +292,5 @@ if __name__ == "__main__":
     detector = LRStrategy(mixed_path)
     detector.run(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
      negative_ip_filters=[(argv[3], data.constants.IP_EITHER)],
-     pt_collection=argv[4], negative_collection=None, occurance_threshold=int(argv[5]))
+     pt_collection=argv[4], negative_collection=None)
     print(detector.report_blocked_ips())

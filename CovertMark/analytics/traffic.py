@@ -201,6 +201,8 @@ def group_traces_by_ip_fixed_size(traces, clients, window_size):
     # Now segment for each client/target pair by fixed size.
     for c in client_traces:
         client_traces[c] = [client_traces[c][i:i+window_size] for i in range(0, len(client_traces[c]), window_size)]
+        if len(client_traces[c][-1]) < window_size: # Discard remainder.
+            client_traces[c] = client_traces[c][:-1]
 
     return client_traces
 
