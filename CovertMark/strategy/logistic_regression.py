@@ -5,7 +5,7 @@ import os
 from sys import exit, argv
 from datetime import date, datetime
 from operator import itemgetter
-from math import log1p, isnan
+from math import log1p, isnan, floor
 from random import randint
 from collections import defaultdict
 import numpy as np
@@ -27,6 +27,7 @@ class LRStrategy(DetectionStrategy):
     WINDOW_SIZE = 25
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
+    DYNAMIC_THRESHOLD_PERCENTILE = 75
 
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
@@ -87,16 +88,35 @@ class LRStrategy(DetectionStrategy):
         true_negatives = 0
         false_negatives = 0
         self._strategic_states[run_num]["negative_blocked_ips"] = set([])
-        self._strategic_states[run_num]["ip_occurances"] = defaultdict(int)
+        self._strategic_states[run_num]["ip_occurrences"] = defaultdict(int)
         for i in range(0, len(prediction)):
+            target_ip_this_window = self._pt_validation_ips[i]
 
             if prediction[i] == 1:
-                total_positives += 1
-                if self._pt_validation_labels[i] == 1:
-                    true_positives += 1
+                self._strategic_states[run_num]["ip_occurrences"][target_ip_this_window] += 1
+
+                # Threshold check.
+                if self._strategic_states[run_num]["ip_occurrences"][target_ip_this_window] > self._decision_threshold:
+                    decide_to_block = True
                 else:
-                    self._strategic_states[run_num]["negative_blocked_ips"].add(self._pt_validation_ips[i])
-                    false_positives += 1
+                    decide_to_block = False
+
+                if decide_to_block: # Block it this time.
+                    total_positives += 1
+                else: # Not blocking it this time.
+                    total_negatives += 1
+
+                if self._pt_validation_labels[i] == 1: # Actually PT traffic.
+                    if decide_to_block: # We were right.
+                        true_positives += 1
+                    else: # Being conservative in blocking caused us to miss it.
+                        false_negatives += 1
+                else: # Actually non-PT traffic.
+                    if decide_to_block: # We got it wrong.
+                        self._strategic_states[run_num]["negative_blocked_ips"].add(self._pt_validation_ips[i])
+                        false_positives += 1
+                    else: # It was right to be conservative for this IP.
+                        true_negatives += 1
 
             else:
                 total_negatives += 1
@@ -140,7 +160,8 @@ class LRStrategy(DetectionStrategy):
 
 
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
-     pt_split_ratio=0.5, pt_collection=None, negative_collection=None):
+     pt_split_ratio=0.5, pt_collection=None, negative_collection=None,
+     decision_threshold=None):
         """
         This method requires positive-negative mixed pcaps with start time synchronised.
         Set pt_ip_filters and negative_ip_filters as usual, but they are also used
@@ -148,6 +169,8 @@ class LRStrategy(DetectionStrategy):
         pt_collection is used for the mixed pcap.
         Input traces are assumed to be chronologically ordered, misfunctioning
         otherwise.
+        Sacrificing some false negatives for low false positive rate, under
+        dynamic occurrence decision thresholding.
         """
 
         if pt_ip_filters == negative_ip_filters:
@@ -170,6 +193,13 @@ class LRStrategy(DetectionStrategy):
         # Rewrite the membership due to use of mixed pcap.
         self.set_case_membership([ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER],
                                  [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER])
+        # Threshold at which to decide to block IP in validation, dynamic
+        # adjustment based on percentile of remote host occurrences if unset.
+        dynamic_adjustment = True
+        if decision_threshold is not None and isinstance(decision_threshold, int):
+            self._decision_threshold = decision_threshold
+            self.debug_print("Manually setting {} as the threshold at which to decide to block IP in validation.".format(self._decision_threshold))
+            dynamic_adjustment = False
 
         self.debug_print("Loaded {} mixed traces".format(len(self._pt_traces)))
         self.debug_print("- Segmenting traces into {} second windows...".format(self.TIME_SEGMENT_SIZE))
@@ -184,6 +214,11 @@ class LRStrategy(DetectionStrategy):
         negative_ips = set([])
         all_subnets = [data.utils.build_subnet(ip) for ip in client_ips]
         known_PT_subnets = [data.utils.build_subnet(ip) for ip in positive_ips]
+
+        # For dynamic decision threshold adjustment, in real operation can be
+        # adjusted based on previous operations.
+        target_ip_occurrences = defaultdict(int)
+
         for time_window in time_windows:
             traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, all_subnets, self.WINDOW_SIZE)
 
@@ -211,6 +246,7 @@ class LRStrategy(DetectionStrategy):
                     features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
                     labels.append(label)
                     window_ips.append(window_ip)
+                    target_ip_occurrences[window_ip] += 1
 
         time_windows = []
         traces_by_client = []
@@ -220,10 +256,17 @@ class LRStrategy(DetectionStrategy):
         if len(features) < 1:
             raise ValueError("No feature rows to work with, did you misconfigure the input filters?")
 
+        # Dynamic adjustment of decision threshold.
+        if dynamic_adjustment:
+            threshold = floor(np.percentile(list(target_ip_occurrences.values()), self.DYNAMIC_THRESHOLD_PERCENTILE))
+            self._decision_threshold = threshold
+            self.debug_print("Dynamically setting {} ({} percentile) as the threshold at which to decide to block IP in validation.".format(self._decision_threshold, self.DYNAMIC_THRESHOLD_PERCENTILE))
+
         all_features = np.asarray(features, dtype=np.float64)
         all_labels = np.asarray(labels, dtype=np.int8)
         features = []
-        labels = [] # Explicit removal from memory.
+        labels = []
+        target_ip_occurrences = []
 
         # Rescale to zero centered uniform variance data.
         self._strategic_states['all_features'] = preprocessing.scale(all_features,
@@ -272,6 +315,8 @@ class LRStrategy(DetectionStrategy):
         self.debug_print("Best: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
          self._true_positive_rate*100, self._false_positive_rate*100,
          len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
+        self.debug_print("IPs classified as PT (block at {} occurrences):".format(self._decision_threshold))
+        self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[best_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
