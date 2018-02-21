@@ -27,9 +27,9 @@ class LRStrategy(DetectionStrategy):
     WINDOW_SIZE = 25
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
-    DYNAMIC_THRESHOLD_PERCENTILES = [50, 75, 80, 85, 90]
-    DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.995, 0.2)
-    # Stop when TPR exceeds first value or FNR exceeds second value.
+    DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
+    DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.0025)
+    # Stop when TPR drops below first value or FPR drops below second value.
 
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
@@ -103,11 +103,6 @@ class LRStrategy(DetectionStrategy):
                 else:
                     decide_to_block = False
 
-                if decide_to_block: # Block it this time.
-                    total_positives += 1
-                else: # Not blocking it this time.
-                    total_negatives += 1
-
                 if self._pt_validation_labels[i] == 1: # Actually PT traffic.
                     if decide_to_block: # We were right.
                         true_positives += 1
@@ -121,17 +116,16 @@ class LRStrategy(DetectionStrategy):
                         true_negatives += 1
 
             else:
-                total_negatives += 1
                 if self._pt_validation_labels[i] == 0:
                     true_negatives += 1
                 else:
                     false_negatives += 1
 
-        self._strategic_states[run_num]["total"] = total_positives + total_negatives
-        self._strategic_states[run_num]["TPR"] = float(true_positives) / total_positives
-        self._strategic_states[run_num]["FPR"] = float(false_positives) / total_positives
-        self._strategic_states[run_num]["TNR"] = float(true_negatives) / total_negatives
-        self._strategic_states[run_num]["FNR"] = float(false_negatives) / total_negatives
+        self._strategic_states[run_num]["total"] = true_positives + false_positives + true_negatives + false_negatives
+        self._strategic_states[run_num]["TPR"] = float(true_positives) / (true_positives + false_negatives)
+        self._strategic_states[run_num]["FPR"] = float(false_positives) / (false_positives + true_negatives)
+        self._strategic_states[run_num]["TNR"] = float(true_negatives) / (true_negatives + false_positives)
+        self._strategic_states[run_num]["FNR"] = float(false_negatives) / (false_negatives + true_positives)
         self._strategic_states[run_num]["false_positive_blocked_rate"] = \
          float(len(self._strategic_states[run_num]["negative_blocked_ips"])) / \
          self._strategic_states['negative_unique_ips']
@@ -298,7 +292,7 @@ class LRStrategy(DetectionStrategy):
                 self._strategic_states[i] = {}
                 self._run_on_positive(run_num=i)
 
-                self.debug_print("Results of {}pct validation run #{}: ".format(threshold_pct, i))
+                self.debug_print("Results of {}pct validation run #{}: ".format(threshold_pct, i+1))
                 self.debug_print("Total: {}".format(self._strategic_states[i]["total"]))
                 self.debug_print("TPR: {:0.2f}%, TNR: {:0.2f}%".format(\
                  self._strategic_states[i]['TPR']*100, self._strategic_states[i]['TNR']*100))
@@ -326,11 +320,11 @@ class LRStrategy(DetectionStrategy):
             if not dynamic_adjustment:
                 break
 
-            if self._strategic_states[best_fpr_run]['TPR'] > self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]:
-                self.debug_print("Dynamic adjustment stops due to true positive rate exceeding criterion ({}).".format(self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]))
+            if self._strategic_states[best_fpr_run]['TPR'] < self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]:
+                self.debug_print("Dynamic adjustment stops due to true positive rate dropping below criterion ({}).".format(self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]))
                 break
-            elif self._strategic_states[best_fpr_run]['FNR'] > self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]:
-                self.debug_print("Dynamic adjustment stops due to false negative rate exceeding criterion ({}).".format(self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]))
+            elif self._strategic_states[best_fpr_run]['FPR'] < self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]:
+                self.debug_print("Dynamic adjustment stops due to false positive rate sufficiently low, criterion ({}).".format(self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]))
                 break
             elif threshold_pct == self.DYNAMIC_THRESHOLD_PERCENTILES[-1]:
                 self.debug_print("Dynamic adjustment stops at maximum threshold ({} pct)".format(threshold_pct))
