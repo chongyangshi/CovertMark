@@ -27,7 +27,7 @@ class LRStrategy(DetectionStrategy):
     WINDOW_SIZE = 25
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
-    DYNAMIC_THRESHOLD_PERCENTILE = 75
+    DYNAMIC_THRESHOLD_PERCENTILE = 90
 
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
