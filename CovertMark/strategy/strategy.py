@@ -18,11 +18,12 @@ class DetectionStrategy(ABC):
 
     def __init__(self, pt_pcap, negative_pcap=None, debug=False):
         self.__debug_on = debug
-        self.__pt_parser = data.parser.PCAPParser(pt_pcap)
+        self.__pt_pcap = pt_pcap
         if negative_pcap is not None:
-            self.__neg_parser = data.parser.PCAPParser(negative_pcap)
+            self.__negative_pcap = negative_pcap
         else:
-            self.__neg_parser = None
+            self.__negative_pcap = None
+
         self.__reader = data.retrieve.Retriever()
 
         # MongoDB collections.
@@ -81,6 +82,9 @@ class DetectionStrategy(ABC):
 
         assert(self._MONGO_KEY.isalnum)
 
+        self.__pt_parser = data.parser.PCAPParser(self.__pt_pcap)
+
+
         self.__pt_parser.set_ip_filter(pt_filters)
         self.set_case_membership([i[0] for i in pt_filters], None)
         desp = self._MONGO_KEY + "Positive" + date.today().strftime("%Y%m%d")
@@ -102,6 +106,7 @@ class DetectionStrategy(ABC):
 
         assert(self._MONGO_KEY.isalnum)
 
+        self.__neg_parser = data.parser.PCAPParser(self.__negative_pcap)
         self.__neg_parser.set_ip_filter(negative_filters)
         self.set_case_membership(None, [i[0] for i in negative_filters])
         desp = self._MONGO_KEY + "Negative" + date.today().strftime("%Y%m%d")
@@ -291,7 +296,7 @@ class DetectionStrategy(ABC):
 
         reparsing_positive = True
 
-        if not self.__neg_parser:
+        if not self.__negative_pcap:
             reparsing_negative = False
         else:
             reparsing_negative = True
