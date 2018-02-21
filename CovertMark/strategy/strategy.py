@@ -275,7 +275,7 @@ class DetectionStrategy(ABC):
         if self.__debug_on == False:
             return
 
-        msg = "[D] " + str(datetime.now()) + " " + self.NAME + ": " + message
+        msg = "[" + self._MONGO_KEY + "] " + str(datetime.now()) +" : " + message
         print(msg)
 
 
