@@ -240,7 +240,7 @@ if __name__ == "__main__":
     unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
     detector = MeekLengthStrategy(pt_path, unobfuscated_path)
     detector.run(pt_ip_filters=[(argv[3], data.constants.IP_SRC), (argv[4], data.constants.IP_DST)],
-     negative_ip_filters=[(argv[5], data.constants.IP_DST)],
+     negative_ip_filters=[(argv[5], data.constants.IP_SRC)],
      pt_collection=argv[6], negative_collection=argv[7])
 
     print(detector.report_blocked_ips())
