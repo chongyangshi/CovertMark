@@ -24,7 +24,7 @@ class Retriever:
         output = "Available collections of traces:\n"
 
         for trace in traces:
-            output += trace["name"] + ", " + trace["description"] + ", " + trace["creation_time"]
+            output += trace["name"] + ", " + trace["description"] + ", " + trace["creation_time"] + "\n"
 
         return output
 
