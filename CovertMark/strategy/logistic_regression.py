@@ -27,7 +27,9 @@ class LRStrategy(DetectionStrategy):
     WINDOW_SIZE = 25
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
-    DYNAMIC_THRESHOLD_PERCENTILE = 90
+    DYNAMIC_THRESHOLD_PERCENTILES = [50, 75, 80, 85, 90]
+    DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.995, 0.2)
+    # Stop when TPR exceeds first value or FNR exceeds second value.
 
     def __init__(self, pt_pcap, negative_pcap=None):
         super().__init__(pt_pcap, negative_pcap, self.DEBUG)
@@ -256,17 +258,10 @@ class LRStrategy(DetectionStrategy):
         if len(features) < 1:
             raise ValueError("No feature rows to work with, did you misconfigure the input filters?")
 
-        # Dynamic adjustment of decision threshold.
-        if dynamic_adjustment:
-            threshold = floor(np.percentile(list(target_ip_occurrences.values()), self.DYNAMIC_THRESHOLD_PERCENTILE))
-            self._decision_threshold = threshold
-            self.debug_print("Dynamically setting {} ({} percentile) as the threshold at which to decide to block IP in validation.".format(self._decision_threshold, self.DYNAMIC_THRESHOLD_PERCENTILE))
-
         all_features = np.asarray(features, dtype=np.float64)
         all_labels = np.asarray(labels, dtype=np.int8)
         features = []
         labels = []
-        target_ip_occurrences = []
 
         # Rescale to zero centered uniform variance data.
         self._strategic_states['all_features'] = preprocessing.scale(all_features,
@@ -279,44 +274,67 @@ class LRStrategy(DetectionStrategy):
         window_ips = []
         negative_ips = None
 
-        # Run training and validation for self.NUM_RUNS times.
-        for i in range(self.NUM_RUNS):
-            self.debug_print("LR Run {} of {}".format(i+1, self.NUM_RUNS))
+        # Perform dynamic adjustment if set, otherwise finish after 1 loop.
+        for threshold_pct in self.DYNAMIC_THRESHOLD_PERCENTILES:
 
-            # Redraw the samples and resplit.
-            self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
-            self._split_pt(pt_split_ratio)
+            if not dynamic_adjustment:
+                threshold_pct = decision_threshold
 
-            if not self._pt_split:
-                self.debug_print("Training/validation case splitting failed, check data.")
-                return False
+            self.debug_print("- Testing with threshold set at {} percentile...".format(threshold_pct))
+            self._decision_threshold = floor(np.percentile(list(target_ip_occurrences.values()), threshold_pct))
 
-            self._strategic_states[i] = {}
-            self._run_on_positive(run_num=i)
+            # Run training and validation for self.NUM_RUNS times.
+            for i in range(self.NUM_RUNS):
+                self.debug_print("{}pct LR Run {} of {}:".format(threshold_pct, i+1, self.NUM_RUNS))
 
-            self.debug_print("Results of validation: ")
-            self.debug_print("Total: {}".format(self._strategic_states[i]["total"]))
-            self.debug_print("TPR: {:0.2f}%, TNR: {:0.2f}%".format(\
-             self._strategic_states[i]['TPR']*100, self._strategic_states[i]['TNR']*100))
-            self.debug_print("FPR: {:0.2f}%, FNR: {:0.2f}%".format(\
-             self._strategic_states[i]['FPR']*100, self._strategic_states[i]['FNR']*100))
-            self.debug_print("Falsely blocked {} ({:0.2f}%) of IPs in validation.".format(len(self._strategic_states[i]["negative_blocked_ips"]), self._strategic_states[i]["false_positive_blocked_rate"]*100))
+                # Redraw the samples and resplit.
+                self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
+                self._split_pt(pt_split_ratio)
 
-        # As LR is relatively stable, we only need to pick the lowest FPR and
-        # do not need to worry about too low a corresponding TPR.
-        fpr_results = [self._strategic_states[i]['FPR'] for i in range(self.NUM_RUNS)]
-        best_fpr_run = min(enumerate(fpr_results), key=itemgetter(1))[0]
+                if not self._pt_split:
+                    self.debug_print("Training/validation case splitting failed, check data.")
+                    return False
 
-        # Best result processing:
-        self._true_positive_rate = self._strategic_states[best_fpr_run]['TPR']
-        self._false_positive_rate = self._strategic_states[best_fpr_run]['FPR']
-        self._negative_blocked_ips = self._strategic_states[best_fpr_run]["negative_blocked_ips"]
-        self._false_positive_blocked_rate = self._strategic_states[best_fpr_run]["false_positive_blocked_rate"]
-        self.debug_print("Best: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
-         self._true_positive_rate*100, self._false_positive_rate*100,
-         len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
-        self.debug_print("IPs classified as PT (block at {} occurrences):".format(self._decision_threshold))
-        self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[best_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
+                self._strategic_states[i] = {}
+                self._run_on_positive(run_num=i)
+
+                self.debug_print("Results of {}pct validation run #{}: ".format(threshold_pct, i))
+                self.debug_print("Total: {}".format(self._strategic_states[i]["total"]))
+                self.debug_print("TPR: {:0.2f}%, TNR: {:0.2f}%".format(\
+                 self._strategic_states[i]['TPR']*100, self._strategic_states[i]['TNR']*100))
+                self.debug_print("FPR: {:0.2f}%, FNR: {:0.2f}%".format(\
+                 self._strategic_states[i]['FPR']*100, self._strategic_states[i]['FNR']*100))
+                self.debug_print("Falsely blocked {} ({:0.2f}%) of IPs in validation.".format(len(self._strategic_states[i]["negative_blocked_ips"]), self._strategic_states[i]["false_positive_blocked_rate"]*100))
+
+            # As LR is relatively stable, we only need to pick the lowest FPR and
+            # do not need to worry about too low a corresponding TPR.
+            fpr_results = [self._strategic_states[i]['FPR'] for i in range(self.NUM_RUNS)]
+            best_fpr_run = min(enumerate(fpr_results), key=itemgetter(1))[0]
+
+            # Best result processing:
+            self._true_positive_rate = self._strategic_states[best_fpr_run]['TPR']
+            self._false_positive_rate = self._strategic_states[best_fpr_run]['FPR']
+            self._negative_blocked_ips = self._strategic_states[best_fpr_run]["negative_blocked_ips"]
+            self._false_positive_blocked_rate = self._strategic_states[best_fpr_run]["false_positive_blocked_rate"]
+            self.debug_print("Best: TPR {:0.2f}%, FNR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
+             self._true_positive_rate*100, self._strategic_states[best_fpr_run]['FNR']*100,
+             len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
+            self.debug_print("Occurance threshold: {}%".format(threshold_pct))
+            self.debug_print("IPs classified as PT (block at {} occurrences):".format(self._decision_threshold))
+            self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[best_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
+
+            if not dynamic_adjustment:
+                break
+
+            if self._strategic_states[best_fpr_run]['TPR'] > self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]:
+                self.debug_print("Dynamic adjustment stops due to true positive rate exceeding criterion ({}).".format(self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]))
+                break
+            elif self._strategic_states[best_fpr_run]['FNR'] > self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]:
+                self.debug_print("Dynamic adjustment stops due to false negative rate exceeding criterion ({}).".format(self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]))
+                break
+            elif threshold_pct == self.DYNAMIC_THRESHOLD_PERCENTILES[-1]:
+                self.debug_print("Dynamic adjustment stops at maximum threshold ({} pct)".format(threshold_pct))
+                break
 
         return (self._true_positive_rate, self._false_positive_rate)
 
