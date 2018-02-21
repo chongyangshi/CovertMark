@@ -2,3 +2,4 @@ dpkt
 pymongo
 scipy
 sklearn
+matplotlib
