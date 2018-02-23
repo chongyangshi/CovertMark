@@ -24,7 +24,8 @@ class Retriever:
         output = "Available collections of traces:\n"
 
         for trace in traces:
-            output += trace["name"] + ", " + trace["description"] + ", " + trace["creation_time"] + "\n"
+            output += trace["name"] + ", " + trace["description"] + ", " + \
+             trace["creation_time"] + ", " + str(trace["input_filters"]) +"\n"
 
         return output
 
@@ -44,6 +45,34 @@ class Retriever:
 
         else:
             return False
+
+
+    def get_input_filters(self):
+        """
+        Retrieve and validate input filter information from the collection, if
+        all input filters present are valid, return the filters, otherwise,
+        return False.
+        """
+
+        collections = self.list(in_string=False)
+        this_collection = None
+
+        for collection in collections:
+            if collection["name"] == self._collection:
+                this_collection = collection
+                break
+
+        if not this_collection:
+            return False
+
+        if "input_filters" not in collection:
+            return False
+
+        for filter in collection["input_filters"]:
+            if not utils.build_subnet(filter[0]) or filter[1] not in [constants.IP_SRC, constants.IP_DST, constants.IP_EITHER]:
+                return False
+
+        return collection["input_filters"]
 
 
     def current(self):
