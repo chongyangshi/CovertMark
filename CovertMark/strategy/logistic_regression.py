@@ -24,11 +24,11 @@ class LRStrategy(DetectionStrategy):
     _MONGO_KEY = "lr" # Alphanumeric key for MongoDB.
 
     DEBUG = True
-    WINDOW_SIZE = 25
+    WINDOW_SIZE = 100
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
-    DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.0025)
+    DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.0005)
     # Stop when TPR drops below first value or FPR drops below second value.
 
     def __init__(self, pt_pcap, negative_pcap=None):
