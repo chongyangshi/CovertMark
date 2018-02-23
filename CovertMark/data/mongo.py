@@ -54,10 +54,12 @@ class MongoDBManager:
         return False
 
 
-    def new_collection(self, description=""):
+    def new_collection(self, description="", input_filters=[]):
         """
         Create a new trace collection with a name, store and return it.
         :param description: a description of this trace collection, empty by default.
+        :param input_filters: list of tuples (string-format filters, direction)
+            for input filters of this collection.
         :returns: the name of the new collection.
         """
 
@@ -69,8 +71,15 @@ class MongoDBManager:
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        # Check filters.
+        for filter in input_filters:
+            if not utils.build_subnet(filter[0]) or filter[1] not in [constants.IP_SRC, constants.IP_DST, constants.IP_EITHER]:
+                return False
+
+        input_filters = [(str(i[0]), int(i[1])) for i in input_filters]
+
         new_c = {"name": collection_name, "creation_time": now,
-            "description": description}
+            "description": description, "input_filters": input_filters}
 
         self.__db[collection_name]
         # Does not actually create the database due to MongoDB laziness.
@@ -148,10 +157,8 @@ class MongoDBManager:
             collection_name = self.new_collection()
             if not collection_name:
                 return False
-        else:
-            # If a collection name is specified but does not exist, return False.
-            if not self.lookup_collection(collection_name):
-                return False
+        # Otherwise, insertion can proceed no matter whether the collection
+        # specified already exists, as it's insert or append by default.
 
         # Conduct the insertion.
         collection = self.__db[collection_name]

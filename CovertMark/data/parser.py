@@ -200,12 +200,14 @@ class PCAPParser:
         if len(traces) == 0: # No packet loaded (likely incorrect ip filter.)
             return False
 
-        insertion_result = self.__db.insert_traces(traces)
+        new_collection = self.__db.new_collection(description=description, input_filters=self.__filter)
+        if not new_collection:
+            return False
+
+        insertion_result = self.__db.insert_traces(traces, collection_name=new_collection)
 
         if len(insertion_result["inserted"].inserted_ids) > 0:
-            collection_name = insertion_result["collection_name"]
-            self.__db.modify_collection_description(collection_name, description)
-            return collection_name
+            return new_collection
         else:
             return False
 
