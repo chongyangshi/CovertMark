@@ -307,11 +307,16 @@ def get_window_stats(windowed_traces, client_ips):
                     psh_up += 1
 
         stats['mean_entropy_up'] = np.mean(entropies_up)
+        stats['max_entropy_up'] = np.max(entropies_up)
+        stats['min_entropy_up'] = np.min(entropies_up)
         if len(intervals_up) == 0: # Cap at 1 second.
             stats['mean_interval_up'] = 1000000
         else:
             stats['mean_interval_up'] = np.mean(intervals_up)
-        stats['mode_interval_up'] = max(intervals_up_bins.items(), key=itemgetter(1))[0]
+        #stats['mode_interval_up'] = max(intervals_up_bins.items(), key=itemgetter(1))[0]
+        intervals_up_bins = sorted(intervals_up_bins.items(), key=itemgetter(0))
+        for interval_bin in intervals_up_bins:
+            stats['bin_' + str(interval_bin[0]) + '_interval_up'] = interval_bin[1]
 
         up_counts = Counter(payload_lengths_up).items()
         up_counts_sorted = sorted(up_counts, key=itemgetter(1))
@@ -325,12 +330,17 @@ def get_window_stats(windowed_traces, client_ips):
 
     else: # Default to zeros if insufficient frames to check.
         stats['mean_entropy_up'] = 0
+        stats['max_entropy_up'] = 0
+        stats['min_entropy_up'] = 0
         stats['mean_interval_up'] = 1000000
-        stats['mode_interval_up'] = 1000000
+        #stats['mode_interval_up'] = 1000000
         stats['top1_tcp_len_up'] = 0
         stats['top2_tcp_len_up'] = 0
         stats['mean_tcp_len_up'] = 0
         stats['push_ratio_up'] = 0
+        for interval_bin in intervals_up_bins:
+            stats['bin_' + str(interval_bin) + '_interval_up'] = 0
+
 
     # Now tally downstream frames.
     if len(traces_down) > 0:
@@ -373,11 +383,17 @@ def get_window_stats(windowed_traces, client_ips):
                     psh_down += 1
 
         stats['mean_entropy_down'] = np.mean(entropies_down)
+        stats['max_entropy_down'] = np.max(entropies_down)
+        stats['min_entropy_down'] = np.min(entropies_down)
         if len(intervals_down) == 0: # Cap at 1 second.
             stats['mean_interval_down'] = 1000000
         else:
             stats['mean_interval_down'] = np.mean(intervals_down)
-        stats['mode_interval_down'] = max(intervals_down_bins.items(), key=itemgetter(1))[0]
+        #stats['mode_interval_down'] = max(intervals_down_bins.items(), key=itemgetter(1))[0]
+        intervals_down_bins = sorted(intervals_down_bins.items(), key=itemgetter(0))
+        for interval_bin in intervals_down_bins:
+            stats['bin_' + str(interval_bin[0]) + '_interval_down'] = interval_bin[1]
+
 
         down_counts = Counter(payload_lengths_down).items()
         down_counts_sorted = sorted(down_counts, key=itemgetter(1))
@@ -392,11 +408,15 @@ def get_window_stats(windowed_traces, client_ips):
     else:
         # Default to least optimistic if insufficient frames to check.
         stats['mean_entropy_down'] = 0
+        stats['max_entropy_down'] = 0
+        stats['min_entropy_down'] = 0
         stats['mean_interval_down'] = 1000000
-        stats['mode_interval_down'] = 1000000
+        #stats['mode_interval_down'] = 1000000
         stats['top1_tcp_len_down'] = 0
         stats['top2_tcp_len_down'] = 0
         stats['mean_tcp_len_down'] = 0
         stats['push_ratio_down'] = 0
+        for interval_bin in intervals_down_bins:
+            stats['bin_' + str(interval_bin) + '_interval_down'] = 0
 
     return stats, ips, client_ips_seen
