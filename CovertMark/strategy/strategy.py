@@ -133,6 +133,16 @@ class DetectionStrategy(ABC):
         if len(self._pt_traces) == 0:
             return False
 
+        # Reload positive filters.
+        pt_filters = self.__reader.get_input_filters()
+        if pt_filters:
+            pt_clients = [i[0] for i in pt_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
+            self.debug_print("- Automatically setting the corresponding input filters for positive clients: {}".format(str(pt_clients)))
+            self.set_case_membership(pt_clients, None)
+        else:
+            self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
+
+
         # If no negative traces pcap parsed, we finish here.
         if self._neg_collection is None:
             self._traces_loaded = True
@@ -149,7 +159,17 @@ class DetectionStrategy(ABC):
         if len(self._neg_traces) == 0:
             return False
 
+        # Reload negative filters.
+        neg_filters = self.__reader.get_input_filters()
+        if neg_filters:
+            neg_clients = [i[0] for i in neg_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
+            self.debug_print("- Automatically setting the corresponding input filters for negative clients: {}".format(str(neg_clients)))
+            self.set_case_membership(None, neg_clients)
+        else:
+            self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
+
         self._traces_loaded = True
+
         return True
 
 
