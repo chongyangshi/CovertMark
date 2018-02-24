@@ -53,7 +53,7 @@ class PCAPParser:
         for subject in subjects:
 
             if not isinstance(subject, tuple) or \
-             (subject[1] not in [constants.IP_SRC, constants.IP_DST]):
+             (subject[1] not in [constants.IP_SRC, constants.IP_DST, constants.IP_EITHER]):
                 continue
 
             subnet = utils.build_subnet(subject[0])
