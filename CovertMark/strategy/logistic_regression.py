@@ -313,7 +313,7 @@ class LRStrategy(DetectionStrategy):
             self.debug_print("Best: TPR {:0.2f}%, FNR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
              self._true_positive_rate*100, self._strategic_states[best_fpr_run]['FNR']*100,
              len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
-            self.debug_print("Occurance threshold: {}%".format(threshold_pct))
+            self.debug_print("Occurrence threshold: {}%".format(threshold_pct))
             self.debug_print("IPs classified as PT (block at >{} occurrences):".format(self._decision_threshold))
             self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[best_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
 
