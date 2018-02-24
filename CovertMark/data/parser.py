@@ -41,7 +41,8 @@ class PCAPParser:
             specified, then it will be seen as matched; otherwise, as long as its
             src or dst matches one of the IP_SRC/IP_DST filters, it will be
             seen as matched. In the case of IP_EITHER, the filter will match
-            both source and destination occurances of that IP.
+            either source or destination occurances of that IP, superceding
+            acceptance by IP_SRC/IP_DST filters covering the same subnets.
         :returns: the number of successfully added filters (filter with
             overlapping subnets represented and processed separately).
         """
@@ -49,6 +50,7 @@ class PCAPParser:
         self.__filter = []
         self.__filter_src_rules = []
         self.__filter_dst_rules = []
+        self.__filter_bidir_rules = []
 
         for subject in subjects:
 
@@ -64,8 +66,7 @@ class PCAPParser:
                     self.__filter_dst_rules.append(subnet)
                 elif subject[1] == constants.IP_EITHER:
                     # Either source or desitination.
-                    self.__filter_src_rules.append(subnet)
-                    self.__filter_dst_rules.append(subnet)
+                    self.__filter_bidir_rules.append(subnet)
                 self.__filter.append((subnet, subject[1]))
 
         return len(self.__filter)
@@ -136,8 +137,14 @@ class PCAPParser:
                     else:
                         dst_match = True # Default acceptance if unspecified.
 
-                    if not (src_match and dst_match):
-                        continue
+                    if len(self.__filter_bidir_rules) > 0:
+                        bidir_match = any([s.overlaps(src_net) or s.overlaps(dst_net) for s in self.__filter_bidir_rules])
+                    else:
+                        bidir_match = False # No default acceptance for bidirectional filters.
+
+                    if not bidir_match: # bidirectional supersedence for the same subnets.
+                        if not (src_match and dst_match):
+                            continue
 
                 packet_info["proto"] = type(ip.data).__name__
                 packet_info["time"] = "{0:.6f}".format(ts)

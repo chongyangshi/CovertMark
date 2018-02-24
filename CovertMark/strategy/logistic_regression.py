@@ -310,8 +310,8 @@ class LRStrategy(DetectionStrategy):
             self._false_positive_rate = self._strategic_states[best_fpr_run]['FPR']
             self._negative_blocked_ips = self._strategic_states[best_fpr_run]["negative_blocked_ips"]
             self._false_positive_blocked_rate = self._strategic_states[best_fpr_run]["false_positive_blocked_rate"]
-            self.debug_print("Best: TPR {:0.2f}%, FNR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
-             self._true_positive_rate*100, self._strategic_states[best_fpr_run]['FNR']*100,
+            self.debug_print("Best: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
+             self._true_positive_rate*100, self._false_positive_rate*100,
              len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
             self.debug_print("Occurrence threshold: {}%".format(threshold_pct))
             self.debug_print("IPs classified as PT (block at >{} occurrences):".format(self._decision_threshold))

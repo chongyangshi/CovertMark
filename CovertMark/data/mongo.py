@@ -72,8 +72,9 @@ class MongoDBManager:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Check filters.
-        for filter in input_filters:
-            if not utils.build_subnet(filter[0]) or filter[1] not in [constants.IP_SRC, constants.IP_DST, constants.IP_EITHER]:
+        for input_filter in input_filters:
+            if not utils.build_subnet(input_filter[0]) or \
+             input_filter[1] not in [constants.IP_SRC, constants.IP_DST, constants.IP_EITHER]:
                 return False
 
         input_filters = [(str(i[0]), int(i[1])) for i in input_filters]
