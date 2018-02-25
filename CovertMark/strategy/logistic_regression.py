@@ -33,7 +33,7 @@ class LRStrategy(DetectionStrategy):
 
     def __init__(self, pt_pcap, negative_pcap=None, recall_pcap=None):
         super().__init__(pt_pcap, negative_pcap, recall_pcap, self.DEBUG)
-        self._best_classifiers = {}
+        self._trained_classifiers = {}
 
 
     def set_strategic_filter(self):
@@ -167,9 +167,8 @@ class LRStrategy(DetectionStrategy):
         # Test them on the best classifiers.
         total_recalls = len(recall_features)
         recall_accuracies = []
-        for threshold_pct in self._best_classifiers:
-            classifier = self._best_classifiers[threshold_pct]
-            self.debug_print("- Testing {}pct best classifier recall on {} feature rows...".format(threshold_pct, total_recalls))
+        for n, classifier in enumerate(self._trained_classifiers):
+            self.debug_print("- Testing classifier #{} recall on {} feature rows...".format(n+1, total_recalls))
 
             correct_recalls = 0
             recall_predictions = classifier.predict(recall_features)
@@ -178,7 +177,7 @@ class LRStrategy(DetectionStrategy):
                     correct_recalls += 1
 
             recall_accuracies.append(float(correct_recalls)/total_recalls)
-            self.debug_print("{} pct best classifier recall accuracy: {:0.2f}%".format(threshold_pct, float(correct_recalls)/total_recalls*100))
+            self.debug_print("Classifier #{} recall accuracy: {:0.2f}%".format(n+1, float(correct_recalls)/total_recalls*100))
 
         return max(recall_accuracies)
 
@@ -364,7 +363,10 @@ class LRStrategy(DetectionStrategy):
             self.debug_print("Occurrence threshold: {}%".format(threshold_pct))
             self.debug_print("IPs classified as PT (block at >{} occurrences):".format(self._decision_threshold))
             self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[best_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
-            self._best_classifiers[threshold_pct] = self._strategic_states[best_fpr_run]["classifier"]
+
+            # Currently record first tier classifiers only.
+            if threshold_pct == self.DYNAMIC_THRESHOLD_PERCENTILES[0]:
+                self._trained_classifiers = [self._strategic_states[i]["classifier"] for i in range(self.NUM_RUNS)]
 
             if not dynamic_adjustment:
                 break
