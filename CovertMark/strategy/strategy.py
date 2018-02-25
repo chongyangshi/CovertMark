@@ -16,21 +16,27 @@ class DetectionStrategy(ABC):
     DESCRIPTION = "A description of this strategy here."
     _MONGO_KEY = "DefaultStrategy" # Alphanumeric key for MongoDB.
 
-    def __init__(self, pt_pcap, negative_pcap=None, debug=False):
+    def __init__(self, pt_pcap, negative_pcap=None, recall_pcap=None, debug=False):
         self.__debug_on = debug
         self.__pt_pcap = pt_pcap
         if negative_pcap is not None:
             self.__negative_pcap = negative_pcap
         else:
             self.__negative_pcap = None
+        if recall_pcap is not None:
+            self.__recall_pcap = recall_pcap
+        else:
+            self.__recall_pcap = None
 
         self.__reader = data.retrieve.Retriever()
 
         # MongoDB collections.
         self._pt_collection = None
         self._neg_collection = None
+        self._recall_collection = None
         self._pt_collection_total = 0
         self._neg_collection_total = 0
+        self._recall_collection_total = 0
 
         # Lists of traces to be loaded.
         self._traces_loaded = False
@@ -39,8 +45,10 @@ class DetectionStrategy(ABC):
         self._pt_validation_traces = []
         self._pt_split = False
         self._neg_traces = []
+        self._recall_traces = []
         self._positive_subnets = []
         self._negative_subnets = []
+        self._recall_subnets = []
 
         # The strategic filter to examine a subset of loaded traces.
         self._strategic_packet_filter = {}
@@ -52,6 +60,7 @@ class DetectionStrategy(ABC):
         self._false_positive_blocked_rate = 0
         self._negative_unique_ips = 0
         self._negative_blocked_ips = set([])
+        self._recall_rate = None
 
         # For debug outputs, overwrite if required.
         self.DEBUG = False
@@ -59,7 +68,7 @@ class DetectionStrategy(ABC):
 
     def _parse_PT_packets(self, pt_filters):
         """
-        Parse positive test traces stored in the PCAP files.
+        Parse positive test traces stored in the PCAP file.
 
         N.B. Filters at this stage are intended to be used to remove unrelated
         traces accidentally captured in the process, so that they do not affect
@@ -98,7 +107,7 @@ class DetectionStrategy(ABC):
 
     def _parse_negative_packets(self, negative_filters):
         """
-        Parse negative test traces stored in the PCAP files.
+        Parse negative test traces stored in the PCAP file.
         :param negative_filters: same format as positive filters above. Allow-all
             by default.
         :returns: True if a non-zero amount of traces were parsed, False otherwise.
@@ -112,6 +121,26 @@ class DetectionStrategy(ABC):
         desp = self._MONGO_KEY + "Negative" + date.today().strftime("%Y%m%d")
         self._neg_collection = self.__neg_parser.load_and_insert_new(description=desp)
         if self._neg_collection:
+            return True
+        else:
+            return False
+
+
+    def _parse_recall_packets(self, recall_filters):
+        """
+        Parse positive recall test traces stored in the PCAP file.
+        :param recall_filters: same format as positive filters above. Allow-all
+            by default.
+        :returns: True if a non-zero amount of traces were parsed, False otherwise.
+        """
+
+        assert(self._MONGO_KEY.isalnum)
+
+        self.__recall_parser = data.parser.PCAPParser(self.__recall_pcap)
+        self.__recall_parser.set_ip_filter(recall_filters)
+        desp = self._MONGO_KEY + "Recall" + date.today().strftime("%Y%m%d")
+        self._recall_collection = self.__recall_parser.load_and_insert_new(description=desp)
+        if self._recall_collection:
             return True
         else:
             return False
@@ -143,30 +172,49 @@ class DetectionStrategy(ABC):
             self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
 
 
-        # If no negative traces pcap parsed, we finish here.
-        if self._neg_collection is None:
+        # If no negative traces pcap parsed, we skip it.
+        if self._neg_collection is not None:
+            self.__reader.select(self._neg_collection)
+            self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
+            self._neg_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
+            self._neg_collection_total = self.__reader.count(trace_filter={})
+
+            # Record distinct destination IP addresses for stat reporting.
+            self._negative_unique_ips = self.__reader.distinct('dst')
+
+            if len(self._neg_traces) == 0:
+                return False
+
+            # Reload negative filters.
+            neg_filters = self.__reader.get_input_filters()
+            if neg_filters:
+                neg_clients = [i[0] for i in neg_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
+                self.debug_print("- Automatically setting the corresponding input filters for negative clients: {}".format(str(neg_clients)))
+                self.set_case_membership(None, neg_clients)
+            else:
+                self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
+
+
+        # If no recall traces pcap parsed, we finish here.
+        if self._recall_collection is None:
             self._traces_loaded = True
             return True
 
-        self.__reader.select(self._neg_collection)
+        self.__reader.select(self._recall_collection)
         self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
-        self._neg_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
-        self._neg_collection_total = self.__reader.count(trace_filter={})
+        self._recall_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
+        self._recall_collection_total = self.__reader.count(trace_filter={})
 
-        # Record distinct destination IP addresses for stat reporting.
-        self._negative_unique_ips = self.__reader.distinct('dst')
+        # Set recall subnets.
+        recall_filters = self.__reader.get_input_filters()
+        if recall_filters:
+            self._recall_subnets = [data.utils.build_subnet(i[0]) for i in recall_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
+            self.debug_print("Automatically set the corresponding input filters for recall clients.")
 
-        if len(self._neg_traces) == 0:
+        if len(self._recall_traces) == 0:
             return False
 
-        # Reload negative filters.
-        neg_filters = self.__reader.get_input_filters()
-        if neg_filters:
-            neg_clients = [i[0] for i in neg_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
-            self.debug_print("- Automatically setting the corresponding input filters for negative clients: {}".format(str(neg_clients)))
-            self.set_case_membership(None, neg_clients)
-        else:
-            self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
+        self.debug_print("Positive recall traces loaded.")
 
         self._traces_loaded = True
 
@@ -252,8 +300,8 @@ class DetectionStrategy(ABC):
 
     def _run_on_negative(self, **kwargs):
         """
-        Wrapper for self.negative_run, testing the detection strategy on positive
-        PT traces.
+        Wrapper for the optional self.negative_run, testing the detection
+        strategy on negative traces.
         """
 
         if not self._neg_collection:
@@ -265,6 +313,23 @@ class DetectionStrategy(ABC):
         self._false_positive_rate = self.negative_run(**kwargs)
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
         return self._false_positive_rate
+
+
+    def _run_on_recall(self, **kwargs):
+        """
+        Wrapper for the optional self.recall_run, testing the trained classifier
+        on positive recall traces.
+        """
+
+        if not self._recall_collection:
+            return False
+
+        if not self._traces_loaded:
+            self._load_into_memory()
+
+        self._recall_rate = self.recall_run(**kwargs)
+        return self._recall_rate
+
 
 
     def _split_pt(self, split_ratio=0.7):
@@ -304,11 +369,14 @@ class DetectionStrategy(ABC):
         print(msg)
 
 
-    def _run(self, pt_ip_filters, negative_ip_filters, pt_collection=None, negative_collection=None):
+    def _run(self, pt_ip_filters, negative_ip_filters, pt_collection=None,
+     negative_collection=None, test_recall=False, recall_ip_filters=[],
+     recall_collection=None):
         """
         Inner method to execute the required portion of strategy setup.
         To skip parsing traces again and use existing collections in MongoDB,
         both pt_collection and negative_collection need to be set to valid names.
+        Recall used for evaluation of strategy itself only, not for general use.
         """
 
         self.debug_print("Executing detection strategy: " + self.NAME)
@@ -330,7 +398,7 @@ class DetectionStrategy(ABC):
                 self.debug_print("- Re-parsing PT PCAP file as {} does not exist in MongoDB...".format(pt_collection))
 
         if reparsing_positive:
-            self.debug_print("Parsing PT PCAP...")
+            self.debug_print("- Parsing PT PCAP...")
             if self._parse_PT_packets(pt_ip_filters):
                 self.debug_print("Parsed PCAP file according to input positive IP filters.")
             else:
@@ -345,12 +413,23 @@ class DetectionStrategy(ABC):
                 self.debug_print("Re-parsing negative traces as {} does not exist in MongoDB...".format(negative_collection))
 
         if reparsing_negative:
-            self.debug_print("Parsing negative PCAP...")
+            self.debug_print("- Parsing negative PCAP...")
             if self._parse_negative_packets(negative_ip_filters):
                 self.debug_print("Parsed PCAP file according to input negative IP filters.")
             else:
                 raise RuntimeError("! Failure to parse negative PCAP file.")
 
+        if test_recall:
+            self.debug_print("This run will test the positive recall of the best classifier.")
+            if self.__reader.select(recall_collection):
+                self._recall_collection = recall_collection
+                self.debug_print("Loading existing recall traces...")
+            else:
+                self.debug_print("Attempting to parse recall PCAP as specified recall collection does not existing.")
+                if self._parse_recall_packets(recall_ip_filters):
+                    self.debug_print("Parsed PCAP file according to input recall IP filters.")
+                else:
+                    raise RuntimeError("! Failure to parse recall PCAP file.")
 
         self.debug_print("- Setting initial strategic filter...")
         self.set_strategic_filter()
@@ -360,6 +439,7 @@ class DetectionStrategy(ABC):
         self._load_into_memory()
         self.debug_print("Positive: {} traces, examining {}.".format(self._pt_collection_total, len(self._pt_traces)))
         self.debug_print("Negative: {} traces, examining {}.".format(self._neg_collection_total, len(self._neg_traces)))
+        self.debug_print("Positive Recall: {} traces, examining {}.".format(self._recall_collection_total, len(self._recall_traces)))
 
 
     def clean_up_mongo(self):
@@ -377,7 +457,8 @@ class DetectionStrategy(ABC):
     # ========================To be implemented below==========================#
 
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=False,
-     pt_split_ratio=0.7, pt_collection=None, negative_collection=None):
+     pt_split_ratio=0.7, pt_collection=None, negative_collection=None,
+     test_recall=False, recall_ip_filters=[], recall_collection=None):
         """
         Run the detection strategy. See other methods for detailed syntax of
         IP and strategic filters. Override if custom procedures required, such
@@ -392,6 +473,11 @@ class DetectionStrategy(ABC):
         :param pt_collection: set pt_collection to be the name of an existing
             collection in MongoDB to skip parsing again.
         :param negative_collection: set negative_collection to be the name of an
+            existing collection in MongoDB to skip parsing again.
+        :param test_recall: if True, the strategy will also test the classifier
+            on unseen positive recall traces to cross validate.
+        :param recall_ip_filters: input IP filter for recall test traces.
+        :param recall_collection: set recall_collection to be the name of an
             existing collection in MongoDB to skip parsing again.
         :returns: tuple(self._true_positive_rate, self._false_positive_rate)
         """
@@ -412,6 +498,11 @@ class DetectionStrategy(ABC):
             self._false_positive_rate = self._run_on_negative()
             self.debug_print("Reported false positive rate: {}".format(self._false_positive_rate))
             self.debug_print("False positive IPs blocked rate: {}".format(self._false_positive_blocked_rate))
+
+        if test_recall:
+            self.debug_print("- Validating best strategy on positive recall traces...")
+            self._recall_rate = self._run_on_recall()
+            self.debug_print("Reported positive recall rate: {}".format(self._recall_rate))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
@@ -473,7 +564,6 @@ class DetectionStrategy(ABC):
         return 0
 
 
-    @abstractmethod
     def negative_run(self, **kwargs):
         """
         Perform PT detection strategy on negative test traces to test for False
@@ -488,6 +578,22 @@ class DetectionStrategy(ABC):
         Add to self._negative_blocked_ips to tally blocked IPs for reporting.
         Implement this method, simply return 0 if no negative trace required.
         :returns: False positive identification rate as your strategy interprets.
+        """
+
+        return 0
+
+
+    def recall_run(self, **kwargs):
+        """
+        Perform a recall on unseen positive traces specified in self._recall_traces.
+        You should carry over best parameters obtained from positive and negative
+        runs or a best classifier through self._strategic_states or subclass
+        variables.
+        It is assumed that after the recall input filter and the strategic filter,
+        all packets in self._recall_traces are positive traces unseen during
+        positve and negative runs prior. self._recall_subnets should have been
+        set after the main runs.
+        :returns: the positive recall rate.
         """
 
         return 0

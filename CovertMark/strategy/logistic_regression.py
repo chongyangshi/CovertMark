@@ -31,8 +31,9 @@ class LRStrategy(DetectionStrategy):
     DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.0005)
     # Stop when TPR drops below first value or FPR drops below second value.
 
-    def __init__(self, pt_pcap, negative_pcap=None):
-        super().__init__(pt_pcap, negative_pcap, self.DEBUG)
+    def __init__(self, pt_pcap, negative_pcap=None, recall_pcap=None):
+        super().__init__(pt_pcap, negative_pcap, recall_pcap, self.DEBUG)
+        self._best_classifiers = {}
 
 
     def set_strategic_filter(self):
@@ -129,6 +130,7 @@ class LRStrategy(DetectionStrategy):
         self._strategic_states[run_num]["false_positive_blocked_rate"] = \
          float(len(self._strategic_states[run_num]["negative_blocked_ips"])) / \
          self._strategic_states['negative_unique_ips']
+        self._strategic_states[run_num]["classifier"] = LR
 
         return self._strategic_states[run_num]["TPR"]
 
@@ -139,6 +141,46 @@ class LRStrategy(DetectionStrategy):
         """
 
         return None
+
+
+    def recall_run(self, **kwargs):
+        """
+        Run the classifier with lowest FPR at each occurrence threshold on
+        unseen recall traces.
+        """
+
+        self.debug_print("- Recall test started, extracting features from recall traces...")
+        time_windows = analytics.traffic.window_traces_time_series(self._recall_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
+
+        # Process the all-positive recall windows.
+        recall_features = []
+        for time_window in time_windows:
+            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._recall_subnets, self.WINDOW_SIZE)
+
+            for client_target in traces_by_client:
+                for window in traces_by_client[client_target]:
+                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]])
+                    if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
+                        continue
+                    recall_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+
+        # Test them on the best classifiers.
+        total_recalls = len(recall_features)
+        recall_accuracies = []
+        for threshold_pct in self._best_classifiers:
+            classifier = self._best_classifiers[threshold_pct]
+            self.debug_print("- Testing {}pct best classifier recall on {} feature rows...".format(threshold_pct, total_recalls))
+
+            correct_recalls = 0
+            recall_predictions = classifier.predict(recall_features)
+            for prediction in recall_predictions:
+                if prediction == 1:
+                    correct_recalls += 1
+
+            recall_accuracies.append(float(correct_recalls)/total_recalls)
+            self.debug_print("{} pct best classifier recall accuracy: {:0.2f}%".format(threshold_pct, float(correct_recalls)/total_recalls*100))
+
+        return max(recall_accuracies)
 
 
     def report_blocked_ips(self):
@@ -157,7 +199,8 @@ class LRStrategy(DetectionStrategy):
 
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
      pt_split_ratio=0.5, pt_collection=None, negative_collection=None,
-     decision_threshold=None):
+     decision_threshold=None, test_recall=False, recall_ip_filters=[],
+     recall_collection=None):
         """
         This method requires positive-negative mixed pcaps with start time synchronised.
         Set pt_ip_filters and negative_ip_filters as usual, but they are also used
@@ -185,7 +228,9 @@ class LRStrategy(DetectionStrategy):
 
         # Now the modified setup.
         self.debug_print("Loading traces...")
-        self._run(merged_filters, [], pt_collection=pt_collection, negative_collection=None)
+        self._run(merged_filters, [], pt_collection=pt_collection, negative_collection=None,
+         test_recall=test_recall, recall_ip_filters=recall_ip_filters,
+         recall_collection=recall_collection)
         # Rewrite the membership due to use of mixed pcap.
         self.set_case_membership([ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER],
                                  [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER])
@@ -198,6 +243,9 @@ class LRStrategy(DetectionStrategy):
             dynamic_adjustment = False
 
         self.debug_print("Loaded {} mixed traces".format(len(self._pt_traces)))
+        if test_recall:
+            self.debug_print("Loaded {} positive recall traces".format(len(self._recall_traces)))
+
         self.debug_print("- Segmenting traces into {} second windows...".format(self.TIME_SEGMENT_SIZE))
         time_windows = analytics.traffic.window_traces_time_series(self._pt_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
         self._pt_traces = None # Releases memory when processing large files.
@@ -306,8 +354,8 @@ class LRStrategy(DetectionStrategy):
             best_fpr_run = min(enumerate(fpr_results), key=itemgetter(1))[0]
 
             # Best result processing:
-            self._true_positive_rate = self._strategic_states[best_fpr_run]['TPR']
-            self._false_positive_rate = self._strategic_states[best_fpr_run]['FPR']
+            self._true_positive_rate = self._strategic_states[best_fpr_run]["TPR"]
+            self._false_positive_rate = self._strategic_states[best_fpr_run]["FPR"]
             self._negative_blocked_ips = self._strategic_states[best_fpr_run]["negative_blocked_ips"]
             self._false_positive_blocked_rate = self._strategic_states[best_fpr_run]["false_positive_blocked_rate"]
             self.debug_print("Best: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
@@ -316,6 +364,7 @@ class LRStrategy(DetectionStrategy):
             self.debug_print("Occurrence threshold: {}%".format(threshold_pct))
             self.debug_print("IPs classified as PT (block at >{} occurrences):".format(self._decision_threshold))
             self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[best_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
+            self._best_classifiers[threshold_pct] = self._strategic_states[best_fpr_run]["classifier"]
 
             if not dynamic_adjustment:
                 break
@@ -329,6 +378,16 @@ class LRStrategy(DetectionStrategy):
             elif threshold_pct == self.DYNAMIC_THRESHOLD_PERCENTILES[-1]:
                 self.debug_print("Dynamic adjustment stops at maximum threshold ({} pct)".format(threshold_pct))
                 break
+
+            for i in range(self.NUM_RUNS):
+                self._strategic_states[i] = {}
+
+        # Run recall test if required.
+        self._strategic_states = {}
+
+        if test_recall:
+            self.debug_print("Running recall test as requested now.")
+            self._run_on_recall()
 
         return (self._true_positive_rate, self._false_positive_rate)
 
@@ -346,8 +405,11 @@ if __name__ == "__main__":
     # exit(0)
 
     mixed_path = os.path.join(parent_path, 'examples', 'local', argv[1])
-    detector = LRStrategy(mixed_path)
+    recall_path = os.path.join(parent_path, 'examples', 'local', argv[5])
+    detector = LRStrategy(mixed_path, recall_pcap=recall_path)
     detector.run(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
      negative_ip_filters=[(argv[3], data.constants.IP_EITHER)],
-     pt_collection=argv[4], negative_collection=None)
+     pt_collection=argv[4], negative_collection=None, test_recall=True,
+     recall_ip_filters=[(argv[6], data.constants.IP_EITHER)],
+     recall_collection=argv[7])
     print(detector.report_blocked_ips())

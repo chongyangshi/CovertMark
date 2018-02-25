@@ -34,7 +34,7 @@ class Obfs4Strategy(DetectionStrategy):
 
 
     def __init__(self, pt_pcap, negative_pcap=None):
-        super().__init__(pt_pcap, negative_pcap, self.DEBUG)
+        super().__init__(pt_pcap, negative_pcap, debug=self.DEBUG)
         self._analyser = analytics.entropy.EntropyAnalyser()
 
         # To store results from different block sizes and p-value thresholds, as

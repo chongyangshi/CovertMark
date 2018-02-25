@@ -27,7 +27,7 @@ class MeekLengthStrategy(DetectionStrategy):
 
 
     def __init__(self, pt_pcap, negative_pcap=None):
-        super().__init__(pt_pcap, negative_pcap, self.DEBUG)
+        super().__init__(pt_pcap, negative_pcap, debug=self.DEBUG)
         self._strategic_states['TPR'] = {}
         self._strategic_states['FPR'] = {}
         self._strategic_states['top_cluster'] = {}
