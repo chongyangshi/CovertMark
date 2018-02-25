@@ -425,7 +425,7 @@ class DetectionStrategy(ABC):
                 self._recall_collection = recall_collection
                 self.debug_print("Loading existing recall traces...")
             else:
-                self.debug_print("Attempting to parse recall PCAP as specified recall collection does not existing.")
+                self.debug_print("Attempting to parse recall PCAP as specified recall collection does not exist.")
                 if self._parse_recall_packets(recall_ip_filters):
                     self.debug_print("Parsed PCAP file according to input recall IP filters.")
                 else:
