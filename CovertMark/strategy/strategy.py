@@ -15,6 +15,7 @@ class DetectionStrategy(ABC):
     NAME = "Default Strategy"
     DESCRIPTION = "A description of this strategy here."
     _MONGO_KEY = "DefaultStrategy" # Alphanumeric key for MongoDB.
+    _DEBUG_PREFIX = _MONGO_KEY # For debug messages only, split for inheritance convenience.
 
     def __init__(self, pt_pcap, negative_pcap=None, recall_pcap=None, debug=False):
         self.__debug_on = debug
@@ -365,7 +366,7 @@ class DetectionStrategy(ABC):
         if self.__debug_on == False:
             return
 
-        msg = "[" + self._MONGO_KEY + "] " + str(datetime.now()) +" : " + message
+        msg = "[" + self._DEBUG_PREFIX + "] " + str(datetime.now()) +" : " + message
         print(msg)
 
 
