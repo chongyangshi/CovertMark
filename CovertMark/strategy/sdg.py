@@ -35,7 +35,7 @@ class SDGStrategy(DetectionStrategy):
     # Stop when TPR drops below first value or FPR drops below second value.
 
     def __init__(self, pt_pcap, negative_pcap=None, recall_pcap=None):
-        super().__init__(pt_pcap, negative_pcap, recall_pcap)
+        super().__init__(pt_pcap, negative_pcap, recall_pcap, self.DEBUG)
         self._trained_classifiers = {}
 
 
