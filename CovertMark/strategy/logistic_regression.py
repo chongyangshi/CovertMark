@@ -77,9 +77,8 @@ class LRStrategy(DetectionStrategy):
             raise ValueError("Incorrect run number.")
 
         self.debug_print("- Logistic Regression training {} with L1 penalisation and SAGA solver...".format(run_num+1))
-        LR = linear_model.LogisticRegression(penalty='l1', dual=False,
-         solver='saga', n_jobs=-1, max_iter=5000, warm_start=False)
-        LR.fit(self._pt_test_traces, self._pt_test_labels)
+        LR = analytics.learning.LogisticRegression(multithreaded=True)
+        LR.train(self._pt_test_traces, self._pt_test_labels)
 
         self.debug_print("- Logistic Regression validation...")
         prediction = LR.predict(self._pt_validation_traces)
