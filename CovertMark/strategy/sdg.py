@@ -27,7 +27,7 @@ class SDGStrategy(DetectionStrategy):
 
     LOSS_FUNC = "hinge"
     DEBUG = True
-    WINDOW_SIZE = 50
+    WINDOW_SIZE = 25
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]

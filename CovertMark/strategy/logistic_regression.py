@@ -22,9 +22,10 @@ class LRStrategy(DetectionStrategy):
     NAME = "Logistic Regression Strategy"
     DESCRIPTION = "Generic binary classification strategy."
     _MONGO_KEY = "lr" # Alphanumeric key for MongoDB.
+    _DEBUG_PREFIX = "lr"
 
     DEBUG = True
-    WINDOW_SIZE = 50
+    WINDOW_SIZE = 25
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
