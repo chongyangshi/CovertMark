@@ -27,7 +27,6 @@ class SDGStrategy(DetectionStrategy):
 
     LOSS_FUNC = "hinge"
     DEBUG = True
-    WINDOW_SIZE = 25
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
@@ -157,7 +156,7 @@ class SDGStrategy(DetectionStrategy):
         # Process the all-positive recall windows.
         recall_features = []
         for time_window in time_windows:
-            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._recall_subnets, self.WINDOW_SIZE)
+            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._recall_subnets, self._window_size)
 
             for client_target in traces_by_client:
                 for window in traces_by_client[client_target]:
@@ -201,7 +200,7 @@ class SDGStrategy(DetectionStrategy):
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
      pt_split_ratio=0.5, pt_collection=None, negative_collection=None,
      decision_threshold=None, test_recall=False, recall_ip_filters=[],
-     recall_collection=None):
+     recall_collection=None, window_size=25):
         """
         This method requires positive-negative mixed pcaps with start time synchronised.
         Set pt_ip_filters and negative_ip_filters as usual, but they are also used
@@ -215,6 +214,11 @@ class SDGStrategy(DetectionStrategy):
 
         if pt_ip_filters == negative_ip_filters:
             raise ValueError("Mix PCAP in use, you need to be more specific about what IPs are PT clients in input filters.")
+
+        if not isinstance(window_size, int) or window_size < 10:
+            raise ValueError("Invalid window_size.")
+        self._window_size = window_size;
+        self.debug_print("Setting window size at {}.".format(self._window_size))
 
         # Merge the filters to path all applicable traffic in the mixed pcap.
         merged_filters = pt_ip_filters + negative_ip_filters
@@ -265,7 +269,7 @@ class SDGStrategy(DetectionStrategy):
         target_ip_occurrences = defaultdict(int)
 
         for time_window in time_windows:
-            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, all_subnets, self.WINDOW_SIZE)
+            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, all_subnets, self._window_size)
 
             for client_target in traces_by_client:
 
@@ -415,5 +419,5 @@ if __name__ == "__main__":
      negative_ip_filters=[(argv[3], data.constants.IP_EITHER)],
      pt_collection=argv[4], negative_collection=None, test_recall=True,
      recall_ip_filters=[(argv[6], data.constants.IP_EITHER)],
-     recall_collection=argv[7])
+     recall_collection=argv[7], window_size=int(argv[8]))
     print(detector.report_blocked_ips())

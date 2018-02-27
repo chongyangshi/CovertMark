@@ -66,6 +66,9 @@ class DetectionStrategy(ABC):
         # For debug outputs, overwrite if required.
         self.DEBUG = False
 
+        # For windowing-based strategies only.
+        self._window_size = 25
+
 
     def _parse_PT_packets(self, pt_filters):
         """
