@@ -10,6 +10,7 @@ from random import randint
 from collections import defaultdict
 import numpy as np
 from sklearn import preprocessing, model_selection, linear_model
+import sklearn.utils as sklearn_utils
 
 class SDGStrategy(DetectionStrategy):
     """
@@ -55,10 +56,33 @@ class SDGStrategy(DetectionStrategy):
         if not isinstance(split_ratio, float) or not (0 <= split_ratio <= 1):
             raise ValueError("Invalid split ratio: {}".format(split_ratio))
 
+        # Make sure that we do not train with too many negative cases, causing
+        # significant overfitting in practice.
+        positive_len = len(self._strategic_states['positive_features'])
+        negative_len = len(self._strategic_states['negative_features'])
+        if positive_len >= negative_len:
+            self.debug_print("More positive than negative cases provided, drawing {} positive cases, {} negative cases.".format(positive_len, negative_len))
+            negative_features, negative_ips = self._strategic_states['negative_features'], self._strategic_states['negative_ips']
+        else:
+            self.debug_print("More negative than positive cases provided, drawing {} positive cases, {} negative cases.".format(positive_len, positive_len))
+            negative_features, negative_ips = sklearn_utils.resample(self._strategic_states['negative_features'], self._strategic_states['negative_ips'], replace=False, n_samples=positive_len)
+            negative_len = positive_len
+
+        # Reassemble the inputs.
+        all_features = np.concatenate((self._strategic_states['positive_features'], negative_features), axis=0)
+        all_ips = self._strategic_states['positive_ips'] + negative_ips
+        all_labels = [1 for i in range(positive_len)] + [0 for i in range(negative_len)]
+        self._strategic_states['negative_unique_ips'] = len(set(negative_ips))
+        for ip in all_ips:
+            self._target_ip_occurrences[ip] += 1
+
+        # Rescale to zero centered uniform variance data.
+        all_features = preprocessing.scale(all_features, axis=0, copy=False)
+
         # Orde-preserving split of features, their labels, and their IPs.
-        split = model_selection.train_test_split(self._strategic_states['all_features'],
-         self._strategic_states['all_feature_labels'], self._strategic_states['all_ips'],
+        split = model_selection.train_test_split(all_features, all_labels, all_ips,
          train_size=split_ratio, shuffle=True)
+
         self._pt_test_labels = split[2]
         self._pt_validation_labels = split[3]
         self._pt_test_ips = split[4]
@@ -223,13 +247,13 @@ class SDGStrategy(DetectionStrategy):
         # Merge the filters to path all applicable traffic in the mixed pcap.
         merged_filters = pt_ip_filters + negative_ip_filters
         client_ips = [ip[0] for ip in merged_filters if ip[1] == data.constants.IP_EITHER]
-        positive_ips = [ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER]
-        negative_ips = [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER]
+        pt_ips = [ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER]
+        neg_ips = [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER]
         if len(client_ips) < 1:
             raise ValueError("This strategy requires a valid source+destination (IP_EITHER) IP/subnet in the input filter!")
         self.debug_print("We assume the following clients within the censor's network are being watched: {}.".format(', '.join(client_ips)))
-        self.debug_print("The following clients within the censor's network are using PT: {}.".format(', '.join(positive_ips)))
-        self.debug_print("The following clients within the censor's network are not using PT: {}.".format(', '.join(negative_ips)))
+        self.debug_print("The following clients within the censor's network are using PT: {}.".format(', '.join(pt_ips)))
+        self.debug_print("The following clients within the censor's network are not using PT: {}.".format(', '.join(neg_ips)))
 
         # Now the modified setup.
         self.debug_print("Loading traces...")
@@ -257,12 +281,12 @@ class SDGStrategy(DetectionStrategy):
         self.debug_print("In total we have {} time segments.".format(len(time_windows)))
 
         self.debug_print("- Extracting feature rows from windows in time segments...")
-        features = []
-        labels = []
-        window_ips = []
-        negative_ips = set([])
+        positive_features = []
+        negative_features = []
+        positive_ips = []
+        negative_ips = []
         all_subnets = [data.utils.build_subnet(ip) for ip in client_ips]
-        known_PT_subnets = [data.utils.build_subnet(ip) for ip in positive_ips]
+        known_PT_subnets = [data.utils.build_subnet(ip) for ip in pt_ips]
 
         # For dynamic decision threshold adjustment, in real operation can be
         # adjusted based on previous operations.
@@ -282,7 +306,6 @@ class SDGStrategy(DetectionStrategy):
                     label = 1 # PT traffic.
                 else:
                     label = 0 # non-PT traffic.
-                    negative_ips.add(window_ip) # Recorded regardless of feature exclusion.
 
                 for window in traces_by_client[client_target]:
                     # Extract features, IP information not needed as each window will
@@ -292,34 +315,29 @@ class SDGStrategy(DetectionStrategy):
                         continue
 
                     # Commit this window if the features came back fine.
-                    features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
-                    labels.append(label)
-                    window_ips.append(window_ip)
+                    if label == 1:
+                        positive_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+                        positive_ips.append(window_ip)
+                    else:
+                        negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+                        negative_ips.append(window_ip)
                     target_ip_occurrences[window_ip] += 1
 
         time_windows = []
         traces_by_client = []
 
-        self.debug_print("Extracted {} rows of features.".format(len(features)))
-        self.debug_print("Of which {} rows represent windows containing PT traces, {} rows don't.".format(labels.count(1), labels.count(0)))
-        if len(features) < 1:
+        self.debug_print("Extracted {} rows representing windows containing PT traces, {} rows representing negative traces.".format(len(positive_features), len(negative_features)))
+        if len(positive_features) < 1 or len(negative_features) < 1:
             raise ValueError("No feature rows to work with, did you misconfigure the input filters?")
 
-        all_features = np.asarray(features, dtype=np.float64)
-        all_labels = np.asarray(labels, dtype=np.int8)
-        features = []
-        labels = []
-
-        # Rescale to zero centered uniform variance data.
-        self._strategic_states['all_features'] = preprocessing.scale(all_features,
-         axis=0, copy=False)
-        self._strategic_states['all_feature_labels'] = all_labels
-        self._strategic_states['all_ips'] = window_ips
-        self._strategic_states['negative_unique_ips'] = len(negative_ips)
-        all_features = []
-        all_labels = []
-        window_ips = []
-        negative_ips = None
+        self._strategic_states['positive_features'] = np.asarray(positive_features, dtype=np.float64)
+        self._strategic_states['negative_features'] = np.asarray(negative_features, dtype=np.float64)
+        self._strategic_states['positive_ips'] = positive_ips
+        self._strategic_states['negative_ips'] = negative_ips
+        positive_features = []
+        negative_features = []
+        positive_ips = []
+        negative_ips = []
 
         # Perform dynamic adjustment if set, otherwise finish after 1 loop.
         for threshold_pct in self.DYNAMIC_THRESHOLD_PERCENTILES:
@@ -328,7 +346,6 @@ class SDGStrategy(DetectionStrategy):
                 threshold_pct = decision_threshold
 
             self.debug_print("- Testing with threshold set at {} percentile...".format(threshold_pct))
-            self._decision_threshold = floor(np.percentile(list(target_ip_occurrences.values()), threshold_pct))
 
             # Run training and validation for self.NUM_RUNS times.
             for i in range(self.NUM_RUNS):
@@ -341,6 +358,8 @@ class SDGStrategy(DetectionStrategy):
                 if not self._pt_split:
                     self.debug_print("Training/validation case splitting failed, check data.")
                     return False
+
+                self._decision_threshold = floor(np.percentile(list(self._target_ip_occurrences.values()), threshold_pct))
 
                 self._strategic_states[i] = {}
                 self._run_on_positive(run_num=i)

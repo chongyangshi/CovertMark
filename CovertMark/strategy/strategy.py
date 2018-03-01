@@ -3,6 +3,7 @@ import analytics, data
 import os
 from abc import ABC, abstractmethod
 from datetime import date, datetime
+from collections import defaultdict
 
 class DetectionStrategy(ABC):
     """
@@ -68,6 +69,7 @@ class DetectionStrategy(ABC):
 
         # For windowing-based strategies only.
         self._window_size = 25
+        self._target_ip_occurrences = defaultdict(int)
 
 
     def _parse_PT_packets(self, pt_filters):

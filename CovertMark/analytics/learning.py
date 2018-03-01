@@ -56,7 +56,7 @@ class SDG:
     def __init__(self, loss="hinge", multithreaded=True):
         assert(loss in ["hinge", "modified_huber", "squared_hinge"])
         n_jobs = -1 if multithreaded else 1
-        self.__classifier = linear_model.SGDClassifier(penalty='elasticnet',
+        self.__classifier = linear_model.SGDClassifier(penalty='l1',
          loss=loss, max_iter=5000, n_jobs=n_jobs, learning_rate='optimal',
          warm_start=False)
 
