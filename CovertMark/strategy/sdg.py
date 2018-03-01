@@ -23,7 +23,7 @@ class SDGStrategy(DetectionStrategy):
 
     NAME = "SDG Strategy"
     DESCRIPTION = "Generic binary classification strategy."
-    _MONGO_KEY = "lr" # Currently sharing MongoDB storage due to no change in preprocessing.
+    _MONGO_KEY = "sdg"
     _DEBUG_PREFIX = "sdg"
 
     LOSS_FUNC = "hinge"
@@ -34,7 +34,7 @@ class SDGStrategy(DetectionStrategy):
     DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.001)
     # Stop when TPR drops below first value or FPR drops below second value.
 
-    def __init__(self, pt_pcap, negative_pcap=None, recall_pcap=None):
+    def __init__(self, pt_pcap, negative_pcap, recall_pcap=None):
         super().__init__(pt_pcap, negative_pcap, recall_pcap, self.DEBUG)
         self._trained_classifiers = {}
 
@@ -226,43 +226,22 @@ class SDGStrategy(DetectionStrategy):
      decision_threshold=None, test_recall=False, recall_ip_filters=[],
      recall_collection=None, window_size=25):
         """
-        This method requires positive-negative mixed pcaps with start time synchronised.
-        Set pt_ip_filters and negative_ip_filters as usual, but they are also used
-        to distinguish true and false positive cases in this strategy. Only
-        pt_collection is used for the mixed pcap.
         Input traces are assumed to be chronologically ordered, misfunctioning
         otherwise.
         Sacrificing some false negatives for low false positive rate, under
         dynamic occurrence decision thresholding.
         """
 
-        if pt_ip_filters == negative_ip_filters:
-            raise ValueError("Mix PCAP in use, you need to be more specific about what IPs are PT clients in input filters.")
-
         if not isinstance(window_size, int) or window_size < 10:
             raise ValueError("Invalid window_size.")
         self._window_size = window_size;
         self.debug_print("Setting window size at {}.".format(self._window_size))
 
-        # Merge the filters to path all applicable traffic in the mixed pcap.
-        merged_filters = pt_ip_filters + negative_ip_filters
-        client_ips = [ip[0] for ip in merged_filters if ip[1] == data.constants.IP_EITHER]
-        pt_ips = [ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER]
-        neg_ips = [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER]
-        if len(client_ips) < 1:
-            raise ValueError("This strategy requires a valid source+destination (IP_EITHER) IP/subnet in the input filter!")
-        self.debug_print("We assume the following clients within the censor's network are being watched: {}.".format(', '.join(client_ips)))
-        self.debug_print("The following clients within the censor's network are using PT: {}.".format(', '.join(pt_ips)))
-        self.debug_print("The following clients within the censor's network are not using PT: {}.".format(', '.join(neg_ips)))
-
         # Now the modified setup.
         self.debug_print("Loading traces...")
-        self._run(merged_filters, [], pt_collection=pt_collection, negative_collection=None,
-         test_recall=test_recall, recall_ip_filters=recall_ip_filters,
-         recall_collection=recall_collection)
-        # Rewrite the membership due to use of mixed pcap.
-        self.set_case_membership([ip[0] for ip in pt_ip_filters if ip[1] == data.constants.IP_EITHER],
-                                 [ip[0] for ip in negative_ip_filters if ip[1] == data.constants.IP_EITHER])
+        self._run(pt_ip_filters, negative_ip_filters, pt_collection=pt_collection,
+         negative_collection=negative_collection, test_recall=test_recall,
+         recall_ip_filters=recall_ip_filters, recall_collection=recall_collection)
         # Threshold at which to decide to block IP in validation, dynamic
         # adjustment based on percentile of remote host occurrences if unset.
         dynamic_adjustment = True
@@ -271,59 +250,72 @@ class SDGStrategy(DetectionStrategy):
             self.debug_print("Manually setting {} as the threshold at which to decide to block IP in validation.".format(self._decision_threshold))
             dynamic_adjustment = False
 
-        self.debug_print("Loaded {} mixed traces".format(len(self._pt_traces)))
+        self.debug_print("Loaded {} positive traces, {} negative traces.".format(len(self._pt_traces), len(self._neg_traces)))
         if test_recall:
             self.debug_print("Loaded {} positive recall traces".format(len(self._recall_traces)))
 
+        if len(self._pt_traces) < 1 or len(self._neg_traces) < 1:
+            raise ValueError("Loaded nothing for at least one set of traces, did you set the input filter correctly?")
+
+        # Synhronise times, moving the shorter one to reduce memory footprint.
+        if len(self._pt_traces) > len(self._neg_traces):
+            target_time = float(self._pt_traces[0]['time'])
+            self._neg_traces = analytics.traffic.synchronise_traces(self._neg_traces, target_time, sort=False)
+        else:
+            target_time = float(self._neg_traces[0]['time'])
+            self._pt_traces = analytics.traffic.synchronise_traces(self._pt_traces, target_time, sort=False)
+
         self.debug_print("- Segmenting traces into {} second windows...".format(self.TIME_SEGMENT_SIZE))
-        time_windows = analytics.traffic.window_traces_time_series(self._pt_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
+        time_windows_positive = analytics.traffic.window_traces_time_series(self._pt_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
+        time_windows_negative = analytics.traffic.window_traces_time_series(self._neg_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
         self._pt_traces = None # Releases memory when processing large files.
-        self.debug_print("In total we have {} time segments.".format(len(time_windows)))
+        self._neg_traces = None
+        self.debug_print("In total we have {} time segments.".format(len(time_windows_positive) + len(time_windows_negative)))
 
         self.debug_print("- Extracting feature rows from windows in time segments...")
         positive_features = []
         negative_features = []
         positive_ips = []
         negative_ips = []
-        all_subnets = [data.utils.build_subnet(ip) for ip in client_ips]
-        known_PT_subnets = [data.utils.build_subnet(ip) for ip in pt_ips]
 
-        # For dynamic decision threshold adjustment, in real operation can be
-        # adjusted based on previous operations.
-        target_ip_occurrences = defaultdict(int)
-
-        for time_window in time_windows:
-            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, all_subnets, self._window_size)
+        for time_window in time_windows_positive:
+            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._positive_subnets, self._window_size)
 
             for client_target in traces_by_client:
 
                 # Mark the shared target.
                 window_ip = client_target[1]
-
-                # Generate training and validation labels.
-                client = client_target[0]
-                if any([i.overlaps(data.utils.build_subnet(client)) for i in known_PT_subnets]):
-                    label = 1 # PT traffic.
-                else:
-                    label = 0 # non-PT traffic.
-
                 for window in traces_by_client[client_target]:
                     # Extract features, IP information not needed as each window will
                     # contain one individual client's traffic with a single only.
-                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client])
+                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]])
                     if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                         continue
 
                     # Commit this window if the features came back fine.
-                    if label == 1:
-                        positive_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
-                        positive_ips.append(window_ip)
-                    else:
-                        negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
-                        negative_ips.append(window_ip)
-                    target_ip_occurrences[window_ip] += 1
+                    positive_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+                    positive_ips.append(window_ip)
 
-        time_windows = []
+        for time_window in time_windows_negative:
+            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._negative_subnets, self._window_size)
+
+            for client_target in traces_by_client:
+
+                # Mark the shared target.
+                window_ip = client_target[1]
+                for window in traces_by_client[client_target]:
+                    # Extract features, IP information not needed as each window will
+                    # contain one individual client's traffic with a single only.
+                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]])
+                    if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
+                        continue
+
+                    # Commit this window if the features came back fine.
+                    negative_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+                    negative_ips.append(window_ip)
+
+        time_windows_positive = []
+        time_windows_negative = []
         traces_by_client = []
 
         self.debug_print("Extracted {} rows representing windows containing PT traces, {} rows representing negative traces.".format(len(positive_features), len(negative_features)))
@@ -431,12 +423,13 @@ if __name__ == "__main__":
     # print(detector.report_blocked_ips())
     # exit(0)
 
-    mixed_path = os.path.join(parent_path, 'examples', 'local', argv[1])
-    recall_path = os.path.join(parent_path, 'examples', 'local', argv[5])
-    detector = SDGStrategy(mixed_path, recall_pcap=recall_path)
+    pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
+    neg_path = os.path.join(parent_path, 'examples', 'local', argv[4])
+    recall_path = os.path.join(parent_path, 'examples', 'local', argv[7])
+    detector = SDGStrategy(pt_path, neg_path, recall_pcap=recall_path)
     detector.run(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
-     negative_ip_filters=[(argv[3], data.constants.IP_EITHER)],
-     pt_collection=argv[4], negative_collection=None, test_recall=True,
-     recall_ip_filters=[(argv[6], data.constants.IP_EITHER)],
-     recall_collection=argv[7], window_size=int(argv[8]))
+     negative_ip_filters=[(argv[5], data.constants.IP_EITHER)],
+     pt_collection=argv[3], negative_collection=argv[6], test_recall=True,
+     recall_ip_filters=[(argv[8], data.constants.IP_EITHER)],
+     recall_collection=argv[9], window_size=int(argv[10]))
     print(detector.report_blocked_ips())

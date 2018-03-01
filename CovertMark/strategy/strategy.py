@@ -215,7 +215,7 @@ class DetectionStrategy(ABC):
         recall_filters = self.__reader.get_input_filters()
         if recall_filters:
             self._recall_subnets = [data.utils.build_subnet(i[0]) for i in recall_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
-            self.debug_print("Automatically set the corresponding input filters for recall clients.")
+            self.debug_print("Automatically set the corresponding input filters for recall clients: {}.".format(str([i[0] for i in recall_filters])))
 
         if len(self._recall_traces) == 0:
             return False
@@ -401,7 +401,7 @@ class DetectionStrategy(ABC):
                 self._pt_collection = pt_collection
                 self.debug_print("Loading existing PT traces...")
             else:
-                self.debug_print("- Re-parsing PT PCAP file as {} does not exist in MongoDB...".format(pt_collection))
+                self.debug_print("Re-parsing PT PCAP file as {} does not exist in MongoDB...".format(pt_collection))
 
         if reparsing_positive:
             self.debug_print("- Parsing PT PCAP...")
@@ -431,7 +431,7 @@ class DetectionStrategy(ABC):
                 self._recall_collection = recall_collection
                 self.debug_print("Loading existing recall traces...")
             else:
-                self.debug_print("Attempting to parse recall PCAP as specified recall collection does not exist.")
+                self.debug_print("- Attempting to parse recall PCAP as specified recall collection does not exist.")
                 if self._parse_recall_packets(recall_ip_filters):
                     self.debug_print("Parsed PCAP file according to input recall IP filters.")
                 else:

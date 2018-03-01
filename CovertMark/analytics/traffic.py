@@ -420,3 +420,33 @@ def get_window_stats(windowed_traces, client_ips):
             stats['bin_' + str(interval_bin) + '_interval_down'] = 0
 
     return stats, ips, client_ips_seen
+
+
+def synchronise_traces(traces, target_time, sort=False):
+    """
+    Synhronise the input traces by shifting the time of the first frame to align
+    with the target time provided.
+    :param traces: input traces to be time shifted, should be chronologically
+        ordered or set sort to True, otherwise results will be unexpected.
+    :param target_time: a float value that is a valid UNIX timestamp to 6 d.p.
+    :param sort: if True, the function will chronologically sort the input traces
+        first.
+    :returns: time shifted input traces.
+    """
+
+    if not isinstance(target_time, float):
+        raise ValueError("Invalid target time.")
+
+    if len(traces) == 0:
+        return []
+
+    if sort:
+        traces = sorted(traces, key=itemgetter('time'))
+
+    traces_start_time = float(traces[0]['time'])
+    diff = target_time - traces_start_time
+
+    for trace in traces:
+        trace['time'] = float(trace['time']) + diff
+
+    return traces
