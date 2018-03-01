@@ -183,12 +183,12 @@ def group_traces_by_ip_fixed_size(traces, clients, window_size):
 
         for client in clients:
             if client.overlaps(trace_srcnet):
-                trace_client = client
+                trace_client = trace_srcnet
                 target = trace['dst']
                 break
 
             elif client.overlaps(trace_dstnet):
-                trace_client = client
+                trace_client = trace_dstnet
                 target = trace['src']
                 break
 
