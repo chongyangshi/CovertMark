@@ -30,8 +30,7 @@ class SDGStrategy(DetectionStrategy):
     DEBUG = True
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
-    FEATURE_SET = [analytics.constants.USE_ENTROPY, analytics.constants.USE_TCP_LEN,
-                   analytics.constants.USE_PSH]
+    FEATURE_SET = [analytics.constants.USE_ENTROPY, analytics.constants.USE_PSH]
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
     DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.001)
     # Stop when TPR drops below first value or FPR drops below second value.
@@ -226,7 +225,7 @@ class SDGStrategy(DetectionStrategy):
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
      pt_split_ratio=0.5, pt_collection=None, negative_collection=None,
      decision_threshold=None, test_recall=False, recall_ip_filters=[],
-     recall_collection=None, window_size=25):
+     recall_collection=None, window_size=50):
         """
         Input traces are assumed to be chronologically ordered, misfunctioning
         otherwise.

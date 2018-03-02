@@ -213,8 +213,8 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         {
             'mean_entropy_up': mean entropy of upstream TCP payloads;
             'mean_interval_up': upstream mean TCP ACK intervals;
-            'mode_interval_up': the mode of interval between TCP frames, with
-                intervals between 0, 1000, 10000, 100000, 1000000 microseconds,
+            'bin_#_interval_up': the number of in-range intervals between TCP frames,
+                ranges divided between 0, 1000, 10000, 100000, 1000000 microseconds,
                 with value represented as the upper range of each interval. Only
                 the first of all frames bearing the unique sequence number is
                  counted;
