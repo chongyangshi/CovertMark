@@ -207,7 +207,7 @@ def group_traces_by_ip_fixed_size(traces, clients, window_size):
     return client_traces
 
 
-def get_window_stats(windowed_traces, client_ips):
+def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     """
     Calculate the following features for the windowed traces:
         {
@@ -229,6 +229,9 @@ def get_window_stats(windowed_traces, client_ips):
         :param windowed_traces: a segment of TCP traces, ASSUMED TO BE SORTED BY
             TIME in ascending order.
         :param client_ips: the IP addresses/subnets of the suspected PT clients.
+        :param feature_selection: chooses sets of features to check for and
+            include in the output, see constants.FEATURES. If None, include all
+             features.
         :returns: three-tuple: a dictionary containing the stats as described
             above, a set of remote IP addresses seen in the window, and a list of
             client ips seen in this window.
@@ -236,6 +239,12 @@ def get_window_stats(windowed_traces, client_ips):
 
     client_subnets = [data.utils.build_subnet(i) for i in client_ips]
     client_ips_seen = set([])
+
+    all_features = True if feature_selection is None else False
+    entropy_on = True if all_features else constants.USE_ENTROPY in feature_selection
+    interval_on = True if all_features else constants.USE_INTERVAL in feature_selection
+    tcp_len_on = True if all_features else constants.USE_TCP_LEN in feature_selection
+    psh_on = True if all_features else constants.USE_PSH in feature_selection
 
     if not client_subnets:
         return {}, set([]), [] # client_ip does not match the traces.
@@ -279,68 +288,83 @@ def get_window_stats(windowed_traces, client_ips):
             client_ips_seen.add(trace['src'])
 
             # Entropy tally.
-            trace_tcp = trace['tcp_info']
-            entropies_up.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
+            if entropy_on:
+                trace_tcp = trace['tcp_info']
+                entropies_up.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
 
             # Interval information.
-            if trace_tcp['seq'] not in seqs_seen_up:
-                seqs_seen_up.add(trace_tcp['seq'])
+            if interval_on:
+                if trace_tcp['seq'] not in seqs_seen_up:
+                    seqs_seen_up.add(trace_tcp['seq'])
 
-                if prev_time is None:
-                    prev_time = float(trace['time']) * 1000000
-                else:
-                    interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
-                    intervals_up.append(interval)
-                    # If the interval is above 1 second, ignore its bin membership.
-                    for k in interval_ranges:
-                        if interval < k:
-                            intervals_up_bins[k] += 1
-                    prev_time = float(trace['time']) * 1000000
+                    if prev_time is None:
+                        prev_time = float(trace['time']) * 1000000
+                    else:
+                        interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
+                        intervals_up.append(interval)
+                        # If the interval is above 1 second, ignore its bin membership.
+                        for k in interval_ranges:
+                            if interval < k:
+                                intervals_up_bins[k] += 1
+                        prev_time = float(trace['time']) * 1000000
 
             # Payload length tally.
-            payload_lengths_up.append(len(trace_tcp['payload']))
+            if tcp_len_on:
+                payload_lengths_up.append(len(trace_tcp['payload']))
 
             # ACK/PSH information.
-            if trace_tcp['flags']['ACK'] == True:
-                ack_up += 1
-                if trace_tcp['flags']['PSH'] == True:
-                    psh_up += 1
+            if psh_on:
+                if trace_tcp['flags']['ACK'] == True:
+                    ack_up += 1
+                    if trace_tcp['flags']['PSH'] == True:
+                        psh_up += 1
 
-        stats['mean_entropy_up'] = np.mean(entropies_up)
-        stats['max_entropy_up'] = np.max(entropies_up)
-        stats['min_entropy_up'] = np.min(entropies_up)
-        if len(intervals_up) == 0: # Cap at 1 second.
-            stats['mean_interval_up'] = 1000000
-        else:
-            stats['mean_interval_up'] = np.mean(intervals_up)
-        #stats['mode_interval_up'] = max(intervals_up_bins.items(), key=itemgetter(1))[0]
-        intervals_up_bins = sorted(intervals_up_bins.items(), key=itemgetter(0))
-        for interval_bin in intervals_up_bins:
-            stats['bin_' + str(interval_bin[0]) + '_interval_up'] = interval_bin[1]
+        if entropy_on:
+            stats['mean_entropy_up'] = np.mean(entropies_up)
+            stats['max_entropy_up'] = np.max(entropies_up)
+            stats['min_entropy_up'] = np.min(entropies_up)
 
-        up_counts = Counter(payload_lengths_up).items()
-        up_counts_sorted = sorted(up_counts, key=itemgetter(1))
-        stats['top1_tcp_len_up'] = up_counts_sorted[0][0] if len(up_counts_sorted) > 0 else 0
-        stats['top2_tcp_len_up'] = up_counts_sorted[1][0] if len(up_counts_sorted) > 1 else 0
-        stats['mean_tcp_len_up'] = np.mean(payload_lengths_up)
-        if ack_up > 0:
-            stats['push_ratio_up'] = float(psh_up) / ack_up
-        else:
-            stats['push_ratio_up'] = 0
+        if interval_on:
+            if len(intervals_up) == 0: # Cap at 1 second.
+                stats['mean_interval_up'] = 1000000
+            else:
+                stats['mean_interval_up'] = np.mean(intervals_up)
+            intervals_up_bins = sorted(intervals_up_bins.items(), key=itemgetter(0))
+            for interval_bin in intervals_up_bins:
+                stats['bin_' + str(interval_bin[0]) + '_interval_up'] = interval_bin[1]
+
+        if tcp_len_on:
+            up_counts = Counter(payload_lengths_up).items()
+            up_counts_sorted = sorted(up_counts, key=itemgetter(1))
+            stats['top1_tcp_len_up'] = up_counts_sorted[0][0] if len(up_counts_sorted) > 0 else 0
+            stats['top2_tcp_len_up'] = up_counts_sorted[1][0] if len(up_counts_sorted) > 1 else 0
+            stats['mean_tcp_len_up'] = np.mean(payload_lengths_up)
+
+        if psh_on:
+            if ack_up > 0:
+                stats['push_ratio_up'] = float(psh_up) / ack_up
+            else:
+                stats['push_ratio_up'] = 0
 
     else: # Default to zeros if insufficient frames to check.
-        stats['mean_entropy_up'] = 0
-        stats['max_entropy_up'] = 0
-        stats['min_entropy_up'] = 0
-        stats['mean_interval_up'] = 1000000
-        #stats['mode_interval_up'] = 1000000
-        stats['top1_tcp_len_up'] = 0
-        stats['top2_tcp_len_up'] = 0
-        stats['mean_tcp_len_up'] = 0
-        stats['push_ratio_up'] = 0
-        for interval_bin in intervals_up_bins:
-            stats['bin_' + str(interval_bin) + '_interval_up'] = 0
 
+        if entropy_on:
+            stats['mean_entropy_up'] = 0
+            stats['max_entropy_up'] = 0
+            stats['min_entropy_up'] = 0
+
+        if interval_on:
+            stats['mean_interval_up'] = 1000000
+            for interval_bin in intervals_up_bins:
+                stats['bin_' + str(interval_bin) + '_interval_up'] = 0
+
+        if tcp_len_on:
+            stats['top1_tcp_len_up'] = 0
+            stats['top2_tcp_len_up'] = 0
+            stats['mean_tcp_len_up'] = 0
+
+        if psh_on:
+            stats['push_ratio_up'] = 0
 
     # Now tally downstream frames.
     if len(traces_down) > 0:
@@ -354,70 +378,85 @@ def get_window_stats(windowed_traces, client_ips):
             client_ips_seen.add(trace['dst'])
 
             # Entropy tally.
-            trace_tcp = trace['tcp_info']
-            entropies_down.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
+            if entropy_on:
+                trace_tcp = trace['tcp_info']
+                entropies_down.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
 
             # Interval information.
-            if trace_tcp['seq'] not in seqs_seen_down:
-                seqs_seen_down.add(trace_tcp['seq'])
+            if interval_on:
+                if trace_tcp['seq'] not in seqs_seen_down:
+                    seqs_seen_down.add(trace_tcp['seq'])
 
-                if prev_time is None:
-                    prev_time = float(trace['time']) * 1000000
-                else:
-                    interval = abs(float(trace['time']) * 1000000 - prev_time)
-                    intervals_down.append(interval)
-                    # If the interval is above 1 second, ignore its bin membership.
-                    for k in interval_ranges:
-                        if interval < k:
-                            intervals_down_bins[k] += 1
-                    prev_time = float(trace['time']) * 1000000
+                    if prev_time is None:
+                        prev_time = float(trace['time']) * 1000000
+                    else:
+                        interval = abs(float(trace['time']) * 1000000 - prev_time)
+                        intervals_down.append(interval)
+                        # If the interval is above 1 second, ignore its bin membership.
+                        for k in interval_ranges:
+                            if interval < k:
+                                intervals_down_bins[k] += 1
+                        prev_time = float(trace['time']) * 1000000
 
 
             # Payload length tally.
-            payload_lengths_down.append(len(trace_tcp['payload']))
+            if tcp_len_on:
+                payload_lengths_down.append(len(trace_tcp['payload']))
 
             # ACK/PSH information.
-            if trace_tcp['flags']['ACK'] == True:
-                ack_down += 1
-                if trace_tcp['flags']['PSH'] == True:
-                    psh_down += 1
+            if psh_on:
+                if trace_tcp['flags']['ACK'] == True:
+                    ack_down += 1
+                    if trace_tcp['flags']['PSH'] == True:
+                        psh_down += 1
 
-        stats['mean_entropy_down'] = np.mean(entropies_down)
-        stats['max_entropy_down'] = np.max(entropies_down)
-        stats['min_entropy_down'] = np.min(entropies_down)
-        if len(intervals_down) == 0: # Cap at 1 second.
-            stats['mean_interval_down'] = 1000000
-        else:
-            stats['mean_interval_down'] = np.mean(intervals_down)
-        #stats['mode_interval_down'] = max(intervals_down_bins.items(), key=itemgetter(1))[0]
-        intervals_down_bins = sorted(intervals_down_bins.items(), key=itemgetter(0))
-        for interval_bin in intervals_down_bins:
-            stats['bin_' + str(interval_bin[0]) + '_interval_down'] = interval_bin[1]
+        if entropy_on:
+            stats['mean_entropy_down'] = np.mean(entropies_down)
+            stats['max_entropy_down'] = np.max(entropies_down)
+            stats['min_entropy_down'] = np.min(entropies_down)
 
+        if interval_on:
+            if len(intervals_down) == 0: # Cap at 1 second.
+                stats['mean_interval_down'] = 1000000
+            else:
+                stats['mean_interval_down'] = np.mean(intervals_down)
+            intervals_down_bins = sorted(intervals_down_bins.items(), key=itemgetter(0))
+            for interval_bin in intervals_down_bins:
+                stats['bin_' + str(interval_bin[0]) + '_interval_down'] = interval_bin[1]
 
-        down_counts = Counter(payload_lengths_down).items()
-        down_counts_sorted = sorted(down_counts, key=itemgetter(1))
-        stats['top1_tcp_len_down'] = down_counts_sorted[0][0] if len(down_counts_sorted) > 0 else 0
-        stats['top2_tcp_len_down'] = down_counts_sorted[1][0] if len(down_counts_sorted) > 1 else 0
-        stats['mean_tcp_len_down'] = np.mean(payload_lengths_down)
-        if ack_down > 0:
-            stats['push_ratio_down'] = float(psh_down) / ack_down
-        else:
-            stats['push_ratio_down'] = 0
+        if tcp_len_on:
+            down_counts = Counter(payload_lengths_down).items()
+            down_counts_sorted = sorted(down_counts, key=itemgetter(1))
+            stats['top1_tcp_len_down'] = down_counts_sorted[0][0] if len(down_counts_sorted) > 0 else 0
+            stats['top2_tcp_len_down'] = down_counts_sorted[1][0] if len(down_counts_sorted) > 1 else 0
+            stats['mean_tcp_len_down'] = np.mean(payload_lengths_down)
+
+        if psh_on:
+            if ack_down > 0:
+                stats['push_ratio_down'] = float(psh_down) / ack_down
+            else:
+                stats['push_ratio_down'] = 0
 
     else:
         # Default to least optimistic if insufficient frames to check.
-        stats['mean_entropy_down'] = 0
-        stats['max_entropy_down'] = 0
-        stats['min_entropy_down'] = 0
-        stats['mean_interval_down'] = 1000000
-        #stats['mode_interval_down'] = 1000000
-        stats['top1_tcp_len_down'] = 0
-        stats['top2_tcp_len_down'] = 0
-        stats['mean_tcp_len_down'] = 0
-        stats['push_ratio_down'] = 0
-        for interval_bin in intervals_down_bins:
-            stats['bin_' + str(interval_bin) + '_interval_down'] = 0
+        if entropy_on:
+            stats['mean_entropy_down'] = 0
+            stats['max_entropy_down'] = 0
+            stats['min_entropy_down'] = 0
+
+        if interval_on:
+            stats['mean_interval_down'] = 1000000
+            for interval_bin in intervals_down_bins:
+                stats['bin_' + str(interval_bin) + '_interval_down'] = 0
+
+        if tcp_len_on:
+            stats['top1_tcp_len_down'] = 0
+            stats['top2_tcp_len_down'] = 0
+            stats['mean_tcp_len_down'] = 0
+
+        if psh_on:
+            stats['push_ratio_down'] = 0
+
 
     return stats, ips, client_ips_seen
 
