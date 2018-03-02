@@ -230,8 +230,13 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             TIME in ascending order.
         :param client_ips: the IP addresses/subnets of the suspected PT clients.
         :param feature_selection: chooses sets of features to check for and
-            include in the output, see constants.FEATURES. If None, include all
-             features.
+            include in the output. If None, include all features. Options:
+            USE_ENTROPY       : Entropy features
+            USE_INTERVAL      : Mean interval
+            USE_INTERVAL_BINS : Binned intervals
+            USE_TCP_LEN       : Top and mean TCP lengths
+            USE_TCP_LEN_BINS  : Binned TCP lengths
+            USE_PSH           : Ratio of PSH packets in ACK packets
         :returns: three-tuple: a dictionary containing the stats as described
             above, a set of remote IP addresses seen in the window, and a list of
             client ips seen in this window.
@@ -240,11 +245,12 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     client_subnets = [data.utils.build_subnet(i) for i in client_ips]
     client_ips_seen = set([])
 
-    all_features = True if feature_selection is None else False
+    all_features = True if (feature_selection is None) or (len(feature_selection) == 0) else False
     entropy_on = True if all_features else constants.USE_ENTROPY in feature_selection
     interval_on = True if all_features else constants.USE_INTERVAL in feature_selection
     interval_bins_on = True if all_features else constants.USE_INTERVAL_BINS in feature_selection
     tcp_len_on = True if all_features else constants.USE_TCP_LEN in feature_selection
+    tcp_len_bins_on = True if all_features else constants.USE_TCP_LEN_BINS in feature_selection
     psh_on = True if all_features else constants.USE_PSH in feature_selection
 
     if not client_subnets:
@@ -252,6 +258,11 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 
     stats = {}
     interval_ranges = [1000, 10000, 100000, 1000000]
+    tcp_len_ranges = [100, 200, 500, 1000]
+    # TCP length segmented into low/empty payload, moderate payloads, and
+    # high/close-to-MTU payload. Most systems have a default MTU at nearly 1500
+    # bytes.
+
     ips = set([])
 
     seqs_seen_up = set([])
@@ -259,6 +270,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     intervals_up = []
     intervals_up_bins = {i: 0 for i in interval_ranges}
     payload_lengths_up = []
+    payload_lengths_up_bins = {i: 0 for i in tcp_len_ranges}
     psh_up = 0
     ack_up = 0
     traces_up = list(filter(lambda x: any([i.overlaps(data.utils.build_subnet(x['src'])) for i in client_subnets]), windowed_traces))
@@ -268,6 +280,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     intervals_down = []
     intervals_down_bins = {i: 0 for i in interval_ranges}
     payload_lengths_down = []
+    payload_lengths_down_bins = {i: 0 for i in tcp_len_ranges}
     psh_down = 0
     ack_down = 0
     traces_down = list(filter(lambda x: any([i.overlaps(data.utils.build_subnet(x['dst'])) for i in client_subnets]), windowed_traces))
@@ -311,6 +324,10 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             # Payload length tally.
             if tcp_len_on:
                 payload_lengths_up.append(len(trace_tcp['payload']))
+            if tcp_len_bins_on:
+                for k in tcp_len_ranges:
+                    if len(trace_tcp['payload']) < k:
+                        payload_lengths_up_bins[k] += 1
 
             # ACK/PSH information.
             if psh_on:
@@ -340,6 +357,10 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             stats['top1_tcp_len_up'] = up_counts_sorted[0][0] if len(up_counts_sorted) > 0 else 0
             stats['top2_tcp_len_up'] = up_counts_sorted[1][0] if len(up_counts_sorted) > 1 else 0
             stats['mean_tcp_len_up'] = np.mean(payload_lengths_up)
+        if tcp_len_bins_on:
+            payload_lengths_up_bins = sorted(payload_lengths_up_bins.items(), key=itemgetter(0))
+            for length_bin in payload_lengths_up_bins:
+                stats['bin_' + str(length_bin[0]) + '_interval_up'] = length_bin[1]
 
         if psh_on:
             if ack_up > 0:
@@ -364,6 +385,9 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             stats['top1_tcp_len_up'] = 0
             stats['top2_tcp_len_up'] = 0
             stats['mean_tcp_len_up'] = 0
+        if tcp_len_bins_on:
+            for length_bin in payload_lengths_up_bins:
+                stats['bin_' + str(length_bin) + '_interval_up'] = 0
 
         if psh_on:
             stats['push_ratio_up'] = 0
@@ -403,6 +427,10 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             # Payload length tally.
             if tcp_len_on:
                 payload_lengths_down.append(len(trace_tcp['payload']))
+            if tcp_len_bins_on:
+                for k in tcp_len_ranges:
+                    if len(trace_tcp['payload']) < k:
+                        payload_lengths_down_bins[k] += 1
 
             # ACK/PSH information.
             if psh_on:
@@ -432,6 +460,10 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             stats['top1_tcp_len_down'] = down_counts_sorted[0][0] if len(down_counts_sorted) > 0 else 0
             stats['top2_tcp_len_down'] = down_counts_sorted[1][0] if len(down_counts_sorted) > 1 else 0
             stats['mean_tcp_len_down'] = np.mean(payload_lengths_down)
+        if tcp_len_bins_on:
+            payload_lengths_down_bins = sorted(payload_lengths_down_bins.items(), key=itemgetter(0))
+            for length_bin in payload_lengths_down_bins:
+                stats['bin_' + str(length_bin[0]) + '_interval_down'] = length_bin[1]
 
         if psh_on:
             if ack_down > 0:
@@ -456,6 +488,9 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             stats['top1_tcp_len_down'] = 0
             stats['top2_tcp_len_down'] = 0
             stats['mean_tcp_len_down'] = 0
+        if tcp_len_bins_on:
+            for length_bin in payload_lengths_down_bins:
+                stats['bin_' + str(length_bin) + '_interval_down'] = 0
 
         if psh_on:
             stats['push_ratio_down'] = 0

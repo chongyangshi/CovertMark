@@ -30,7 +30,9 @@ class SDGStrategy(DetectionStrategy):
     DEBUG = True
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
-    FEATURE_SET = [analytics.constants.USE_ENTROPY, analytics.constants.USE_PSH]
+    FEATURE_SET = [analytics.constants.USE_ENTROPY, analytics.constants.USE_PSH,
+                   analytics.constants.USE_INTERVAL_BINS,
+                   analytics.constants.USE_TCP_LEN_BINS]
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
     DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.001)
     # Stop when TPR drops below first value or FPR drops below second value.
