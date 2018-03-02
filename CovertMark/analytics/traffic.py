@@ -243,6 +243,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     all_features = True if feature_selection is None else False
     entropy_on = True if all_features else constants.USE_ENTROPY in feature_selection
     interval_on = True if all_features else constants.USE_INTERVAL in feature_selection
+    interval_bins_on = True if all_features else constants.USE_INTERVAL_BINS in feature_selection
     tcp_len_on = True if all_features else constants.USE_TCP_LEN in feature_selection
     psh_on = True if all_features else constants.USE_PSH in feature_selection
 
@@ -293,20 +294,19 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
                 entropies_up.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
 
             # Interval information.
-            if interval_on:
-                if trace_tcp['seq'] not in seqs_seen_up:
-                    seqs_seen_up.add(trace_tcp['seq'])
+            if trace_tcp['seq'] not in seqs_seen_up:
+                seqs_seen_up.add(trace_tcp['seq'])
 
-                    if prev_time is None:
-                        prev_time = float(trace['time']) * 1000000
-                    else:
-                        interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
-                        intervals_up.append(interval)
-                        # If the interval is above 1 second, ignore its bin membership.
-                        for k in interval_ranges:
-                            if interval < k:
-                                intervals_up_bins[k] += 1
-                        prev_time = float(trace['time']) * 1000000
+                if prev_time is None:
+                    prev_time = float(trace['time']) * 1000000
+                else:
+                    interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
+                    intervals_up.append(interval)
+                    # If the interval is above 1 second, ignore its bin membership.
+                    for k in interval_ranges:
+                        if interval < k:
+                            intervals_up_bins[k] += 1
+                    prev_time = float(trace['time']) * 1000000
 
             # Payload length tally.
             if tcp_len_on:
@@ -329,6 +329,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
                 stats['mean_interval_up'] = 1000000
             else:
                 stats['mean_interval_up'] = np.mean(intervals_up)
+        if interval_bins_on:
             intervals_up_bins = sorted(intervals_up_bins.items(), key=itemgetter(0))
             for interval_bin in intervals_up_bins:
                 stats['bin_' + str(interval_bin[0]) + '_interval_up'] = interval_bin[1]
@@ -355,6 +356,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 
         if interval_on:
             stats['mean_interval_up'] = 1000000
+        if interval_bins_on:
             for interval_bin in intervals_up_bins:
                 stats['bin_' + str(interval_bin) + '_interval_up'] = 0
 
@@ -383,20 +385,19 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
                 entropies_down.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
 
             # Interval information.
-            if interval_on:
-                if trace_tcp['seq'] not in seqs_seen_down:
-                    seqs_seen_down.add(trace_tcp['seq'])
+            if trace_tcp['seq'] not in seqs_seen_down:
+                seqs_seen_down.add(trace_tcp['seq'])
 
-                    if prev_time is None:
-                        prev_time = float(trace['time']) * 1000000
-                    else:
-                        interval = abs(float(trace['time']) * 1000000 - prev_time)
-                        intervals_down.append(interval)
-                        # If the interval is above 1 second, ignore its bin membership.
-                        for k in interval_ranges:
-                            if interval < k:
-                                intervals_down_bins[k] += 1
-                        prev_time = float(trace['time']) * 1000000
+                if prev_time is None:
+                    prev_time = float(trace['time']) * 1000000
+                else:
+                    interval = abs(float(trace['time']) * 1000000 - prev_time)
+                    intervals_down.append(interval)
+                    # If the interval is above 1 second, ignore its bin membership.
+                    for k in interval_ranges:
+                        if interval < k:
+                            intervals_down_bins[k] += 1
+                    prev_time = float(trace['time']) * 1000000
 
 
             # Payload length tally.
@@ -420,6 +421,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
                 stats['mean_interval_down'] = 1000000
             else:
                 stats['mean_interval_down'] = np.mean(intervals_down)
+        if interval_bins_on:
             intervals_down_bins = sorted(intervals_down_bins.items(), key=itemgetter(0))
             for interval_bin in intervals_down_bins:
                 stats['bin_' + str(interval_bin[0]) + '_interval_down'] = interval_bin[1]
@@ -446,6 +448,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 
         if interval_on:
             stats['mean_interval_down'] = 1000000
+        if interval_bins_on:
             for interval_bin in intervals_down_bins:
                 stats['bin_' + str(interval_bin) + '_interval_down'] = 0
 
