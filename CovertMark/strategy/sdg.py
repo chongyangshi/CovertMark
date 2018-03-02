@@ -30,6 +30,8 @@ class SDGStrategy(DetectionStrategy):
     DEBUG = True
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
+    FEATURE_SET = [analytics.constants.USE_ENTROPY, analytics.constants.USE_TCP_LEN,
+                   analytics.constants.USE_PSH]
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
     DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.001)
     # Stop when TPR drops below first value or FPR drops below second value.
@@ -184,7 +186,7 @@ class SDGStrategy(DetectionStrategy):
 
             for client_target in traces_by_client:
                 for window in traces_by_client[client_target]:
-                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]])
+                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]], self.FEATURE_SET)
                     if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                         continue
                     recall_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
@@ -288,7 +290,7 @@ class SDGStrategy(DetectionStrategy):
                 for window in traces_by_client[client_target]:
                     # Extract features, IP information not needed as each window will
                     # contain one individual client's traffic with a single only.
-                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]])
+                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]], self.FEATURE_SET)
                     if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                         continue
 
@@ -306,7 +308,7 @@ class SDGStrategy(DetectionStrategy):
                 for window in traces_by_client[client_target]:
                     # Extract features, IP information not needed as each window will
                     # contain one individual client's traffic with a single only.
-                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]])
+                    feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]], self.FEATURE_SET)
                     if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                         continue
 
