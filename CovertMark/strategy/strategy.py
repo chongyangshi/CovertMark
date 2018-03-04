@@ -66,7 +66,7 @@ class DetectionStrategy(ABC):
 
         # For debug outputs, overwrite if required.
         self.DEBUG = debug
-        self._performance_csv = "Occurrence Threshold (pct),FPR (% Innocent packets incorrectly blocked),FNR (% PT packets missed),% Innocent IP's blocked overall\n"
+        self._performance_csv = "Occurrence Threshold (pct),FNR (% PT packets missed),FPR (% Innocent packets incorrectly blocked),% Innocent IP's blocked overall\n"
 
         # For windowing-based strategies only.
         self._window_size = 25
