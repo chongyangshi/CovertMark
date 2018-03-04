@@ -65,7 +65,8 @@ class DetectionStrategy(ABC):
         self._recall_rate = None
 
         # For debug outputs, overwrite if required.
-        self.DEBUG = False
+        self.DEBUG = debug
+        self._performance_csv = "Occurrence Threshold (pct),FPR (% Innocent packets incorrectly blocked),FNR (% PT packets missed),% Innocent IP's blocked overall\n"
 
         # For windowing-based strategies only.
         self._window_size = 25
@@ -458,6 +459,42 @@ class DetectionStrategy(ABC):
         self.__pt_parser.clean_up(self._pt_collection)
         if self._neg_collection is not None:
             self.__neg_parser.clean_up(self._neg_collection)
+
+
+    def record_performance(self, FNR, FPR, pct_ip_blocked, threshold=None):
+        """
+        Add a line of record to allow printing performance stats in CSV.
+        :param FNR: false negative rate reported (0-1), TPR = 1 - FNR.
+        :param FPR: false positive rate reported (0-1), TNR = 1 - FPR.
+        :param pct_ip_blocked: percentage of IPs falsely blocked (0-100).
+        :param threshold: percentage of occurrence threshold if used, None
+            by default.
+        :returns: True if record successfully added, False otherwise.
+        """
+
+        if not (0 <= FNR <= 1) or not (0 <= FPR <= 1):
+            return False
+
+        if not (0 <= pct_ip_blocked <= 100):
+            return False
+
+        if threshold is None or not isinstance(threshold, int):
+            threshold = 0
+
+        # Now convert ratios to percentages.
+        self._performance_csv += "{},{:0.2f},{:0.2f},{:0.2f}\n".format(threshold, FNR*100, FPR*100, pct_ip_blocked)
+
+        return True
+
+
+    def report_performance(self):
+        """
+        Return the performance record CSV as a string. Format:
+        Occurrence threshold, FNR (%), FPR (%), percentage of IP falsely blocked
+        :returns: performance CSV string with embedded linebreaks.
+        """
+
+        return self._performance_csv
 
 
     # ========================To be implemented below==========================#

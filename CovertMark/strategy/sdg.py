@@ -366,6 +366,10 @@ class SDGStrategy(DetectionStrategy):
                 self.debug_print("FPR: {:0.2f}%, FNR: {:0.2f}%".format(\
                  self._strategic_states[i]['FPR']*100, self._strategic_states[i]['FNR']*100))
                 self.debug_print("Falsely blocked {} ({:0.2f}%) of IPs in validation.".format(len(self._strategic_states[i]["negative_blocked_ips"]), self._strategic_states[i]["false_positive_blocked_rate"]*100))
+                self.record_performance(self._strategic_states[i]['FNR'],
+                 self._strategic_states[i]['FPR'],
+                 self._strategic_states[i]["false_positive_blocked_rate"]*100,
+                 threshold_pct)
 
             # As LR is relatively stable, we only need to pick the lowest FPR and
             # do not need to worry about too low a corresponding TPR.
@@ -435,4 +439,4 @@ if __name__ == "__main__":
      pt_collection=argv[3], negative_collection=argv[6], test_recall=True,
      recall_ip_filters=[(argv[8], data.constants.IP_EITHER)],
      recall_collection=argv[9], window_size=int(argv[10]))
-    print(detector.report_blocked_ips())
+    print(detector.report_performance())
