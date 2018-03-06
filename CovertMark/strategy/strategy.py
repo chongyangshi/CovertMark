@@ -102,7 +102,7 @@ class DetectionStrategy(ABC):
 
 
         self.__pt_parser.set_ip_filter(pt_filters)
-        self.set_case_membership([i[0] for i in pt_filters], None)
+        self.set_case_membership(pt_filters, None)
         desp = self._MONGO_KEY + "Positive" + date.today().strftime("%Y%m%d")
         self._pt_collection = self.__pt_parser.load_and_insert_new(description=desp)
 
@@ -124,7 +124,7 @@ class DetectionStrategy(ABC):
 
         self.__neg_parser = data.parser.PCAPParser(self.__negative_pcap)
         self.__neg_parser.set_ip_filter(negative_filters)
-        self.set_case_membership(None, [i[0] for i in negative_filters])
+        self.set_case_membership(None, negative_filters)
         desp = self._MONGO_KEY + "Negative" + date.today().strftime("%Y%m%d")
         self._neg_collection = self.__neg_parser.load_and_insert_new(description=desp)
         if self._neg_collection:
@@ -172,9 +172,9 @@ class DetectionStrategy(ABC):
         # Reload positive filters.
         pt_filters = self.__reader.get_input_filters()
         if pt_filters:
-            pt_clients = [i[0] for i in pt_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
+            pt_clients = [i[0] for i in pt_filters]
             self.debug_print("- Automatically setting the corresponding input filters for positive clients: {}".format(str(pt_clients)))
-            self.set_case_membership(pt_clients, None)
+            self.set_case_membership(pt_filters, None)
         else:
             self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
 
@@ -195,9 +195,9 @@ class DetectionStrategy(ABC):
             # Reload negative filters.
             neg_filters = self.__reader.get_input_filters()
             if neg_filters:
-                neg_clients = [i[0] for i in neg_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
+                neg_clients = [i[0] for i in neg_filters]
                 self.debug_print("- Automatically setting the corresponding input filters for negative clients: {}".format(str(neg_clients)))
-                self.set_case_membership(None, neg_clients)
+                self.set_case_membership(None, neg_filters)
             else:
                 self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
 
@@ -228,26 +228,27 @@ class DetectionStrategy(ABC):
         return True
 
 
-    def set_case_membership(self, positive_ips, negative_ips):
+    def set_case_membership(self, positive_filters, negative_filters):
         """
         Set an internal list of positive and negative subnets for membership
         checking with self.in_positive_filter and self.in_negative_filter. This
         is useful if a mixed pcap needs to be parsed into self._pt_traces only.
         If only one of the two needs to be set, pass in None in the corresponding
         other parameter.
-        :param positve_ips: list of subnets that are positive, i.e. PT clients.
-        :param negative_ips: list of subnets that are negative, i.e. innocent
-            clients.
+        :param positive_filters: list of input filters covering PT traffic.
+        :param negative_filters: list of negative filters covering innocent traffic.
         """
 
-        if positive_ips:
-            positive_subnets = [data.utils.build_subnet(i) for i in positive_ips]
+        if positive_filters:
+            positive_subnets = [data.utils.build_subnet(i[0]) for i in positive_filters]
             if all(positive_subnets):
+                self._positive_filters = positive_filters
                 self._positive_subnets = positive_subnets
 
-        if negative_ips:
-            negative_subnets = [data.utils.build_subnet(i) for i in negative_ips]
+        if negative_filters:
+            negative_subnets = [data.utils.build_subnet(i[0]) for i in negative_filters]
             if all(negative_subnets):
+                self._negative_filters = negative_filters
                 self._negative_subnets = negative_subnets
 
         return True
