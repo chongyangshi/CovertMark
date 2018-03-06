@@ -163,7 +163,7 @@ class LengthClusteringStrategy(DetectionStrategy):
          pt_collection=pt_collection, negative_collection=negative_collection)
 
         # Check whether we should include or disregard TLS packets.
-        if tls_mode not in TLS_MODES or tls_mode == "all":
+        if tls_mode not in self.TLS_MODES or tls_mode == "all":
             self.debug_print("Examining all packets regardless of TLS status.")
             self._tls_mode = "all"
         elif tls_mode == "only":
