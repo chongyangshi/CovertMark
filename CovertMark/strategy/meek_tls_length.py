@@ -18,7 +18,8 @@ class MeekLengthStrategy(DetectionStrategy):
     NAME = "Meek Length Detection Strategy"
     DESCRIPTION = "Detecting meek based on TLS-loaded TCP packet lengths."
     _MONGO_KEY = "MeekL" # Alphanumeric key for MongoDB.
-
+    _DEBUG_PREFIX = _MONGO_KEY
+    
     DEBUG = True
     MEANSHIFT_BWS = [1, 2, 3, 5, 10]
     MINIMUM_TPR = 0.40

@@ -18,7 +18,8 @@ class Obfs4Strategy(DetectionStrategy):
     NAME = "Obfs4 Detection Strategy"
     DESCRIPTION = "Detecting Obfs4 based on payload byte-uniformity and entropy-distribution."
     _MONGO_KEY = "Obfs4" # Alphanumeric key for MongoDB.
-
+    _DEBUG_PREFIX = _MONGO_KEY
+    
     OBFS4_MIN_LENGTH = 149
     BLOCK_SIZE = 8
     DEBUG = True
