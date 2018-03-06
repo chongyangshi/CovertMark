@@ -45,6 +45,10 @@ class EntropyStrategy(DetectionStrategy):
         self._strategic_states['accuracy_false'] = {}
         self._strategic_states['blocked_ips'] = {}
 
+        # Record disregards.
+        self._disregard_tls = False
+        self._disregard_http = False
+
 
     def set_strategic_filter(self):
         """
@@ -169,7 +173,20 @@ class EntropyStrategy(DetectionStrategy):
         :returns: a Wireshark-compatible filter expression string.
         """
 
-        wireshark_output = "!ssl && tcp.len > 149 && ("
+        wireshark_output = ""
+        if not self._disregard_tls:
+            wireshark_output += "ssl && "
+        else:
+            wireshark_output += "!ssl && "
+
+        if not self._disregard_http:
+            wireshark_output += "http && "
+        else:
+            wireshark_output += "!http && "
+
+        wireshark_output += "tcp_len >= " + str(self._protocol_min_length) + " && "
+
+        wireshark_output += "("
         for i, ip in enumerate(list(self._negative_blocked_ips)):
             wireshark_output += "ip.dst_host == \"" + ip + "\" "
             if i < len(self._negative_blocked_ips) - 1:
@@ -213,6 +230,7 @@ class EntropyStrategy(DetectionStrategy):
             self.debug_print("Disregarding TLS packets based on PT trace observations.")
             self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is None]
             self._neg_traces = [i for i in self._neg_traces if i["tls_info"] is None]
+            self._disregard_tls = True
 
         if float(pt_http_count) / len(self._pt_traces) >= self.TLS_HTTP_INCLUSION_THRESHOLD:
             self.debug_print("Considering HTTP packets based on PT trace observations.")
@@ -220,6 +238,7 @@ class EntropyStrategy(DetectionStrategy):
             self.debug_print("Disregarding HTTP packets based on PT trace observations.")
             self._pt_traces = [i for i in self._pt_traces if i["http_info"] is None]
             self._neg_traces = [i for i in self._neg_traces if i["http_info"] is None]
+            self._disregard_http = True
 
         self.debug_print("- Running iterations of detection strategy on positive and negative test traces...")
 
