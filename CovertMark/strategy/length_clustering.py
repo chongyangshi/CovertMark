@@ -153,7 +153,10 @@ class LengthClusteringStrategy(DetectionStrategy):
     def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_collection=None,
      negative_collection=None, tls_mode="all"):
         """
-        Overriding default run() to test with multiple bandwidths.
+        PT clients and servers in the input PCAP should be specified via IP_SRC
+        and IP_DST respectively, while negative clients should be specified via
+        IP_SRC. Optionally set tls_mode between "all", "only", or "none" to
+        test all packets, TLS packets only, or non-TLS packets only.
         """
 
         self._run(pt_ip_filters, negative_ip_filters,
@@ -238,6 +241,6 @@ if __name__ == "__main__":
     detector = LengthClusteringStrategy(pt_path, unobfuscated_path)
     detector.run(pt_ip_filters=[(argv[3], data.constants.IP_SRC), (argv[4], data.constants.IP_DST)],
      negative_ip_filters=[(argv[5], data.constants.IP_SRC)],
-     pt_collection=argv[6], negative_collection=argv[7])
+     pt_collection=argv[6], negative_collection=argv[7], tls_mode=argv[8])
 
     print(detector.report_blocked_ips())
