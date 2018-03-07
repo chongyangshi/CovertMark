@@ -60,6 +60,7 @@ def plot_fprs(csvs_in, names, show=True, img_out=None, title=None):
         fpr_axis.errorbar(thresholds, FPR_values, yerr=[FPR_errors_min, FPR_errors_max],
          marker='+', capsize=5, color=line_colour, ecolor=line_colour)
 
+    fpr_axis.set_ylim(ymin=0)
     fpr_axis.legend()
 
     if img_out is not None:
@@ -126,6 +127,7 @@ def plot_ips(csvs_in, names, show=True, img_out=None, title=None):
         ip_axis.errorbar(thresholds, IP_values, yerr=[IP_errors_min, IP_errors_max],
          marker='+', capsize=5, color=line_colour, ecolor=line_colour)
 
+    ip_axis.set_ylim(ymin=0)
     ip_axis.legend()
     if img_out is not None:
         plt.savefig(img_out, dpi=200)
@@ -186,6 +188,7 @@ def plot_fnrs(csvs_in, names, show=True, img_out=None, title=None):
         fnr_axis.set_ylabel(FNR_key, color='k')
         fnr_axis.grid(color='k', which='both', axis='both', alpha=0.25, linestyle='dashed')
 
+    fnr_axis.set_ylim(ymin=0)
     fnr_axis.legend()
     if img_out is not None:
         plt.savefig(img_out, dpi=200)
