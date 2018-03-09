@@ -110,6 +110,10 @@ class EntropyStrategy(DetectionStrategy):
                 if agreement > 0:
                     identified['sensitive'] += 1
 
+        if examined_traces == 0:
+            self.debug_print("Warning: no traces examined, TCP payload length threshold or input filters may be incorrect.")
+            return 0
+
         # Store all results in the state space.
         for i in identified:
             self._strategic_states['accuracy_true'][(block_size, p_threshold, i)] = float(identified[i]) / examined_traces

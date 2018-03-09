@@ -35,6 +35,7 @@ class SDGStrategy(DetectionStrategy):
                    analytics.constants.USE_TCP_LEN_BINS]
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
     DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.001)
+    PT_SPLIT_RATIO = 0.5
     # Stop when TPR drops below first value or FPR drops below second value.
 
     def __init__(self, pt_pcap, negative_pcap, recall_pcap=None):
@@ -346,8 +347,8 @@ class SDGStrategy(DetectionStrategy):
                 self.debug_print("{}pct LR Run {} of {}:".format(threshold_pct, i+1, self.NUM_RUNS))
 
                 # Redraw the samples and resplit.
-                self.debug_print("- Splitting training/validation by the ratio of {}.".format(pt_split_ratio))
-                self._split_pt(pt_split_ratio)
+                self.debug_print("- Splitting training/validation by the ratio of {}.".format(self.PT_SPLIT_RATIO))
+                self._split_pt(self.PT_SPLIT_RATIO)
 
                 if not self._pt_split:
                     self.debug_print("Training/validation case splitting failed, check data.")

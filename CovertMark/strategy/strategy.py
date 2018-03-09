@@ -476,8 +476,6 @@ class DetectionStrategy(ABC):
         The entry point of the strategy.
         :param pt_split: True if splitting positive test cases into test and
             validation sets. False otherwise.
-        :param pt_split_ratio: if pt_split is set to True, this is the ratio the
-            test set will occupy versus the validation set.
         """
 
         if not self._traces_parsed:
