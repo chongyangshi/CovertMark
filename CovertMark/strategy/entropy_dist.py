@@ -84,7 +84,7 @@ class EntropyStrategy(DetectionStrategy):
             hypothesis can be rejected, defaulted at 0.1.
         """
 
-        block_size = self.BLOCK_SIZE if not kwargs['block_size'] else kwargs['block_size']
+        block_size = self.BLOCK_SIZE if 'block_size' not in kwargs else kwargs['block_size']
         p_threshold = 0.1 if not kwargs['p_threshold'] else kwargs['p_threshold']
 
         identified = {i: 0 for i in self.CRITERIA}
@@ -126,7 +126,7 @@ class EntropyStrategy(DetectionStrategy):
             hypothesis can be rejected, defaulted at 0.1.
         """
 
-        block_size = self.BLOCK_SIZE if not kwargs['block_size'] else kwargs['block_size']
+        block_size = self.BLOCK_SIZE if 'block_size' not in kwargs else kwargs['block_size']
         p_threshold = 0.1 if not kwargs['p_threshold'] else kwargs['p_threshold']
 
         identified = {i: 0 for i in self.CRITERIA}
@@ -196,19 +196,17 @@ class EntropyStrategy(DetectionStrategy):
         return wireshark_output
 
 
-    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_collection=None,
-     negative_collection=None, protocol_min_length=0):
+    def run_strategy(self, **kwargs):
         """
         PT input filters should be given in IP_SRC and IP_DST, and changed around
         if testing for downstream rather than upstream direction.
         Negative input filters specifying innocent clients should be given as IP_SRC.
-        Optionally protocol_min_length to set the minimum handshake TCP payload
-        length of packets in that direction, allowing disregard of short packets.
+        :param protocol_min_length: Optionally set the minimum handshake TCP
+            payload length of packets in that direction, allowing disregard of
+            short packets.
         """
 
-        self._run(pt_ip_filters, negative_ip_filters,
-         pt_collection=pt_collection, negative_collection=negative_collection)
-
+        protocol_min_length = 0 if 'protocol_min_length' not in kwargs else kwargs['protocol_min_length']
         if not isinstance(protocol_min_length, int) or protocol_min_length < 0:
             self.debug_print("Assuming minimum protocol TCP payload length as 0.")
             self._protocol_min_length = 0
@@ -290,9 +288,9 @@ if __name__ == "__main__":
     pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
     unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
     detector = EntropyStrategy(pt_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[(argv[3], data.constants.IP_SRC), (argv[4], data.constants.IP_DST)],
-     negative_ip_filters=[(argv[5], data.constants.IP_SRC)],
-     pt_collection=argv[6], negative_collection=argv[7],
-     protocol_min_length=int(argv[8]))
+    detector.setup(pt_ip_filters=[(argv[3], data.constants.IP_SRC),
+     (argv[4], data.constants.IP_DST)], negative_ip_filters=[(argv[5],
+     data.constants.IP_SRC)], pt_collection=argv[6], negative_collection=argv[7])
+    detector.run(protocol_min_length=int(argv[8]))
 
     print(detector.report_blocked_ips())

@@ -41,6 +41,7 @@ class DetectionStrategy(ABC):
         self._recall_collection_total = 0
 
         # Lists of traces to be loaded.
+        self._traces_parsed = False
         self._traces_loaded = False
         self._pt_traces = []
         self._pt_test_traces = []
@@ -377,14 +378,25 @@ class DetectionStrategy(ABC):
         print(msg)
 
 
-    def _run(self, pt_ip_filters, negative_ip_filters, pt_collection=None,
+    def setup(self, pt_ip_filters=[], negative_ip_filters=[], pt_collection=None,
      negative_collection=None, test_recall=False, recall_ip_filters=[],
      recall_collection=None):
         """
-        Inner method to execute the required portion of strategy setup.
+        Set up the analysis strategy with filters and any existing collection names.
         To skip parsing traces again and use existing collections in MongoDB,
         both pt_collection and negative_collection need to be set to valid names.
         Recall used for evaluation of strategy itself only, not for general use.
+        :param pt_ip_filter: input IP filter for positive test traces.
+        :param negative_ip_filter: input IP filter for negative test traces.
+        :param pt_collection: set pt_collection to be the name of an existing
+            collection in MongoDB to skip parsing again.
+        :param negative_collection: set negative_collection to be the name of an
+            existing collection in MongoDB to skip parsing again.
+        :param test_recall: if True, the strategy will also test the classifier
+            on unseen positive recall traces to cross validate.
+        :param recall_ip_filters: input IP filter for recall test traces.
+        :param recall_collection: set recall_collection to be the name of an
+            existing collection in MongoDB to skip parsing again.
         """
 
         self.debug_print("Executing detection strategy: " + self.NAME)
@@ -439,6 +451,15 @@ class DetectionStrategy(ABC):
                 else:
                     raise RuntimeError("! Failure to parse recall PCAP file.")
 
+        self._traces_parsed = True
+
+
+    def load(self):
+        """
+        Load parsed or stored traces from their collections.
+        Call this method when it is ready to load traces from memory.
+        """
+
         self.debug_print("- Setting initial strategic filter...")
         self.set_strategic_filter()
         self.debug_print("Pre-examination filter: {}".format(self._strategic_packet_filter))
@@ -448,6 +469,25 @@ class DetectionStrategy(ABC):
         self.debug_print("Positive: {} traces, examining {}.".format(self._pt_collection_total, len(self._pt_traces)))
         self.debug_print("Negative: {} traces, examining {}.".format(self._neg_collection_total, len(self._neg_traces)))
         self.debug_print("Positive Recall: {} traces, examining {}.".format(self._recall_collection_total, len(self._recall_traces)))
+
+
+    def run(self, **kwargs):
+        """
+        The entry point of the strategy.
+        :param pt_split: True if splitting positive test cases into test and
+            validation sets. False otherwise.
+        :param pt_split_ratio: if pt_split is set to True, this is the ratio the
+            test set will occupy versus the validation set.
+        """
+
+        if not self._traces_parsed:
+            raise RuntimeError("Use self.setup(...) to set up the strategy before running.")
+
+        if not self._traces_loaded:
+            self.debug_print("- Loading traces...")
+            self.load()
+
+        self.run_strategy(**kwargs)
 
 
     def clean_up_mongo(self):
@@ -500,38 +540,15 @@ class DetectionStrategy(ABC):
 
     # ========================To be implemented below==========================#
 
-    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=False,
-     pt_split_ratio=0.7, pt_collection=None, negative_collection=None,
-     test_recall=False, recall_ip_filters=[], recall_collection=None):
+    def run_strategy(self, **kwargs):
         """
         Run the detection strategy. See other methods for detailed syntax of
         IP and strategic filters. Override if custom procedures required, such
         as adjusting a positive run after each negative run. self._run should
         always be called at the start with the filters for setup.
-        :param pt_ip_filter: input IP filter for positive test traces.
-        :param negative_ip_filter: input IP filter for negative test traces.
-        :param pt_split: True if splitting positive test cases into test and
-            validation sets. False otherwise.
-        :param pt_split_ratio: if pt_split is set to True, this is the ratio the
-            test set will occupy versus the validation set.
-        :param pt_collection: set pt_collection to be the name of an existing
-            collection in MongoDB to skip parsing again.
-        :param negative_collection: set negative_collection to be the name of an
-            existing collection in MongoDB to skip parsing again.
-        :param test_recall: if True, the strategy will also test the classifier
-            on unseen positive recall traces to cross validate.
-        :param recall_ip_filters: input IP filter for recall test traces.
-        :param recall_collection: set recall_collection to be the name of an
-            existing collection in MongoDB to skip parsing again.
+        Do *not* call this method, use self.run() as entry point.
         :returns: tuple(self._true_positive_rate, self._false_positive_rate)
         """
-
-        self._run(pt_ip_filters, negative_ip_filters,
-         pt_collection=pt_collection, negative_collection=negative_collection)
-
-        if pt_split:
-            self.debug_print("- Splitting positive test traces into the ratio of {}/{}".format(pt_split_ratio, 1-pt_split_ratio))
-            self._split_pt(pt_split_ratio)
 
         self.debug_print("- Running detection strategy on positive test traces...")
         self._true_positive_rate = self._run_on_positive()

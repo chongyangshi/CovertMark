@@ -101,7 +101,7 @@ class SDGStrategy(DetectionStrategy):
         :param run_num: the integer run number of this training/validation run.
         """
 
-        run_num = 0 if not kwargs['run_num'] else kwargs['run_num']
+        run_num = 0 if 'run_num' not in kwargs else kwargs['run_num']
         if not isinstance(run_num, int) or run_num < 0:
             raise ValueError("Incorrect run number.")
 
@@ -224,35 +224,34 @@ class SDGStrategy(DetectionStrategy):
         return wireshark_output
 
 
-    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_split=True,
-     pt_split_ratio=0.5, pt_collection=None, negative_collection=None,
-     decision_threshold=None, test_recall=False, recall_ip_filters=[],
-     recall_collection=None, window_size=50):
+    def run_strategy(self, **kwargs):
         """
         Input traces are assumed to be chronologically ordered, misfunctioning
         otherwise.
         Sacrificing some false negatives for low false positive rate, under
         dynamic occurrence decision thresholding.
+        :param window_size: the number of traces in each segment of single
+            client-remote TCP sessions.
+        :param decision_threshold: leave as None for automatic decision threshold
+            search, otherwise a percentage of IP occurrence for PT flagging.
         """
 
+        window_size = 50 if 'window_size' not in kwargs else kwargs['window_size']
         if not isinstance(window_size, int) or window_size < 10:
             raise ValueError("Invalid window_size.")
         self._window_size = window_size;
         self.debug_print("Setting window size at {}.".format(self._window_size))
 
-        # Now the modified setup.
-        self.debug_print("Loading traces...")
-        self._run(pt_ip_filters, negative_ip_filters, pt_collection=pt_collection,
-         negative_collection=negative_collection, test_recall=test_recall,
-         recall_ip_filters=recall_ip_filters, recall_collection=recall_collection)
         # Threshold at which to decide to block IP in validation, dynamic
         # adjustment based on percentile of remote host occurrences if unset.
         dynamic_adjustment = True
+        decision_threshold = None if 'decision_threshold' not in kwargs else kwargs['decision_threshold']
         if decision_threshold is not None and isinstance(decision_threshold, int):
             self._decision_threshold = decision_threshold
             self.debug_print("Manually setting {} as the threshold at which to decide to block IP in validation.".format(self._decision_threshold))
             dynamic_adjustment = False
 
+        test_recall = False if 'test_recall' not in kwargs else kwargs['test_recall']
         self.debug_print("Loaded {} positive traces, {} negative traces.".format(len(self._pt_traces), len(self._neg_traces)))
         if test_recall:
             self.debug_print("Loaded {} positive recall traces".format(len(self._recall_traces)))
@@ -420,23 +419,14 @@ class SDGStrategy(DetectionStrategy):
 
 if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-
-    # Shorter test.
-    # mixed_path = os.path.join(parent_path, 'examples', 'local', 'meeklong_unobfuscatedlong_merge.pcap')
-    # detector = SDGStrategy(mixed_path)
-    # detector.run(pt_ip_filters=[('192.168.0.42', data.constants.IP_EITHER)],
-    #     negative_ip_filters=[('172.28.195.198', data.constants.IP_EITHER)])
-    # detector.clean_up_mongo()
-    # print(detector.report_blocked_ips())
-    # exit(0)
-
     pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
     neg_path = os.path.join(parent_path, 'examples', 'local', argv[4])
     recall_path = os.path.join(parent_path, 'examples', 'local', argv[7])
     detector = SDGStrategy(pt_path, neg_path, recall_pcap=recall_path)
-    detector.run(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
+    detector.setup(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
      negative_ip_filters=[(argv[5], data.constants.IP_EITHER)],
      pt_collection=argv[3], negative_collection=argv[6], test_recall=True,
      recall_ip_filters=[(argv[8], data.constants.IP_EITHER)],
-     recall_collection=argv[9], window_size=int(argv[10]))
+     recall_collection=argv[9])
+    detector.run(window_size=int(argv[10]), test_recall=True)
     print(detector.report_performance())

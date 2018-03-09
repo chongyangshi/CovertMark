@@ -66,7 +66,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         :param bandwidth: the bandwidth used for meanshift clustering payload lengths.
         """
 
-        bandwidth = 1 if not kwargs['bandwidth'] else kwargs['bandwidth']
+        bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
 
         most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, True, bandwidth)
         top_cluster = most_frequent[0]
@@ -97,7 +97,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         :param bandwidth: the bandwidth used for meanshift clustering payload lengths.
         """
 
-        bandwidth = 1 if not kwargs['bandwidth'] else kwargs['bandwidth']
+        bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
 
         top_cluster = self._strategic_states['top_cluster'][bandwidth]
         top_falsely_identified = 0
@@ -150,19 +150,17 @@ class LengthClusteringStrategy(DetectionStrategy):
         return wireshark_output
 
 
-    def run(self, pt_ip_filters=[], negative_ip_filters=[], pt_collection=None,
-     negative_collection=None, tls_mode="all"):
+    def run_strategy(self, **kwargs):
         """
         PT clients and servers in the input PCAP should be specified via IP_SRC
         and IP_DST respectively, while negative clients should be specified via
-        IP_SRC. Optionally set tls_mode between "all", "only", or "none" to
-        test all packets, TLS packets only, or non-TLS packets only.
+        IP_SRC.
+        :param tls_mode: Optionally set tls_mode between "all", "only", or "none"
+            to test all packets, TLS packets only, or non-TLS packets only.
         """
 
-        self._run(pt_ip_filters, negative_ip_filters,
-         pt_collection=pt_collection, negative_collection=negative_collection)
-
         # Check whether we should include or disregard TLS packets.
+        tls_mode = 'all' if 'tls_mode' not in kwargs else kwargs['tls_mode']
         if tls_mode not in self.TLS_MODES or tls_mode == "all":
             self.debug_print("Examining all packets regardless of TLS status.")
             self._tls_mode = "all"
@@ -239,8 +237,9 @@ if __name__ == "__main__":
     pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
     unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
     detector = LengthClusteringStrategy(pt_path, unobfuscated_path)
-    detector.run(pt_ip_filters=[(argv[3], data.constants.IP_SRC), (argv[4], data.constants.IP_DST)],
-     negative_ip_filters=[(argv[5], data.constants.IP_SRC)],
-     pt_collection=argv[6], negative_collection=argv[7], tls_mode=argv[8])
+    detector.setup(pt_ip_filters=[(argv[3], data.constants.IP_SRC),
+     (argv[4], data.constants.IP_DST)], negative_ip_filters=[(argv[5],
+     data.constants.IP_SRC)], pt_collection=argv[6], negative_collection=argv[7])
+    detector.run(tls_mode=argv[8])
 
     print(detector.report_blocked_ips())
