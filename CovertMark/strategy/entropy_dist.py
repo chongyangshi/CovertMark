@@ -269,7 +269,7 @@ class EntropyStrategy(DetectionStrategy):
 
         # Score the configurations based on their difference from the best one.
         # As it is guaranteed for the difference to be between 0 and 1,
-        # log1p(100) - loge(diff*100) is used to create a descending score
+        # log1p(100) - log1p(diff*100) is used to create a descending score
         # exponentially rewarding low difference values.
         configs = list(tps.keys())
         true_positives_scores = [(log1p(100) - log1p(abs(tps[best_true_positive] - tps[i])*100)) for i in configs]

@@ -165,7 +165,7 @@ class SDGStrategy(DetectionStrategy):
         # Manual update of performance stats due to combined runs.
         # self._run_on_positive will set TPR to the same value again, but it is
         # fine.
-        self._register_performance((threshold_pct, run_num),
+        self._register_performance_stats((threshold_pct, run_num),
                                    self._strategic_states[run_num]["TPR"],
                                    self._strategic_states[run_num]["FPR"])
 

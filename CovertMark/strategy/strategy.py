@@ -5,6 +5,12 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime
 from collections import defaultdict
 from timeit import default_timer
+from math import log1p
+
+TPR_BOUNDARY = 0.333 # Below which results in ineffective detection.
+FPR_BOUNDARY = 0.025 # Above which results in unacceptable false positives.
+PENALTY_WEIGHTS = (0.25, 0.5, 0.25) # Penalisation weight between TPR, FPR, and positive run time
+assert(sum(PENALTY_WEIGHTS) == 1)
 
 class DetectionStrategy(ABC):
     """
@@ -74,6 +80,8 @@ class DetectionStrategy(ABC):
         # The top level dictionary is arbitrarily indexed to allow subsequent
         # amendments of records from the same run configuration.
         # {'time': execution_time, 'TPR': True Positive Rate, 'FPR': False Positive Rate}
+        # 'time' records the positive execution time, as negative validation is
+        # normally not required during live DPI operations.
         self._time_statistics = {}
 
         # For windowing-based strategies only.
@@ -322,7 +330,7 @@ class DetectionStrategy(ABC):
         tpr = self.positive_run(**kwargs)
         duration = default_timer - time_start
         self._true_positive_rate = tpr
-        self._register_performance(config, TPR=tpr)
+        self._register_performance_stats(config, time=duration, TPR=tpr)
 
         return self._true_positive_rate
 
@@ -344,11 +352,9 @@ class DetectionStrategy(ABC):
         if not self._traces_loaded:
             self._load_into_memory()
 
-        time_start = default_timer()
         fpr = self.negative_run(**kwargs)
-        duration = default_timer - time_start
         self._false_positive_rate = fpr
-        self._register_performance(config, FPR=fpr)
+        self._register_performance_stats(config, FPR=fpr)
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
 
         return self._false_positive_rate
@@ -370,15 +376,16 @@ class DetectionStrategy(ABC):
         return self._recall_rate
 
 
-    def _register_performance(self, config, TPR=None, FPR=None):
+    def _register_performance_stats(self, config, time=None, TPR=None, FPR=None):
         """
-        Register the performance metrics for each specific configuration.
+        Register timed performance metrics for each specific configuration.
         :param config: a consistently-styled index containing configurations such
             as window size and threshold in a tuple, useful for separately
             setting the TPR and FPR values (below) in different method calls.
-        :param TPR: if not none, update the true positive rate of the performance
+        :param time: if not None, update the execution time of positive run.
+        :param TPR: if not None, update the true positive rate of the performance
             record specified by config. Float between 0 and 1.
-        :param FPR: if not none, update the false positive rate of the performance
+        :param FPR: if not None, update the false positive rate of the performance
             record specified by config. Float between 0 and 1.
         """
 
@@ -391,6 +398,58 @@ class DetectionStrategy(ABC):
 
         if isinstance(FPR, float) and 0 <= FPR <= 1:
             self._time_statistics[config]['FPR'] = FPR
+
+        if isinstance(time, float) and time >= 0:
+            self._time_statistics[config]['time'] = time
+
+
+    def _score_performance_stats(self):
+        """
+        Based on the execution time, TPR, and FPR of strategy runs, score the
+        effectiveness of this strategy in identifying the input PT.
+        :returns: a floating point score between 0 and 100 for this strategy,
+            and the config underwhich this was achieved.
+        """
+
+        # Filter out records yielding unacceptable TPR or FPR values.
+        acceptables = list(filter(lambda x: x[1]['TPR'] >= TPR_BOUNDARY and x[1]['FPR'] <= FPR_BOUNDARY and isinstance(x[1]['time'], float),
+         self._time_statistics.items()))
+        acceptable_runs = [i[1] for i in acceptables]
+        acceptable_configs = [i[0] for i in acceptables]
+
+        # If invalid values or no acceptable runs, this strategy scores zero.
+        if len(acceptable_runs) < 1:
+            return 0
+
+        for i in acceptable_runs:
+            if not (0 <= i['TPR'] <= 1) or not (0 <= i['FPR'] <= 1):
+                return 0
+
+        # Penalise runs for their differences from best TPR/FPR and time values.
+        best_tpr = max([i['TPR'] for i in acceptable_runs])
+        best_fpr = min([i['FPR'] for i in acceptable_runs])
+        worst_time = max([i['time'] for i in acceptable_runs])
+        scaled_times = [i['time'] / worst_time for i in acceptable_runs]
+        best_scaled_time = min(scaled_times)
+
+        tpr_penalties = [log1p((best_tpr - i['TPR'])*100) for i in acceptable_runs]
+        fpr_penalties = [log1p((i['FPR'] - best_fpr)*100) for i in acceptable_runs]
+        time_penalties = [log1p((i - best_scaled_time)*100) for i in scaled_times]
+
+        # Calculate weighted penalties across all metrics.
+        overall_penalties = []
+        for i in range(len(tpr_penalties)):
+            overall_penalties.append(tpr_penalties[i] * PENALTY_WEIGHTS[0] + \
+                                     fpr_penalties[i] * PENALTY_WEIGHTS[1] + \
+                                     time_penalties[i] * PENALTY_WEIGHTS[2])
+
+        # Now find out the minimum penalty required to reach the acceptable
+        # TPR and FPR performance, and calculate the score accordingly.
+        score = (log1p(100) - min(overall_penalties)) * 100
+        best_config = acceptable_configs[overall_penalties.index(min(overall_penalties))]
+        self.debug_print("Best score: {:0.2f} under config: {}.".format(score, str(best_config)))
+
+        return score, best_config
 
 
     def _split_pt(self, split_ratio=0.7):
