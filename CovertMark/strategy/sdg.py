@@ -51,6 +51,14 @@ class SDGStrategy(DetectionStrategy):
         self._strategic_packet_filter = {"tcp_info": {"$ne": None}}
 
 
+    def interpret_config(self, config_set):
+        """
+        Threshold percentile and run # are used to distinguish SDG runs.
+        """
+
+        return "Run #{} of Threshold percentile {}.".format(config_set[1]+1, config_set[0])
+
+
     def test_validation_split(self, split_ratio):
         """
         We call testing data used in training as test, and data used in negative
@@ -165,9 +173,9 @@ class SDGStrategy(DetectionStrategy):
         # Manual update of performance stats due to combined runs.
         # self._run_on_positive will set TPR to the same value again, but it is
         # fine.
-        self._register_performance_stats((threshold_pct, run_num),
-                                   self._strategic_states[run_num]["TPR"],
-                                   self._strategic_states[run_num]["FPR"])
+        self._register_performance_stats(config=(threshold_pct, run_num),
+                                   TPR=self._strategic_states[run_num]["TPR"],
+                                   FPR=self._strategic_states[run_num]["FPR"])
 
         return self._strategic_states[run_num]["TPR"]
 
@@ -365,7 +373,7 @@ class SDGStrategy(DetectionStrategy):
                 self._decision_threshold = floor(np.percentile(list(self._target_ip_occurrences.values()), threshold_pct))
 
                 self._strategic_states[i] = {}
-                self._run_on_positive((threshold_pct, run_num), run_num=i, threshold_pct=threshold_pct)
+                self._run_on_positive((threshold_pct, i), run_num=i, threshold_pct=threshold_pct)
 
                 self.debug_print("Results of {}pct validation run #{}: ".format(threshold_pct, i+1))
                 self.debug_print("Total: {}".format(self._strategic_states[i]["total"]))
@@ -439,3 +447,5 @@ if __name__ == "__main__":
      recall_collection=argv[9])
     detector.run(window_size=int(argv[10]), test_recall=True)
     print(detector.report_performance())
+    score, best_config = detector._score_performance_stats()
+    print("Score: {}, best config: {}.".format(score, detector.interpret_config(best_config)))

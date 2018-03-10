@@ -328,7 +328,7 @@ class DetectionStrategy(ABC):
 
         time_start = default_timer()
         tpr = self.positive_run(**kwargs)
-        duration = default_timer - time_start
+        duration = default_timer() - time_start
         self._true_positive_rate = tpr
         self._register_performance_stats(config, time=duration, TPR=tpr)
 
@@ -419,11 +419,11 @@ class DetectionStrategy(ABC):
 
         # If invalid values or no acceptable runs, this strategy scores zero.
         if len(acceptable_runs) < 1:
-            return 0
+            return 0, None
 
         for i in acceptable_runs:
             if not (0 <= i['TPR'] <= 1) or not (0 <= i['FPR'] <= 1):
-                return 0
+                return 0, None
 
         # Penalise runs for their differences from best TPR/FPR and time values.
         best_tpr = max([i['TPR'] for i in acceptable_runs])
@@ -445,7 +445,7 @@ class DetectionStrategy(ABC):
 
         # Now find out the minimum penalty required to reach the acceptable
         # TPR and FPR performance, and calculate the score accordingly.
-        score = (log1p(100) - min(overall_penalties)) * 100
+        score = (log1p(100) - min(overall_penalties)) / log1p(100) * 100
         best_config = acceptable_configs[overall_penalties.index(min(overall_penalties))]
         self.debug_print("Best score: {:0.2f} under config: {}.".format(score, str(best_config)))
 
@@ -772,10 +772,31 @@ class DetectionStrategy(ABC):
     def report_blocked_ips(self):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
-        traces in Wireshark. Useful for studying false positives. Overwrite
+        traces in Wireshark. Useful for studying false positives. Override
         this method if needed, draw data from self._negative_blocked_ips as set
         above.
         :returns: a Wireshark-compatible filter expression string.
         """
 
         return ""
+
+
+    def interpret_config(self, config_set):
+        """
+        Interpret as string a configuration passed into self._run_on_positive(...)
+        or self._run_on_negative(...), for user reporting.
+        Override this method to customise reporting string.
+        :param config_set: a tuple of arbitrary configuration as determined by
+            the implementing strategy.
+        :returns: a string interpreting the config set passed in.
+        """
+
+        config_string = ""
+        for i in range(len(config_set)):
+            config_string += str(i) + ": " + config_set[i]
+            if i < len(config_set) - 1:
+                config_string += ", "
+            else:
+                config_string += "."
+
+        return config_string

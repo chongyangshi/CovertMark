@@ -64,6 +64,14 @@ class EntropyStrategy(DetectionStrategy):
          "tcp_info.payload": {"$ne": b''}}
 
 
+    def interpret_config(self, config_set):
+        """
+        Block size and p-value threshold are used to distinguish entropy distribution tests.
+        """
+
+        return "Entropy distribution test with byte block size {} and p-value threshold {}.".format(config_set[0], config_set[1])
+
+
     def test_validation_split(self, split_ratio):
         """
         Not needed, as a fixed strategy is used.
@@ -302,3 +310,5 @@ if __name__ == "__main__":
     detector.run(protocol_min_length=int(argv[8]))
 
     print(detector.report_blocked_ips())
+    score, best_config = detector._score_performance_stats()
+    print("Score: {}, best config: {}.".format(score, detector.interpret_config(best_config)))

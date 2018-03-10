@@ -51,6 +51,15 @@ class LengthClusteringStrategy(DetectionStrategy):
         self._strategic_packet_filter = {}
 
 
+    def interpret_config(self, config_set):
+        """
+        Bandwidth is used to distinguish length clustering runs.
+        """
+        if config_set[0] is not None:
+            return "TCP payload length clustering at MeanShift bandwidth {}.".format(config_set[0])
+        else:
+            return ""
+
     def test_validation_split(self, split_ratio):
         """
         Not currently needed, as a fixed strategy is used.
@@ -182,11 +191,11 @@ class LengthClusteringStrategy(DetectionStrategy):
         for bw in self.MEANSHIFT_BWS:
 
             self.debug_print("- Running MeanShift on positives with bandwidth {}...".format(bw))
-            tp = self._run_on_positive(bw, bandwidth=bw)
+            tp = self._run_on_positive((bw,), bandwidth=bw)
             self.debug_print("True positive rate on bandwidth {} for top cluster: {}".format(bw, tp))
 
             self.debug_print("- Checking MeanShift on negatives with bandwidth {}...".format(bw))
-            fp = self._run_on_negative(bw, bandwidth=bw)
+            fp = self._run_on_negative((bw,), bandwidth=bw)
             self.debug_print("False positive rate on bandwidth {} for top cluster: {}".format(bw, fp))
 
         # Round performance to four decimal places.
@@ -243,3 +252,5 @@ if __name__ == "__main__":
     detector.run(tls_mode=argv[8])
 
     print(detector.report_blocked_ips())
+    score, best_config = detector._score_performance_stats()
+    print("Score: {}, best config: {}.".format(score, detector.interpret_config(best_config)))
