@@ -115,10 +115,12 @@ class EntropyStrategy(DetectionStrategy):
             return 0
 
         # Store all results in the state space.
+        true_positive_rates = []
         for i in identified:
             self._strategic_states['accuracy_true'][(block_size, p_threshold, i)] = float(identified[i]) / examined_traces
+            true_positive_rates.append(float(identified[i]) / examined_traces)
 
-        return float(identified[reporting]) / examined_traces
+        return max(true_positive_rates)
 
 
     def negative_run(self, **kwargs):
@@ -163,11 +165,13 @@ class EntropyStrategy(DetectionStrategy):
         # Unlike the positive case, we consider the false positive rate to be
         # over all traces, rather than just the ones were are interested in.
         # Store all results in the state space.
+        false_positives_rates = []
         for i in identified:
             self._strategic_states['accuracy_false'][(block_size, p_threshold, i)] = float(identified[i]) / self._neg_collection_total
             self._strategic_states['blocked_ips'][(block_size, p_threshold, i)] = blocked_ips[i]
+            false_positives_rates.append(float(identified[i]) / self._neg_collection_total)
 
-        return float(identified[reporting]) / self._neg_collection_total
+        return min(false_positives_rates)
 
 
     def report_blocked_ips(self):
@@ -248,11 +252,11 @@ class EntropyStrategy(DetectionStrategy):
             for b in self.BLOCK_SIZES:
 
                 self.debug_print("- Testing p={}, {} byte block on positive traces...".format(p, b))
-                tp = self._run_on_positive(block_size=b, p_threshold=p)
+                tp = self._run_on_positive((b, p), block_size=b, p_threshold=p)
                 self.debug_print("p={}, {} byte block gives true positive rate {}.".format(p, b, tp))
 
                 self.debug_print("- Testing p={}, {} byte block on negative traces...".format(p, b))
-                fp = self._run_on_negative(block_size=b, p_threshold=p)
+                fp = self._run_on_negative((b, p), block_size=b, p_threshold=p)
                 self.debug_print("p={}, {} byte block gives false positive rate {}.".format(p, b, fp))
 
         # Find the best true positive and false positive performance.

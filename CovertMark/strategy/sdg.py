@@ -102,6 +102,7 @@ class SDGStrategy(DetectionStrategy):
         :param run_num: the integer run number of this training/validation run.
         """
 
+        threshold_pct = 0 if 'threshold_pct' not in kwargs else kwargs['threshold_pct']
         run_num = 0 if 'run_num' not in kwargs else kwargs['run_num']
         if not isinstance(run_num, int) or run_num < 0:
             raise ValueError("Incorrect run number.")
@@ -160,6 +161,13 @@ class SDGStrategy(DetectionStrategy):
          float(len(self._strategic_states[run_num]["negative_blocked_ips"])) / \
          self._strategic_states['negative_unique_ips']
         self._strategic_states[run_num]["classifier"] = SDG
+
+        # Manual update of performance stats due to combined runs.
+        # self._run_on_positive will set TPR to the same value again, but it is
+        # fine.
+        self._register_performance((threshold_pct, run_num),
+                                   self._strategic_states[run_num]["TPR"],
+                                   self._strategic_states[run_num]["FPR"])
 
         return self._strategic_states[run_num]["TPR"]
 
@@ -234,7 +242,7 @@ class SDGStrategy(DetectionStrategy):
         :param window_size: the number of traces in each segment of single
             client-remote TCP sessions.
         :param decision_threshold: leave as None for automatic decision threshold
-            search, otherwise a percentage of IP occurrence for PT flagging.
+            search, otherwise the number of IP occurrences before positive flagging.
         """
 
         window_size = 50 if 'window_size' not in kwargs else kwargs['window_size']
@@ -357,7 +365,7 @@ class SDGStrategy(DetectionStrategy):
                 self._decision_threshold = floor(np.percentile(list(self._target_ip_occurrences.values()), threshold_pct))
 
                 self._strategic_states[i] = {}
-                self._run_on_positive(run_num=i)
+                self._run_on_positive((threshold_pct, run_num), run_num=i, threshold_pct=threshold_pct)
 
                 self.debug_print("Results of {}pct validation run #{}: ".format(threshold_pct, i+1))
                 self.debug_print("Total: {}".format(self._strategic_states[i]["total"]))

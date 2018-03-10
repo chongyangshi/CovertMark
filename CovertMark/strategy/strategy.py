@@ -4,6 +4,7 @@ import os
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from collections import defaultdict
+from timeit import default_timer
 
 class DetectionStrategy(ABC):
     """
@@ -68,6 +69,12 @@ class DetectionStrategy(ABC):
         # For debug outputs, overwrite if required.
         self.DEBUG = debug
         self._performance_csv = "Occurrence Threshold (pct),FNR (% PT packets missed),FPR (% Innocent packets incorrectly blocked),% Innocent IP's blocked overall\n"
+
+        # For scoring runs.
+        # The top level dictionary is arbitrarily indexed to allow subsequent
+        # amendments of records from the same run configuration.
+        # {'time': execution_time, 'TPR': True Positive Rate, 'FPR': False Positive Rate}
+        self._time_statistics = {}
 
         # For windowing-based strategies only.
         self._window_size = 25
@@ -291,10 +298,15 @@ class DetectionStrategy(ABC):
         return False
 
 
-    def _run_on_positive(self, **kwargs):
+    def _run_on_positive(self, config, **kwargs):
         """
         Wrapper for self.positive_run, testing the detection strategy on positive
         PT traces.
+        :param config: a consistently-styled index containing configurations such
+            as window size and threshold in a tuple for performance indexing. It
+            should be sufficiently specific to distinguish individual runs of the
+            same configuration, as otherwise performance records for the config
+            will be overwritten between runs.
         """
 
         if not self._pt_collection:
@@ -303,14 +315,27 @@ class DetectionStrategy(ABC):
         if not self._traces_loaded:
             self._load_into_memory()
 
-        self._true_positive_rate = self.positive_run(**kwargs)
+        if config is None:
+            return False
+
+        time_start = default_timer()
+        tpr = self.positive_run(**kwargs)
+        duration = default_timer - time_start
+        self._true_positive_rate = tpr
+        self._register_performance(config, TPR=tpr)
+
         return self._true_positive_rate
 
 
-    def _run_on_negative(self, **kwargs):
+    def _run_on_negative(self, config, **kwargs):
         """
         Wrapper for the optional self.negative_run, testing the detection
         strategy on negative traces.
+        :param config: a consistently-styled index containing configurations such
+            as window size and threshold in a tuple for performance indexing. It
+            should be sufficiently specific to distinguish individual runs of the
+            same configuration, as otherwise performance records for the config
+            will be overwritten between runs.
         """
 
         if not self._neg_collection:
@@ -319,8 +344,13 @@ class DetectionStrategy(ABC):
         if not self._traces_loaded:
             self._load_into_memory()
 
-        self._false_positive_rate = self.negative_run(**kwargs)
+        time_start = default_timer()
+        fpr = self.negative_run(**kwargs)
+        duration = default_timer - time_start
+        self._false_positive_rate = fpr
+        self._register_performance(config, FPR=fpr)
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
+
         return self._false_positive_rate
 
 
@@ -339,6 +369,28 @@ class DetectionStrategy(ABC):
         self._recall_rate = self.recall_run(**kwargs)
         return self._recall_rate
 
+
+    def _register_performance(self, config, TPR=None, FPR=None):
+        """
+        Register the performance metrics for each specific configuration.
+        :param config: a consistently-styled index containing configurations such
+            as window size and threshold in a tuple, useful for separately
+            setting the TPR and FPR values (below) in different method calls.
+        :param TPR: if not none, update the true positive rate of the performance
+            record specified by config. Float between 0 and 1.
+        :param FPR: if not none, update the false positive rate of the performance
+            record specified by config. Float between 0 and 1.
+        """
+
+        if config not in self._time_statistics:
+            self._time_statistics[config] = {'time': None, 'TPR': 0, 'FPR': 1}
+            # Assume worst case if they are not later amended.
+
+        if isinstance(TPR, float) and 0 <= TPR <= 1:
+            self._time_statistics[config]['TPR'] = TPR
+
+        if isinstance(FPR, float) and 0 <= FPR <= 1:
+            self._time_statistics[config]['FPR'] = FPR
 
 
     def _split_pt(self, split_ratio=0.7):

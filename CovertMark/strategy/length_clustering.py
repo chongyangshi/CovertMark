@@ -86,7 +86,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         self._strategic_states['TPR'][(bandwidth, 1)] = top_cluster_identified / len(self._pt_traces)
         self._strategic_states['TPR'][(bandwidth, 2)] = top_two_clusters_identified / len(self._pt_traces)
 
-        return self._strategic_states['TPR'][(bandwidth, 1)]
+        return max(self._strategic_states['TPR'][(bandwidth, 1)], self._strategic_states['TPR'][(bandwidth, 2)])
 
 
     def negative_run(self, **kwargs):
@@ -120,7 +120,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         self._strategic_states['FPR'][(bandwidth, 1)] = float(top_falsely_identified) / self._neg_collection_total
         self._strategic_states['FPR'][(bandwidth, 2)] = float(top_two_falsely_identified) / self._neg_collection_total
 
-        return self._strategic_states['FPR'][(bandwidth, 1)]
+        return min(self._strategic_states['FPR'][(bandwidth, 1)], self._strategic_states['FPR'][(bandwidth, 2)])
 
 
     def report_blocked_ips(self):
@@ -182,11 +182,11 @@ class LengthClusteringStrategy(DetectionStrategy):
         for bw in self.MEANSHIFT_BWS:
 
             self.debug_print("- Running MeanShift on positives with bandwidth {}...".format(bw))
-            tp = self._run_on_positive(bandwidth=bw)
+            tp = self._run_on_positive(bw, bandwidth=bw)
             self.debug_print("True positive rate on bandwidth {} for top cluster: {}".format(bw, tp))
 
             self.debug_print("- Checking MeanShift on negatives with bandwidth {}...".format(bw))
-            fp = self._run_on_negative(bandwidth=bw)
+            fp = self._run_on_negative(bw, bandwidth=bw)
             self.debug_print("False positive rate on bandwidth {} for top cluster: {}".format(bw, fp))
 
         # Round performance to four decimal places.
