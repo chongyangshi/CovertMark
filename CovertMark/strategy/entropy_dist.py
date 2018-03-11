@@ -102,7 +102,7 @@ class EntropyStrategy(DetectionStrategy):
         for t in self._pt_traces:
             payload = t['tcp_info']['payload']
 
-            if len(payload) >= self._protocol_min_length:
+            if len(payload) >= max(self._protocol_min_length, block_size):
                 examined_traces += 1
                 p1 = self._analyser.kolmogorov_smirnov_uniform_test(payload[:2048])
                 p2 = self._analyser.kolmogorov_smirnov_dist_test(payload[:2048], block_size)
@@ -150,7 +150,7 @@ class EntropyStrategy(DetectionStrategy):
         for t in self._neg_traces:
             payload = t['tcp_info']['payload']
 
-            if len(payload) >= self._protocol_min_length:
+            if len(payload) >= max(self._protocol_min_length, block_size):
                 p1 = self._analyser.kolmogorov_smirnov_uniform_test(payload[:2048])
                 p2 = self._analyser.kolmogorov_smirnov_dist_test(payload[:2048], block_size)
                 p3 = self._analyser.anderson_darling_dist_test(payload[:2048], block_size)
