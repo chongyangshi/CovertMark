@@ -111,10 +111,11 @@ class EntropyAnalyser:
         # Compare them with Anderson-Darling.
         try:
             statistic, criticals, p = scipy.stats.anderson_ksamp([block_entropies, random_entropies])
-        except ValueError:
+        except:
             return {'min_threshold': 1, 'p': None}
             # Non-rejectable if two distributions are exactly the same, which triggers
-            # ValueError in scipy.
+            # ValueError in scipy. Malformed packets trigger IndexError, dealt with
+            # by assuming non-rejectable.
 
         results = {'p': p}
 
