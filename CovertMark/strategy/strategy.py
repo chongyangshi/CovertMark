@@ -8,7 +8,7 @@ from timeit import default_timer
 from math import log1p
 
 TPR_BOUNDARY = 0.333 # Below which results in ineffective detection.
-FPR_BOUNDARY = 0.025 # Above which results in unacceptable false positives.
+FPR_BOUNDARY = 0.050 # Above which results in unacceptable false positives.
 PENALTY_WEIGHTS = (0.25, 0.5, 0.25) # Penalisation weight between TPR, FPR, and positive run time
 assert(sum(PENALTY_WEIGHTS) == 1)
 
@@ -419,11 +419,11 @@ class DetectionStrategy(ABC):
 
         # If invalid values or no acceptable runs, this strategy scores zero.
         if len(acceptable_runs) < 1:
-            return 0, None
+            return 0, ()
 
         for i in acceptable_runs:
             if not (0 <= i['TPR'] <= 1) or not (0 <= i['FPR'] <= 1):
-                return 0, None
+                return 0, ()
 
         # Penalise runs for their differences from best TPR/FPR and time values.
         best_tpr = max([i['TPR'] for i in acceptable_runs])
@@ -444,12 +444,21 @@ class DetectionStrategy(ABC):
                                      time_penalties[i] * PENALTY_WEIGHTS[2])
 
         # Now find out the minimum penalty required to reach the acceptable
-        # TPR and FPR performance, and calculate the score accordingly.
-        score = (log1p(100) - min(overall_penalties)) / log1p(100) * 100
-        best_config = acceptable_configs[overall_penalties.index(min(overall_penalties))]
-        self.debug_print("Best score: {:0.2f} under config: {}.".format(score, str(best_config)))
+        # TPR and FPR performance, and calculate the scores accordingly.
+        scores = [(log1p(100) - i) / log1p(100) * 100 for i in overall_penalties]
 
-        return score, best_config
+        # Apply strategy-specific penalisation.
+        strategy_penalised_scores = []
+        for i, score in enumerate(scores):
+            # Clip the penalty proportion to between 0 and 1.
+            strategy_penalty = sorted([0, self.config_specific_penalisation(acceptable_configs[i]), 1])[1]
+            strategy_penalised_scores.append(scores[i] * (1-strategy_penalty))
+
+        best_score = scores.index(max(scores))
+        best_config = acceptable_configs[best_score]
+        self.debug_print("Best score: {:0.2f} under config: {}.".format(scores[best_score], str(best_config)))
+
+        return scores[best_score], best_config
 
 
     def _split_pt(self, split_ratio=0.7):
@@ -614,10 +623,11 @@ class DetectionStrategy(ABC):
     def record_performance(self, FNR, FPR, pct_ip_blocked, threshold=None):
         """
         Add a line of record to allow printing performance stats in CSV.
+        Implement this method if this feature is required.
         :param FNR: false negative rate reported (0-1), TPR = 1 - FNR.
         :param FPR: false positive rate reported (0-1), TNR = 1 - FPR.
         :param pct_ip_blocked: percentage of IPs falsely blocked (0-100).
-        :param threshold: percentage of occurrence threshold if used, None
+        :param threshold: percentage of occurrence threshold if required, None
             by default.
         :returns: True if record successfully added, False otherwise.
         """
@@ -800,3 +810,20 @@ class DetectionStrategy(ABC):
                 config_string += "."
 
         return config_string
+
+
+    def config_specific_penalisation(self, config_set):
+        """
+        Given a specific config and its score computated based on TPR, FPR and
+        positive run execution time (weighted based on the strategy's assigned
+        weights), return a percentage of penalisation. This allows consideration
+        of run config parameters that would adversely affect censor performance
+        in live operations, but will not increase execution time in CovertMark.
+        Override this method if config-specific penalisation required.
+        :param config_set: strategy-specific arbitrary run parameters.
+        :returns: a float number between 0 and 1 as the proportion of penalty
+            applied based on the run parameters. This should be the proportion of
+            score to be deducted, rather than a scaling factor.
+        """
+
+        return 0

@@ -60,6 +60,19 @@ class LengthClusteringStrategy(DetectionStrategy):
         else:
             return ""
 
+
+    def config_specific_penalisation(self, config_set):
+        """
+        The smaller the cluster bandwidth, the easier it is to perform live
+        TCP payload length-based interceptions. Therefore 5% of penalty for
+        every 1 byte of cluster bandwidth beyond the minimum.
+        """
+
+        if isinstance(config_set, tuple) and isinstance(config_set[0], int) and \
+         min(self.MEANSHIFT_BWS) <= config_set[0] <= max(self.MEANSHIFT_BWS):
+            return 0.05 * (config_set[0] - min(self.MEANSHIFT_BWS))
+
+
     def test_validation_split(self, split_ratio):
         """
         Not currently needed, as a fixed strategy is used.

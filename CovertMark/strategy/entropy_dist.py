@@ -69,7 +69,20 @@ class EntropyStrategy(DetectionStrategy):
         Block size and p-value threshold are used to distinguish entropy distribution tests.
         """
 
-        return "Entropy distribution test with byte block size {} and p-value threshold {}.".format(config_set[0], config_set[1])
+        if config_set is not None:
+            return "Entropy distribution test with byte block size {} and p-value threshold {}.".format(config_set[0], config_set[1])
+        else:
+            return ""
+
+
+    def config_specific_penalisation(self, config_set):
+        """
+        Byte block sizes for entropy uniformity and distribution tests will have
+        already inversely proportionally affected the positive execution time,
+        therefore no additional penalisation is required.
+        """
+
+        return 0
 
 
     def test_validation_split(self, split_ratio):

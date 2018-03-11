@@ -56,7 +56,22 @@ class SDGStrategy(DetectionStrategy):
         Threshold percentile and run # are used to distinguish SDG runs.
         """
 
-        return "Run #{} of Threshold percentile {}.".format(config_set[1]+1, config_set[0])
+        if config_set is not None:
+            return "Run #{} of Threshold percentile {}.".format(config_set[1]+1, config_set[0])
+        else:
+            return ""
+
+
+    def config_specific_penalisation(self, config_set):
+        """
+        The lower the occurrence threshold is, the easier it is to perform
+        live classification. Therefore, a 5% penalty is applied for every 20%
+        of occurrence threshold raised.
+        """
+
+        if isinstance(config_set, tuple) and len(config_set) >= 1 and \
+         isinstance(config_set[0], int) and  0 <= config_set[0] <= 100:
+            return 0.25 * (float(config_set[0]) / 100)
 
 
     def test_validation_split(self, split_ratio):
@@ -390,19 +405,20 @@ class SDGStrategy(DetectionStrategy):
             # As LR is relatively stable, we only need to pick the lowest FPR and
             # do not need to worry about too low a corresponding TPR.
             fpr_results = [self._strategic_states[i]['FPR'] for i in range(self.NUM_RUNS)]
-            best_fpr_run = min(enumerate(fpr_results), key=itemgetter(1))[0]
+            median_fpr = sorted(fpr_results)[int(len(fpr_results)/2)]
+            median_fpr_run = fpr_results.index(median_fpr)
 
             # Best result processing:
-            self._true_positive_rate = self._strategic_states[best_fpr_run]["TPR"]
-            self._false_positive_rate = self._strategic_states[best_fpr_run]["FPR"]
-            self._negative_blocked_ips = self._strategic_states[best_fpr_run]["negative_blocked_ips"]
-            self._false_positive_blocked_rate = self._strategic_states[best_fpr_run]["false_positive_blocked_rate"]
-            self.debug_print("Best: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
+            self._true_positive_rate = self._strategic_states[median_fpr_run]["TPR"]
+            self._false_positive_rate = self._strategic_states[median_fpr_run]["FPR"]
+            self._negative_blocked_ips = self._strategic_states[median_fpr_run]["negative_blocked_ips"]
+            self._false_positive_blocked_rate = self._strategic_states[median_fpr_run]["false_positive_blocked_rate"]
+            self.debug_print("FPR Median: TPR {:0.2f}%, FPR {:0.2f}%, blocked {} ({:0.2f}%)".format(\
              self._true_positive_rate*100, self._false_positive_rate*100,
              len(self._negative_blocked_ips), self._false_positive_blocked_rate*100))
             self.debug_print("Occurrence threshold: {}%".format(threshold_pct))
             self.debug_print("IPs classified as PT (block at >{} occurrences):".format(self._decision_threshold))
-            self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[best_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
+            self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[median_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
 
             # Currently record first tier classifiers only.
             if threshold_pct == self.DYNAMIC_THRESHOLD_PERCENTILES[0]:
@@ -411,10 +427,10 @@ class SDGStrategy(DetectionStrategy):
             if not dynamic_adjustment:
                 break
 
-            if self._strategic_states[best_fpr_run]['TPR'] < self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]:
+            if self._strategic_states[median_fpr_run]['TPR'] < self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]:
                 self.debug_print("Dynamic adjustment stops due to true positive rate dropping below criterion ({}).".format(self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[0]))
                 break
-            elif self._strategic_states[best_fpr_run]['FPR'] < self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]:
+            elif self._strategic_states[median_fpr_run]['FPR'] < self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]:
                 self.debug_print("Dynamic adjustment stops due to false positive rate sufficiently low, criterion ({}).".format(self.DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA[1]))
                 break
             elif threshold_pct == self.DYNAMIC_THRESHOLD_PERCENTILES[-1]:
