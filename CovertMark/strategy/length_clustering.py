@@ -182,27 +182,40 @@ class LengthClusteringStrategy(DetectionStrategy):
         and IP_DST respectively, while negative clients should be specified via
         IP_SRC.
         :param tls_mode: Optionally set tls_mode between "all", "only", or "none"
-            to test all packets, TLS packets only, or non-TLS packets only.
+            to test all packets, TLS packets only, or non-TLS packets only. Set
+            it as "guess" or omit this parameter for the strategy to guess.
         """
 
         # Check whether we should include or disregard TLS packets.
-        tls_mode = 'all' if 'tls_mode' not in kwargs else kwargs['tls_mode']
-        if tls_mode not in self.TLS_MODES or tls_mode == "all":
-            self.debug_print("Examining all packets regardless of TLS status.")
-            self._tls_mode = "all"
-        elif tls_mode == "only":
-            self.debug_print("Examining TLS packets only.")
-            self._tls_mode = "only"
-        elif tls_mode == "none":
-            self.debug_print("Examining non-TLS packets only.")
-            self._tls_mode = "none"
+        tls_mode = 'guess' if 'tls_mode' not in kwargs else kwargs['tls_mode']
+        if tls_mode not in self.TLS_MODES: # Specified but invalid.
+            tls_mode = 'guess'
 
-        if self._tls_mode == "only":
+        if tls_mode == 'guess':
+            self.debug_print("Studying PT traces to figure out about TLS packets")
+            tls_traces = 0
+            for t in self._pt_traces:
+                if 'tls_info' in t and t['tls_info'] is not None:
+                    tls_traces += 1
+            if float(tls_traces) / len(self._pt_traces) > 0.95:
+                self._tls_mode = "only"
+            elif float(tls_traces) / len(self._pt_traces) < 0.05:
+                self._tls_mode = "none"
+            else:
+                self._tls_mode = "all"
+        else:
+            self._tls_mode = tls_mode
+
+        if tls_mode == 'only':
+            self.debug_print("Strategy TLS mode: examining TLS packets only.")
             self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is not None]
             self._neg_traces = [i for i in self._neg_traces if i["tls_info"] is not None]
-        elif self._tls_mode == "none":
+        elif tls_mode == 'none':
+            self.debug_print("Strategy TLS mode: examining non-TLS packets only.")
             self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is None]
             self._neg_traces = [i for i in self._neg_traces if i["tls_info"] is None]
+        else:
+            self.debug_print("Strategy TLS mode: examining all packets regardless of TLS status.")
 
         self.debug_print("- Testing the following bandwidths for MeanShift: {}".format(', '.join([str(i) for i in self.MEANSHIFT_BWS])))
         for bw in self.MEANSHIFT_BWS:
