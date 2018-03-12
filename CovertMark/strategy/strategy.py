@@ -420,11 +420,11 @@ class DetectionStrategy(ABC):
 
         # If invalid values or no acceptable runs, this strategy scores zero.
         if len(acceptable_runs) < 1:
-            return 0, ()
+            return 0, None
 
         for i in acceptable_runs:
             if not (0 <= i['TPR'] <= 1) or not (0 <= i['FPR'] <= 1):
-                return 0, ()
+                return 0, None
 
         # Penalise runs for their differences from best TPR/FPR and time values.
         best_tpr = max([i['TPR'] for i in acceptable_runs])
@@ -433,7 +433,7 @@ class DetectionStrategy(ABC):
         best_scaled_time = min(scaled_times)
 
         tpr_penalties = [log1p((best_tpr - i['TPR'])*100) for i in acceptable_runs]
-        fpr_penalties = [log1p((min(0, i['FPR'] - FPR_TARGET))*100) for i in acceptable_runs] # Hard target for FPR.
+        fpr_penalties = [log1p((max(0, i['FPR'] - FPR_TARGET))*100) for i in acceptable_runs] # Hard target for FPR.
         time_penalties = [log1p((i - best_scaled_time)*100) for i in scaled_times]
 
         # Calculate weighted penalties across all metrics.
@@ -454,11 +454,11 @@ class DetectionStrategy(ABC):
             strategy_penalty = sorted([0, self.config_specific_penalisation(acceptable_configs[i]), 1])[1]
             strategy_penalised_scores.append(scores[i] * (1-strategy_penalty))
 
-        best_score = scores.index(max(scores))
-        best_config = acceptable_configs[best_score]
-        self.debug_print("Best score: {:0.2f} under config: {}.".format(scores[best_score], str(best_config)))
+        best_score = max(strategy_penalised_scores)
+        best_config = acceptable_configs[strategy_penalised_scores.index(max(strategy_penalised_scores))]
+        self.debug_print("Best score: {:0.2f} under config: {}.".format(best_score, str(best_config)))
 
-        return scores[best_score], best_config
+        return best_score, best_config
 
 
     def _split_pt(self, split_ratio=0.7):
