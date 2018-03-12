@@ -45,17 +45,18 @@ class LengthClusteringStrategy(DetectionStrategy):
         When detecting meek, it would be trivial to simply ignore all non-TLS
         packets. However for a generalised strategy use/disregard of TLS packets
         should be determined by inspecting the positive traces instead. Therefore
-        it is not set here.
+        it is only necessary to filter out TCP packets with no payload.
         """
 
-        self._strategic_packet_filter = {}
+        self._strategic_packet_filter = {"tcp_info": {"$ne": None},
+         "tcp_info.payload": {"$ne": b''}}
 
 
     def interpret_config(self, config_set):
         """
         Bandwidth is used to distinguish length clustering runs.
         """
-        if config_set[0] is not None:
+        if config_set is not None:
             return "TCP payload length clustering at MeanShift bandwidth {}.".format(config_set[0])
         else:
             return ""
@@ -90,7 +91,10 @@ class LengthClusteringStrategy(DetectionStrategy):
 
         bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
 
-        most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, True, bandwidth)
+        if self._tls_mode == "only":
+            most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, True, bandwidth)
+        else:
+            most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, False, bandwidth)
         top_cluster = most_frequent[0]
         top_two_clusters = top_cluster.union(most_frequent[1])
         top_cluster_identified = 0
