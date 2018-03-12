@@ -35,8 +35,12 @@ class SDGStrategy(DetectionStrategy):
                    analytics.constants.USE_TCP_LEN_BINS]
     DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
     DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.001)
-    PT_SPLIT_RATIO = 0.5
     # Stop when TPR drops below first value or FPR drops below second value.
+
+    PT_SPLIT_RATIO = 0.5
+    NEG_MAX_PROPORTION = 0.8
+    # The maximum proportion of negative traces that
+    # can be used for training.
 
     def __init__(self, pt_pcap, negative_pcap, recall_pcap=None):
         super().__init__(pt_pcap, negative_pcap, recall_pcap, self.DEBUG)
@@ -87,13 +91,13 @@ class SDGStrategy(DetectionStrategy):
         # significant overfitting in practice.
         positive_len = len(self._strategic_states['positive_features'])
         negative_len = len(self._strategic_states['negative_features'])
-        if positive_len >= negative_len:
-            self.debug_print("More positive than negative cases provided, drawing {} positive cases, {} negative cases.".format(positive_len, negative_len))
+        if negative_len / (positive_len + negative_len) < self.NEG_MAX_PROPORTION:
+            self.debug_print("Sufficient proportion of positive cases provided; drawing {} positive cases, {} negative cases.".format(positive_len, negative_len))
             negative_features, negative_ips = self._strategic_states['negative_features'], self._strategic_states['negative_ips']
         else:
-            self.debug_print("More negative than positive cases provided, drawing {} positive cases, {} negative cases.".format(positive_len, positive_len))
-            negative_features, negative_ips = sklearn_utils.resample(self._strategic_states['negative_features'], self._strategic_states['negative_ips'], replace=False, n_samples=positive_len)
-            negative_len = positive_len
+            negative_len = floor(positive_len / (1 - self.NEG_MAX_PROPORTION) * self.NEG_MAX_PROPORTION)
+            self.debug_print("Too many more negative than positive cases provided, balancing required; drawing {} positive cases, {} negative cases.".format(positive_len, negative_len))
+            negative_features, negative_ips = sklearn_utils.resample(self._strategic_states['negative_features'], self._strategic_states['negative_ips'], replace=False, n_samples=negative_len)
 
         # Reassemble the inputs.
         all_features = np.concatenate((self._strategic_states['positive_features'], negative_features), axis=0)
