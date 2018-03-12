@@ -9,7 +9,8 @@ from math import log1p
 
 TPR_BOUNDARY = 0.333 # Below which results in ineffective detection.
 FPR_BOUNDARY = 0.050 # Above which results in unacceptable false positives.
-PENALTY_WEIGHTS = (0.25, 0.5, 0.25) # Penalisation weight between TPR, FPR, and positive run time
+FPR_TARGET = 0.0025 # As FPR is of greater interest to censors, a hard rather than relative target will be used in scoring.
+PENALTY_WEIGHTS = (0.25, 0.5, 0.25) # Penalisation weight between TPR, FPR, and positive run time.
 assert(sum(PENALTY_WEIGHTS) == 1)
 
 class DetectionStrategy(ABC):
@@ -427,13 +428,12 @@ class DetectionStrategy(ABC):
 
         # Penalise runs for their differences from best TPR/FPR and time values.
         best_tpr = max([i['TPR'] for i in acceptable_runs])
-        best_fpr = min([i['FPR'] for i in acceptable_runs])
         worst_time = max([i['time'] for i in acceptable_runs])
         scaled_times = [i['time'] / worst_time for i in acceptable_runs]
         best_scaled_time = min(scaled_times)
 
         tpr_penalties = [log1p((best_tpr - i['TPR'])*100) for i in acceptable_runs]
-        fpr_penalties = [log1p((i['FPR'] - best_fpr)*100) for i in acceptable_runs]
+        fpr_penalties = [log1p((min(0, i['FPR'] - FPR_TARGET))*100) for i in acceptable_runs] # Hard target for FPR.
         time_penalties = [log1p((i - best_scaled_time)*100) for i in scaled_times]
 
         # Calculate weighted penalties across all metrics.
