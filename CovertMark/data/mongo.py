@@ -12,11 +12,17 @@ class MongoDBManager:
 
     def __init__(self, db_server=constants.MONGODB_SERVER):
 
+        creds = utils.read_mongo_credentials()
         try:
-            self.__db_client = MongoClient(db_server, serverSelectionTimeoutMS=500)
+            if creds is not None:
+                self.__db_client = MongoClient(db_server, username=creds['username'],
+                 password=creds['password'], authSource=creds['auth_source'],
+                 serverSelectionTimeoutMS=500)
+            else:
+                self.__db_client = MongoClient(db_server, serverSelectionTimeoutMS=500)
             self.__db_client.server_info()
-        except pymongo.errors.ServerSelectionTimeoutError as err:
-            print("Error: Cannot connect to MongoDB Server, please check whether MongoDB Server is running.")
+        except:
+            print("Error: Cannot connect to MongoDB Server, please check whether MongoDB Server is running and auth credentials if set.")
             raise
 
         self.__db = self.__db_client['covertmark']

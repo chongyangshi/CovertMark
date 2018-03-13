@@ -1,6 +1,7 @@
 import os
 import socket
 import ipaddress
+from json import load
 
 from dpkt import tcp
 
@@ -16,6 +17,30 @@ def check_file_exists(file_path):
         return True
     else:
         return False
+
+
+def read_mongo_credentials():
+    """
+    Read and return mongo credentials stored in mongo-auth.json.
+    :returns: a dict containing 'username' and 'password' specified if read
+        was successful, None if JSON does not exist or invalid.
+    """
+
+    file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mongo-auth.json')
+
+    if not check_file_exists(file_path):
+        return None
+
+    try:
+        creds = load(open(file_path, 'r'))
+    except:
+        return None
+
+    for i in ['username', 'password', 'auth_source']:
+        if i not in creds:
+            return None
+
+    return creds
 
 
 def parse_ip(ip_bytes):
