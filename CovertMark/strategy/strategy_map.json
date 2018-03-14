@@ -1,0 +1,65 @@
+{
+  "entropy_dist": {
+    "module": "entropy_dist",
+    "object": "EntropyStrategy",
+    "fixed_params": [],
+    "pt_filters": ["IP_SRC", "IP_DST"],
+    "negative_filters": ["IP_SRC"],
+    "negative_input": true,
+    "runs": [
+      {
+        "run_order": 0,
+        "run_description": "client to server traces",
+        "pt_filters_map": ["IP_SRC", "IP_DST"],
+        "negative_filters_map": ["IP_SRC"],
+        "user_params": [["protocol_min_length", "int"]]
+      }, {
+        "run_order": 1,
+        "run_description": "server to client traces",
+        "pt_filters_map": ["IP_DST", "IP_SRC"],
+        "negative_filters_map": ["IP_SRC"],
+        "user_params": [["protocol_min_length", "int"]]
+      }
+    ]
+  },
+  "length_clustering": {
+    "module": "length_clustering",
+    "object": "LengthClusteringStrategy",
+    "fixed_params": [],
+    "pt_filters": ["IP_SRC", "IP_DST"],
+    "negative_filters": ["IP_SRC"],
+    "negative_input": true,
+    "runs": [
+      {
+        "run_order": 0,
+        "run_description": "client to server traces",
+        "pt_filters_map": ["IP_SRC", "IP_DST"],
+        "negative_filters_map": ["IP_SRC"],
+        "user_params": [["tls_mode", "str"]]
+      }, {
+        "run_order": 1,
+        "run_description": "server to client traces",
+        "pt_filters_map": ["IP_DST", "IP_SRC"],
+        "negative_filters_map": ["IP_SRC"],
+        "user_params": [["tls_mode", "str"]]
+      }
+    ]
+  },
+  "SDG": {
+    "module": "sdg",
+    "object": "SDGStrategy",
+    "fixed_params": [["test_recall", false]],
+    "pt_filters": ["IP_EITHER"],
+    "negative_filters": ["IP_EITHER"],
+    "negative_input": true,
+    "runs": [
+      {
+        "run_order": 0,
+        "run_description": "classifier training and unseen validation",
+        "pt_filters_map": ["IP_EITHER"],
+        "negative_filters_map": ["IP_EITHER"],
+        "user_params": [["window_size", "int"]]
+      }
+    ]
+  }
+}

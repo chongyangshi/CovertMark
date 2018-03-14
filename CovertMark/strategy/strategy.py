@@ -1,4 +1,5 @@
 import analytics, data
+from strategy import constants
 
 import os
 from abc import ABC, abstractmethod
@@ -7,11 +8,6 @@ from collections import defaultdict
 from timeit import default_timer
 from math import log1p
 
-TPR_BOUNDARY = 0.333 # Below which results in ineffective detection.
-FPR_BOUNDARY = 0.050 # Above which results in unacceptable false positives.
-FPR_TARGET = 0.0025 # As FPR is of greater interest to censors, a hard rather than relative target will be used in scoring.
-PENALTY_WEIGHTS = (0.25, 0.5, 0.25) # Penalisation weight between TPR, FPR, and positive run time.
-assert(sum(PENALTY_WEIGHTS) == 1)
 
 class DetectionStrategy(ABC):
     """
@@ -413,7 +409,8 @@ class DetectionStrategy(ABC):
         """
 
         # Filter out records yielding unacceptable TPR or FPR values.
-        acceptables = list(filter(lambda x: x[1]['TPR'] >= TPR_BOUNDARY and x[1]['FPR'] <= FPR_BOUNDARY and isinstance(x[1]['time'], float),
+        acceptables = list(filter(lambda x: x[1]['TPR'] >= constants.TPR_BOUNDARY \
+         and x[1]['FPR'] <= constants.FPR_BOUNDARY and isinstance(x[1]['time'], float),
          self._time_statistics.items()))
         acceptable_runs = [i[1] for i in acceptables]
         acceptable_configs = [i[0] for i in acceptables]
@@ -433,15 +430,15 @@ class DetectionStrategy(ABC):
         best_scaled_time = min(scaled_times)
 
         tpr_penalties = [log1p((best_tpr - i['TPR'])*100) for i in acceptable_runs]
-        fpr_penalties = [log1p((max(0, i['FPR'] - FPR_TARGET))*100) for i in acceptable_runs] # Hard target for FPR.
+        fpr_penalties = [log1p((max(0, i['FPR'] - constants.FPR_TARGET))*100) for i in acceptable_runs] # Hard target for FPR.
         time_penalties = [log1p((i - best_scaled_time)*100) for i in scaled_times]
 
         # Calculate weighted penalties across all metrics.
         overall_penalties = []
         for i in range(len(tpr_penalties)):
-            overall_penalties.append(tpr_penalties[i] * PENALTY_WEIGHTS[0] + \
-                                     fpr_penalties[i] * PENALTY_WEIGHTS[1] + \
-                                     time_penalties[i] * PENALTY_WEIGHTS[2])
+            overall_penalties.append(tpr_penalties[i] * constants.PENALTY_WEIGHTS[0] + \
+                                     fpr_penalties[i] * constants.PENALTY_WEIGHTS[1] + \
+                                     time_penalties[i] * constants.PENALTY_WEIGHTS[2])
 
         # Now find out the minimum penalty required to reach the acceptable
         # TPR and FPR performance, and calculate the scores accordingly.
