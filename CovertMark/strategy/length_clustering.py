@@ -19,7 +19,6 @@ class LengthClusteringStrategy(DetectionStrategy):
     _MONGO_KEY = "LenClustering" # Alphanumeric key for MongoDB.
     _DEBUG_PREFIX = _MONGO_KEY
 
-    DEBUG = True
     TLS_INCLUSION_THRESHOLD = 0.1
     MEANSHIFT_BWS = [1, 2, 3, 5, 10]
     MINIMUM_TPR = 0.40
@@ -30,8 +29,8 @@ class LengthClusteringStrategy(DetectionStrategy):
     # Decide whether to use all traces, only TLS traces, or only non-TLS traces.
 
 
-    def __init__(self, pt_pcap, negative_pcap=None):
-        super().__init__(pt_pcap, negative_pcap, debug=self.DEBUG)
+    def __init__(self, pt_pcap, negative_pcap=None, debug=True):
+        super().__init__(pt_pcap, negative_pcap, debug=debug)
         self._strategic_states['TPR'] = {}
         self._strategic_states['FPR'] = {}
         self._strategic_states['top_cluster'] = {}
@@ -275,7 +274,7 @@ if __name__ == "__main__":
 
     pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
     unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
-    detector = LengthClusteringStrategy(pt_path, unobfuscated_path)
+    detector = LengthClusteringStrategy(pt_path, unobfuscated_path, debug=True)
     detector.setup(pt_ip_filters=[(argv[3], data.constants.IP_SRC),
      (argv[4], data.constants.IP_DST)], negative_ip_filters=[(argv[5],
      data.constants.IP_SRC)], pt_collection=argv[6], negative_collection=argv[7])

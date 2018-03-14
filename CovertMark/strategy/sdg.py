@@ -27,7 +27,6 @@ class SDGStrategy(DetectionStrategy):
     _DEBUG_PREFIX = "sdg"
 
     LOSS_FUNC = "hinge"
-    DEBUG = True
     TIME_SEGMENT_SIZE = 60
     NUM_RUNS = 5
     FEATURE_SET = [analytics.constants.USE_ENTROPY, analytics.constants.USE_PSH,
@@ -38,8 +37,8 @@ class SDGStrategy(DetectionStrategy):
     PT_SPLIT_RATIO = 0.5
     # Stop when TPR drops below first value or FPR drops below second value.
 
-    def __init__(self, pt_pcap, negative_pcap, recall_pcap=None):
-        super().__init__(pt_pcap, negative_pcap, recall_pcap, self.DEBUG)
+    def __init__(self, pt_pcap, negative_pcap, recall_pcap=None, debug=True):
+        super().__init__(pt_pcap, negative_pcap, recall_pcap, debug=debug)
         self._trained_classifiers = {}
 
 
@@ -455,7 +454,7 @@ if __name__ == "__main__":
     pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
     neg_path = os.path.join(parent_path, 'examples', 'local', argv[4])
     recall_path = os.path.join(parent_path, 'examples', 'local', argv[7])
-    detector = SDGStrategy(pt_path, neg_path, recall_pcap=recall_path)
+    detector = SDGStrategy(pt_path, neg_path, recall_pcap=recall_path, debug=True)
     detector.setup(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
      negative_ip_filters=[(argv[5], data.constants.IP_EITHER)],
      pt_collection=argv[3], negative_collection=argv[6], test_recall=True,

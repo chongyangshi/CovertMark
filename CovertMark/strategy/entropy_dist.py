@@ -21,7 +21,6 @@ class EntropyStrategy(DetectionStrategy):
     _DEBUG_PREFIX = _MONGO_KEY
 
     BLOCK_SIZE = 8
-    DEBUG = True
 
     # Three criteria possible: [conservative, majority voting, and sensitive].
     # Corresponding to [all, majority, any] when deciding whether to flag
@@ -34,8 +33,8 @@ class EntropyStrategy(DetectionStrategy):
     TLS_HTTP_INCLUSION_THRESHOLD = 0.1
 
 
-    def __init__(self, pt_pcap, negative_pcap=None):
-        super().__init__(pt_pcap, negative_pcap, debug=self.DEBUG)
+    def __init__(self, pt_pcap, negative_pcap=None, debug=True):
+        super().__init__(pt_pcap, negative_pcap, debug=debug)
         self._analyser = analytics.entropy.EntropyAnalyser()
 
         # To store results from different block sizes and p-value thresholds, as
@@ -316,7 +315,7 @@ if __name__ == "__main__":
 
     pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
     unobfuscated_path = os.path.join(parent_path, 'examples', 'local', argv[2])
-    detector = EntropyStrategy(pt_path, unobfuscated_path)
+    detector = EntropyStrategy(pt_path, unobfuscated_path, debug=True)
     detector.setup(pt_ip_filters=[(argv[3], data.constants.IP_SRC),
      (argv[4], data.constants.IP_DST)], negative_ip_filters=[(argv[5],
      data.constants.IP_SRC)], pt_collection=argv[6], negative_collection=argv[7])
