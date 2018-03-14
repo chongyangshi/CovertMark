@@ -21,9 +21,8 @@ class SDGStrategy(DetectionStrategy):
     A single client IP should be used.
     """
 
-    NAME = "SDG Strategy"
+    NAME = "SDG Classifier Strategy"
     DESCRIPTION = "Generic binary classification strategy."
-    _MONGO_KEY = "sdg"
     _DEBUG_PREFIX = "sdg"
 
     LOSS_FUNC = "hinge"

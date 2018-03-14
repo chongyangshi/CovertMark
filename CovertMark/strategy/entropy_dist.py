@@ -15,10 +15,9 @@ class EntropyStrategy(DetectionStrategy):
     """
 
 
-    NAME = "Entropy Detection Strategy"
+    NAME = "Entropy Distribution Strategy"
     DESCRIPTION = "Detecting high-entropy PTs based on payload byte-uniformity and entropy-distribution."
-    _MONGO_KEY = "Entropy" # Alphanumeric key for MongoDB.
-    _DEBUG_PREFIX = _MONGO_KEY
+    _DEBUG_PREFIX = "Entropy"
 
     BLOCK_SIZE = 8
 

@@ -14,10 +14,9 @@ class LengthClusteringStrategy(DetectionStrategy):
     with small and not greatly varying lengths of payloads.
     """
 
-    NAME = "Length Clustering Detection Strategy"
+    NAME = "Length Clustering Strategy"
     DESCRIPTION = "Detecting low-payload heartbeat messages."
-    _MONGO_KEY = "LenClustering" # Alphanumeric key for MongoDB.
-    _DEBUG_PREFIX = _MONGO_KEY
+    _DEBUG_PREFIX = "LenClustering"
 
     TLS_INCLUSION_THRESHOLD = 0.1
     MEANSHIFT_BWS = [1, 2, 3, 5, 10]

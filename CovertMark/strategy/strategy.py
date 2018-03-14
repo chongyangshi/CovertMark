@@ -19,8 +19,7 @@ class DetectionStrategy(ABC):
 
     NAME = "Default Strategy"
     DESCRIPTION = "A description of this strategy here."
-    _MONGO_KEY = "DefaultStrategy" # Alphanumeric key for MongoDB.
-    _DEBUG_PREFIX = _MONGO_KEY # For debug messages only, split for inheritance convenience.
+    _DEBUG_PREFIX = "DefaultStrategy" # For prefixing debug messages only.
 
     def __init__(self, pt_pcap, negative_pcap=None, recall_pcap=None, debug=False):
         self.__debug_on = debug
@@ -109,14 +108,12 @@ class DetectionStrategy(ABC):
         :returns: True if a non-zero amount of traces were parsed, False otherwise.
         """
 
-        assert(self._MONGO_KEY.isalnum)
+        assert(all([i.isalnum() or i in [".", "_", "-", " "] for i in self.NAME]))
 
         self.__pt_parser = data.parser.PCAPParser(self.__pt_pcap)
-
-
         self.__pt_parser.set_ip_filter(pt_filters)
         self.set_case_membership(pt_filters, None)
-        desp = self._MONGO_KEY + "Positive" + date.today().strftime("%Y%m%d")
+        desp = self.NAME + " positive traces from " + os.path.basename(self.__pt_pcap)
         self._pt_collection = self.__pt_parser.load_and_insert_new(description=desp)
 
         if self._pt_collection:
@@ -133,13 +130,14 @@ class DetectionStrategy(ABC):
         :returns: True if a non-zero amount of traces were parsed, False otherwise.
         """
 
-        assert(self._MONGO_KEY.isalnum)
+        assert(all([i.isalnum() or i in [".", "_", "-", " "] for i in self.NAME]))
 
         self.__neg_parser = data.parser.PCAPParser(self.__negative_pcap)
         self.__neg_parser.set_ip_filter(negative_filters)
         self.set_case_membership(None, negative_filters)
-        desp = self._MONGO_KEY + "Negative" + date.today().strftime("%Y%m%d")
+        desp = self.NAME + " negative traces from " + os.path.basename(self.__negative_pcap)
         self._neg_collection = self.__neg_parser.load_and_insert_new(description=desp)
+
         if self._neg_collection:
             return True
         else:
@@ -154,12 +152,13 @@ class DetectionStrategy(ABC):
         :returns: True if a non-zero amount of traces were parsed, False otherwise.
         """
 
-        assert(self._MONGO_KEY.isalnum)
+        assert(all([i.isalnum() or i in [".", "_", "-", " "] for i in self.NAME]))
 
         self.__recall_parser = data.parser.PCAPParser(self.__recall_pcap)
         self.__recall_parser.set_ip_filter(recall_filters)
-        desp = self._MONGO_KEY + "Recall" + date.today().strftime("%Y%m%d")
+        desp = self.NAME + " positive recall traces from " + os.path.basename(self.__recall_pcap)
         self._recall_collection = self.__recall_parser.load_and_insert_new(description=desp)
+
         if self._recall_collection:
             return True
         else:
