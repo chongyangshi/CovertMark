@@ -112,7 +112,7 @@ def validate_procedure(procedure, strategy_map):
 
     mongo_reader = data.retrieve.Retriever() # For validating collections.
 
-    if len(procedure) == 0:
+    if not procedure or len(procedure) == 0:
         return False, "The imported procedure is empty."
 
     for run in procedure:
@@ -151,7 +151,7 @@ def validate_procedure(procedure, strategy_map):
             if not all([data.utils.build_subnet(i[0]) for i in pt_filters]):
                 return False, "PT input filters are not valid IP addresses or subnets."
             if Counter([i[1] for i in pt_filters]) != Counter(strat["pt_filters"]):
-                return False, "Some PT input filters are not of a valid type."
+                return False, "Some PT input filters are not of a valid type, or not supplied with an invalid existing collection."
 
         pt_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["pt_pcap"]))
 
@@ -171,7 +171,7 @@ def validate_procedure(procedure, strategy_map):
             if not all([data.utils.build_subnet(i[0]) for i in neg_filters]):
                 return False, "negative input filters are not valid IP addresses or subnets."
             if Counter([i[1] for i in neg_filters]) != Counter(strat["negative_filters"]):
-                return False, "Some negative input filters are not of a valid type."
+                return False, "Some negative input filters are not of a valid type, or not supplied with an invalid existing collection."
 
         neg_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["neg_pcap"]))
 
@@ -241,7 +241,9 @@ def import_procedure(import_path, strategy_map):
     except:
         return False
 
-    if not validate_procedure(procedure, strategy_map):
+    val, msg = validate_procedure(procedure, strategy_map)
+    if not val:
+        print("The procedure failed to import due to: {}.".format(msg))
         return False
 
     return procedure
@@ -257,7 +259,8 @@ def execute_procedure(procedure, strategy_map):
         Returns empty list if execution fails.
     """
 
-    if not validate_procedure(procedure, strategy_map):
+    val, _ = validate_procedure(procedure, strategy_map)
+    if not val:
         return []
 
     mongo_reader = data.retrieve.Retriever()
@@ -287,9 +290,9 @@ def execute_procedure(procedure, strategy_map):
 
         # Length and composition should have been validated in strategy map
         # reading, but for correctness asserted here.
-        assert(len(pt_filters) == len(strat["pt_filters"]))
-
-        if use_negative:
+        if not pt_use_collection:
+            assert(len(pt_filters) == len(strat["pt_filters"]))
+        if use_negative and not negative_use_collection:
             assert(len(negative_filters) == len(strat["negative_filters"]))
 
         # Map the filters.
