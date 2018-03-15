@@ -1,6 +1,7 @@
 from data import utils, constants, mongo
 
 from base64 import b64decode
+from collections import Counter
 
 class Retriever:
 
@@ -9,14 +10,28 @@ class Retriever:
         self._collection = None
 
 
-    def list(self, in_string=False):
+    def list(self, in_string=False, match_filters=None):
         """
         Return a list of all collections of traces currently stored in MongoDB.
         :param in_string: Pre-format the output in string if True.
+        :param match_filters: a list of data.constants.IP_* filter types to
+            match with those of stored collections, returning only matched
+            collections. If None, return all collections.
         :returns: list of traces with {name, creation_time, description}.
         """
 
         traces = self.__db.list_collections()
+
+        if isinstance(match_filters, list):
+            qualified_traces = []
+            for trace in traces:
+                filter_types = [i[1] for i in trace["input_filters"]]
+                if Counter(filter_types) == Counter(match_filters):
+                    qualified_traces.append(trace)
+            traces = qualified_traces
+
+        for trace in traces:
+            trace["count"] = self.__db.count_traces(trace["name"])
 
         if not in_string:
             return traces
@@ -25,7 +40,11 @@ class Retriever:
 
         for trace in traces:
             output += trace["name"] + ", " + trace["description"] + ", " + \
-             trace["creation_time"] + ", " + str(trace["input_filters"]) +"\n"
+             trace["creation_time"] + ", " + str(trace["input_filters"]) + \
+             ", " + str(trace["count"]) + "\n"
+
+        if isinstance(match_filters, list):
+            output += "(Only those with specified input filter types are returned.)"
 
         return output
 
