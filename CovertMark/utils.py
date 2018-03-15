@@ -1,13 +1,14 @@
 import os
 from json import load
 from importlib import import_module
+import random, string
 
 import data, strategy
 
 def read_strategy_map():
     """
     Read in the strategy map from strategy/strategy_map.json.
-    :returns: (succ, msg), succ = True if valid strategy map, False otherwise,
+    :returns: (succ, msg) -- succ = True if valid strategy map, False otherwise,
         with msg containing the error found.
     """
 
@@ -95,3 +96,21 @@ def read_strategy_map():
                     r["user_params"][i] = [w[0], strategy.constants.JSON_OPT_PARAM_TYPES[w[1]]]
 
     return True, "Successfully parsed strategy/strategy_map.json."
+
+
+def check_write_permission(path):
+    """
+    Check whether it is possible for the program to write to the path supplied.
+    :returns: True if write permissible, False otherwise.
+    """
+
+    test_file = "test_" + ''.join([random.choice(string.ascii_letters) for _ in range(8)])
+    test_file = os.path.join(path, test_file)
+
+    try:
+        open(test_file, 'w')
+        os.remove(test_file) # Not sure if this will make antivirus unhappy.
+    except PermissionError:
+        return False
+
+    return True
