@@ -159,9 +159,17 @@ def validate_procedure(procedure, strategy_map):
             if len(matching_params) != 1:
                 return False, "Incorrect specification of user parameter " + param + "."
 
+        pt_collection_valid = False
+        if mongo_reader.select(run["pt_collection"]):
+            pt_filters = mongo_reader.get_input_filters()
+            pt_collection_valid = True
+        else:
+            pt_filters = run["pt_filters"]
+            if not all([data.utils.build_subnet(i[0]) for i in pt_filters]):
+                return False, "PT input filters are not valid IP addresses or subnets."
+
         pt_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["pt_pcap"])) and\
-         Counter([i[1] for i in run["pt_filters"]]) == Counter(matched_run["pt_filters_map"])
-        pt_collection_valid = mongo_reader.select(run["pt_collection"])
+         Counter([i[1] for i in pt_filters]) == Counter(matched_run["pt_filters_map"])
 
         if not (pt_pcap_valid or pt_collection_valid):
             return False, "Neither the supplied PT pcap file and filters, nor an existing PT collection is valid."
@@ -170,9 +178,17 @@ def validate_procedure(procedure, strategy_map):
         if not strategy["negative_input"]:
             continue
 
+        neg_collection_valid = False
+        if mongo_reader.select(run["neg_collection"]):
+            neg_filters = mongo_reader.get_input_filters()
+            neg_collection_valid = True
+        else:
+            neg_filters = run["neg_filters"]
+            if not all([data.utils.build_subnet(i[0]) for i in neg_filters]):
+                return False, "negative input filters are not valid IP addresses or subnets."
+
         neg_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["neg_pcap"])) and\
-         Counter([i[1] for i in run["neg_filters"]]) == Counter(matched_run["negative_filters_map"])
-        neg_collection_valid = mongo_reader.select(run["neg_collection"])
+         Counter([i[1] for i in neg_filters]) == Counter(matched_run["negative_filters_map"])
 
         if not (neg_pcap_valid or neg_collection_valid):
             return False, "Neither the supplied negative pcap file and filters, nor an existing negative collection is valid."
