@@ -8,8 +8,8 @@ import data, strategy
 def read_strategy_map():
     """
     Read in the strategy map from strategy/strategy_map.json.
-    :returns: (succ, msg) -- succ = True if valid strategy map, False otherwise,
-        with msg containing the error found.
+    :returns: (succ, msg) -- succ = strategy_map if valid strategy map, False
+        otherwise -- with msg containing the error found.
     """
 
     strategy_map = os.path.join(os.path.dirname(os.path.realpath(__file__)), "strategy", "strategy_map.json")
@@ -95,7 +95,7 @@ def read_strategy_map():
                 else:
                     r["user_params"][i] = [w[0], strategy.constants.JSON_OPT_PARAM_TYPES[w[1]]]
 
-    return True, "Successfully parsed strategy/strategy_map.json."
+    return strategies, "Successfully parsed strategy/strategy_map.json."
 
 
 def check_write_permission(path):
