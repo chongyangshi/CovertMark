@@ -20,5 +20,10 @@ JSON_OPT_PARAM_TYPES = {
 STRATEGY_FIELDS = [("module", str), ("object", str), ("fixed_params", list),
     ("pt_filters", list), ("negative_filters", list), ("negative_input", bool),
     ("runs", list)]
-RUN_FIELDS = [("run_order", int), ("run_description", str), ("pt_filters_map", list),
- ("negative_filters_map", list), ("user_params", list)]
+RUN_FIELDS = [("run_order", int), ("run_description", str), ("pt_filters_reverse", bool),
+ ("negative_filters_reverse", bool), ("user_params", list)]
+FILTERS_REVERSE_MAP = {
+    data_constants.IP_SRC: data_constants.IP_DST,
+    data_constants.IP_DST: data_constants.IP_SRC,
+    data_constants.IP_EITHER: data_constants.IP_EITHER
+}

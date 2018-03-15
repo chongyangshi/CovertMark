@@ -1,7 +1,8 @@
-import os
+import os, sys
 from json import load, dump
 from importlib import import_module
 import random, string
+from operator import itemgetter
 from collections import Counter
 
 import data, strategy
@@ -68,24 +69,6 @@ def read_strategy_map():
                 if c not in r or not isinstance(r[c], t):
                     return False, "The required field " + c + " is missing or invalid in run " + str(r["run_order"]) +  " of strategy " + name + "."
 
-            for i, w in enumerate(r["pt_filters_map"]):
-                if w in strategy.constants.JSON_FILTERS:
-                    r["pt_filters_map"][i] = strategy.constants.JSON_FILTERS[w]
-                else:
-                    return False, "A PT filter is missing or invalid in run " + str(r["run_order"]) +  " of strategy " + name + "."
-
-            if len(r["pt_filters_map"]) != pt_filters_len:
-                return False, "Mismatch of strategy PT filters with their mappings in run " + str(r["run_order"]) +  " of strategy " + name + "."
-
-            for i, w in enumerate(r["negative_filters_map"]):
-                if w in strategy.constants.JSON_FILTERS:
-                    r["negative_filters_map"][i] = strategy.constants.JSON_FILTERS[w]
-                else:
-                    return False, "A negative filter is missing or invalid in run " + str(r["run_order"]) +  " of strategy " + name + "."
-
-            if len(r["negative_filters_map"]) != neg_filters_len:
-                return False, "Mismatch of strategy negative filters with their mappings in run " + str(r["run_order"]) +  " of strategy " + name + "."
-
             # These are the parameters applied to the strategy.run(..) call with
             # only expected int/str/bool type defined, requiring the user to
             # supply before the start of the runs.
@@ -140,16 +123,16 @@ def validate_procedure(procedure, strategy_map):
         if run["strategy"] not in strategy_map:
             return False, "The specified strategy script " + run["strategy"] + " is not found in this build."
 
-        strategy = strategy_map[run["strategy"]]
+        strat = strategy_map[run["strategy"]]
 
         run_found = False
-        for r in strategy["runs"]:
+        for r in strat["runs"]:
             if r["run_order"] == run["run_order"]:
                 matched_run = r
                 run_found = True
 
         if not run_found:
-            return False, "A specified run in strategy " + run["strategy"] + " cannot be found."
+            return False, "The specified run in strategy " + run["strategy"] + " cannot be found."
 
         if len(run["user_params"]) != len(matched_run["user_params"]):
             return False, "Mismatching user parameters supplied in strategy " + run["strategy"] + "."
@@ -167,15 +150,16 @@ def validate_procedure(procedure, strategy_map):
             pt_filters = run["pt_filters"]
             if not all([data.utils.build_subnet(i[0]) for i in pt_filters]):
                 return False, "PT input filters are not valid IP addresses or subnets."
+            if Counter([i[1] for i in pt_filters]) != Counter(strat["pt_filters"]):
+                return False, "Some PT input filters are not of a valid type."
 
-        pt_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["pt_pcap"])) and\
-         Counter([i[1] for i in pt_filters]) == Counter(matched_run["pt_filters_map"])
+        pt_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["pt_pcap"]))
 
         if not (pt_pcap_valid or pt_collection_valid):
             return False, "Neither the supplied PT pcap file and filters, nor an existing PT collection is valid."
 
         # Skip validating negative inputs if not required by the strategy.
-        if not strategy["negative_input"]:
+        if not strat["negative_input"]:
             continue
 
         neg_collection_valid = False
@@ -186,9 +170,10 @@ def validate_procedure(procedure, strategy_map):
             neg_filters = run["neg_filters"]
             if not all([data.utils.build_subnet(i[0]) for i in neg_filters]):
                 return False, "negative input filters are not valid IP addresses or subnets."
+            if Counter([i[1] for i in neg_filters]) != Counter(strat["negative_filters"]):
+                return False, "Some negative input filters are not of a valid type."
 
-        neg_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["neg_pcap"])) and\
-         Counter([i[1] for i in neg_filters]) == Counter(matched_run["negative_filters_map"])
+        neg_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["neg_pcap"]))
 
         if not (neg_pcap_valid or neg_collection_valid):
             return False, "Neither the supplied negative pcap file and filters, nor an existing negative collection is valid."
@@ -260,3 +245,91 @@ def import_procedure(import_path, strategy_map):
         return False
 
     return procedure
+
+
+def execute_procedure(procedure, strategy_map):
+    """
+    Execute a validated procedure and preserve their strategy states in order.
+    :param procedure: a dict containing a CovertMark procedure.
+    :param strategy_map: a strategy map validated by covertmark.py.
+    :returns: a list of tuples each containing a strategy instances executed
+        based on runs specified in the procedure, and the run specification.
+        Returns empty list if execution fails.
+    """
+
+    if not validate_procedure(procedure, strategy_map):
+        return []
+
+    mongo_reader = data.retrieve.Retriever()
+    completed_instances = []
+    for run in procedure:
+        strat = strategy_map[run["strategy"]]
+        strategy_module = getattr(strategy, strat["module"])
+        strategy_object = getattr(strategy_module, strat["object"])
+        use_negative = strat["negative_input"]
+        run_info = [i for i in strat["runs"] if i["run_order"] == run["run_order"]][0]
+
+        # Retrieve the IP filters.
+        if mongo_reader.select(run["pt_collection"]):
+            pt_filters = mongo_reader.get_input_filters()
+            pt_use_collection = True
+        else:
+            pt_filters = run["pt_filters"]
+            pt_use_collection = False
+
+        if use_negative:
+            if mongo_reader.select(run["neg_collection"]):
+                negative_filters = mongo_reader.get_input_filters()
+                negative_use_collection = True
+            else:
+                negative_filters = run["neg_filters"]
+                negative_use_collection = False
+
+        # Length and composition should have been validated in strategy map
+        # reading, but for correctness asserted here.
+        assert(len(pt_filters) == len(strat["pt_filters"]))
+
+        if use_negative:
+            assert(len(negative_filters) == len(strat["negative_filters"]))
+
+        # Map the filters.
+        pt_filters_mapped = [[x[0], strategy.constants.FILTERS_REVERSE_MAP[x[1]]] for x in pt_filters]
+        if use_negative:
+            negative_filters_mapped = [[x[0], strategy.constants.FILTERS_REVERSE_MAP[x[1]]] for x in negative_filters]
+
+        print("Attempting to execute " + strategy_object.NAME + " for " + run_info["run_description"] + ".")
+
+        # Construct the parameters if applicable (PCAP path, input filters, existing collection)
+        if pt_use_collection:
+            pt_params = ["_", [], run["pt_collection"]]
+        else:
+            pt_filters_mapped = [tuple(i) for i in pt_filters_mapped] # Compability.
+            pt_params = [run["pt_pcap"], pt_filters_mapped, None]
+
+        if use_negative:
+            if negative_use_collection:
+                neg_params = ["_", [], run["neg_collection"]]
+            else:
+                negative_filters_mapped = [tuple(i) for i in negative_filters_mapped] # Compability.
+                neg_params = [run["neg_pcap"], negative_filters_mapped, None]
+        else:
+            neg_params = [None, [], None]
+
+        user_params = {i[0]: i[1] for i in run["user_params"]}
+
+        try:
+            strategy_instance = strategy_object(pt_params[0], neg_params[0])
+            strategy_instance.setup(pt_ip_filters=pt_params[1],
+                                    negative_ip_filters=neg_params[1],
+                                    pt_collection=pt_params[2],
+                                    negative_collection=neg_params[2])
+            strategy_instance.run(**user_params)
+        except Exception as e:
+            print(str(e))
+            print("Exception was raised during the execution of this strategy, skipping...")
+            continue
+
+        print("Strategy run execution successful, saving the instance states.")
+        completed_instances.append((strategy_instance, run))
+
+    return completed_instances

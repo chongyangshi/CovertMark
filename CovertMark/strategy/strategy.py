@@ -211,7 +211,7 @@ class DetectionStrategy(ABC):
                 self.debug_print("- Automatically setting the corresponding input filters for negative clients: {}".format(str(neg_clients)))
                 self.set_case_membership(None, neg_filters)
             else:
-                self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
+                self.debug_print("Input filters attached to the negative collection do not exist or are invalid, must be manually set with set_case_membership().")
 
 
         # If no recall traces pcap parsed, we finish here.
