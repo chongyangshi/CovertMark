@@ -4,6 +4,7 @@ from importlib import import_module
 import random, string
 from operator import itemgetter
 from collections import Counter
+from tabulate import tabulate
 
 import data, strategy
 import constants
@@ -300,7 +301,7 @@ def execute_procedure(procedure, strategy_map):
         if use_negative:
             negative_filters_mapped = [[x[0], strategy.constants.FILTERS_REVERSE_MAP[x[1]]] for x in negative_filters]
 
-        print("Attempting to execute " + strategy_object.NAME + " for " + run_info["run_description"] + ".")
+        print("Attempting to execute " + strategy_object.NAME + " for " + run_info["run_description"] + "...\n")
 
         # Construct the parameters if applicable (PCAP path, input filters, existing collection)
         if pt_use_collection:
@@ -332,7 +333,30 @@ def execute_procedure(procedure, strategy_map):
             print("Exception was raised during the execution of this strategy, skipping...")
             continue
 
-        print("Strategy run execution successful, saving the instance states.")
+        print("Strategy run execution successful, saving the instance states.\n")
         completed_instances.append((strategy_instance, run))
 
     return completed_instances
+
+
+def get_strategy_runs(strategy_map):
+    """
+    Return a pretty print tabulate for showing the user all available runs in
+    all procedures.
+    :param strategy_map: the strategy map to draw these information from.
+    :returns: a tabulate.tabulate object containing these information.
+    """
+
+    available_runs = [] # (selection_id, strategy_name, run_description)
+    available_runs_header = ("Run ID", "Strategy Name", "Strategy Run Description")
+    available_runs_indices = [] # (strategy_map_key, run_order)
+    selection_id = 0
+    for strategy_map_key, strat in strategy_map.items():
+        strategy_class = getattr(getattr(strategy, strat["module"]), strat["object"])
+        strategy_name = strategy_class.NAME
+        for run in strat["runs"]:
+            available_runs.append((selection_id, strategy_name, run["run_description"]))
+            available_runs_indices.append((strategy_map_key, run["run_order"]))
+            selection_id += 1
+
+    return tabulate(available_runs, available_runs_header, tablefmt="fancy_grid")

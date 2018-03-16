@@ -1,13 +1,19 @@
 import os, sys
 from importlib import import_module
 from tabulate import tabulate
+import argparse
 
 import data, analytics, strategy
 import constants as c
 import utils
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--import-saved", help="Import a saved CovertMark benchmark procedure.", default="_")
+args = parser.parse_args()
+
 # Reader for listing collections.
 reader = data.retrieve.Retriever()
+current_results = [] # tuples of strategy instances and run configurations.
 
 # Check if the strategy map is still good.
 strategy_map, reason = utils.read_strategy_map()
@@ -25,18 +31,22 @@ print(c.CM_LICENSE)
 print("A terminal of at least 3/4 screen width is recommended.")
 print(c.DIVIDER)
 
-# Collect runs of all strategies for the user to choose.
-print("The following runs of strategies are implemented and available: ")
-available_runs = [] # (selection_id, strategy_name, run_description)
-available_runs_header = ("Run ID", "Strategy Name", "Strategy Run Description")
-available_runs_indices = [] # (strategy_map_key, run_order)
-selection_id = 0
-for strategy_map_key, strat in strategy_map.items():
-    strategy_class = getattr(getattr(strategy, strat["module"]), strat["object"])
-    strategy_name = strategy_class.NAME
-    for run in strat["runs"]:
-        available_runs.append((selection_id, strategy_name, run["run_description"]))
-        available_runs_indices.append((strategy_map_key, run["run_order"]))
-        selection_id += 1
+load_existing = False
+if args.import_saved != "_":
+    if data.utils.check_file_exists(args.import_saved):
+        load_existing = True
 
-print(tabulate(available_runs, available_runs_header, tablefmt="fancy_grid"))
+if load_existing:
+    procedure = utils.import_procedure(args.import_saved, strategy_map)
+    if not procedure:
+        print(args.import_saved + " cannot be validated during import.")
+        sys.exit(1)
+    print("Executing imported procedure...\n")
+    current_results = utils.execute_procedure(procedure, strategy_map)
+
+else:
+    # Collect runs of all strategies for the user to choose.
+    print("The following runs of strategies are implemented and available: ")
+    print(utils.get_strategy_runs(strategy_map))
+
+# TODO: add interactive interface to manage collections, program procedures, and inspect results.
