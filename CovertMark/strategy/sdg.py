@@ -39,6 +39,7 @@ class SDGStrategy(DetectionStrategy):
     def __init__(self, pt_pcap, negative_pcap, recall_pcap=None, debug=True):
         super().__init__(pt_pcap, negative_pcap, recall_pcap, debug=debug)
         self._trained_classifiers = {}
+        self._performance_csv = "Occurrence Threshold (pct),FNR (% PT packets missed),FPR (% Innocent packets incorrectly blocked),% Innocent IP's blocked overall\n"
 
 
     def set_strategic_filter(self):
@@ -252,6 +253,43 @@ class SDGStrategy(DetectionStrategy):
         wireshark_output += ")"
 
         return wireshark_output
+
+
+    def record_performance(self, FNR, FPR, pct_ip_blocked, threshold=None):
+        """
+        Add a line of record to allow printing performance stats in CSV.
+        Implement this method if this feature is required.
+        :param FNR: false negative rate reported (0-1), TPR = 1 - FNR.
+        :param FPR: false positive rate reported (0-1), TNR = 1 - FPR.
+        :param pct_ip_blocked: percentage of IPs falsely blocked (0-100).
+        :param threshold: percentage of occurrence threshold if required, None
+            by default.
+        :returns: True if record successfully added, False otherwise.
+        """
+
+        if not (0 <= FNR <= 1) or not (0 <= FPR <= 1):
+            return False
+
+        if not (0 <= pct_ip_blocked <= 100):
+            return False
+
+        if threshold is None or not isinstance(threshold, int):
+            threshold = 0
+
+        # Now convert ratios to percentages.
+        self._performance_csv += "{},{:0.2f},{:0.2f},{:0.2f}\n".format(threshold, FNR*100, FPR*100, pct_ip_blocked)
+
+        return True
+
+
+    def report_performance(self):
+        """
+        Return the performance record CSV as a string. Format:
+        Occurrence threshold, FNR (%), FPR (%), percentage of IP falsely blocked
+        :returns: performance CSV string with embedded linebreaks.
+        """
+
+        return self._performance_csv
 
 
     def run_strategy(self, **kwargs):
