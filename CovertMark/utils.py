@@ -113,10 +113,63 @@ def validate_procedure(procedure, strategy_map):
 
     mongo_reader = data.retrieve.Retriever() # For validating collections.
 
-    if not procedure or len(procedure) == 0:
+    if not procedure or "runs" not in procedure or len(procedure["runs"]) == 0:
         return False, "The imported procedure is empty."
 
-    for run in procedure:
+    if any([i not in procedure for i in constants.PROCEDURE_META_FIELDS]):
+        return False, "The procedure is missing required meta field(s)."
+
+    # Check if we can re-parse the PT pcap if a collection is not specified in the run.
+    pt_pcap_validated = False
+    if procedure["pt_pcap"] != "":
+        pt_pcap = os.path.expanduser(procedure["pt_pcap"])
+        if data.utils.check_file_exists(pt_pcap):
+            try:
+                data.parser.PCAPParser(pt_pcap)
+            except:
+                return False, pt_pcap + " is not valid, pcapng is not supported by dpkt."
+        else:
+            return False, pt_pcap + " does not exist."
+        pt_pcap_validated = True
+
+    pt_filters_validated = False
+    if procedure["pt_filters"] != []:
+        pt_filters = procedure["pt_filters"]
+        if not all([data.utils.build_subnet(i[0]) for i in pt_filters]):
+            return False, "PT input filters are not valid IP addresses or subnets."
+        pt_filters_validated = True
+
+    if pt_pcap_validated and pt_filters_validated:
+        pt_reparsing_possible = True
+    else:
+        pt_reparsing_possible = False
+
+    # Check if we can re-parse the negative pcap if a collection is not specified in the run.
+    neg_pcap_validated = False
+    if procedure["neg_pcap"] != "":
+        neg_pcap = os.path.expanduser(procedure["neg_pcap"])
+        if data.utils.check_file_exists(neg_pcap):
+            try:
+                data.parser.PCAPParser(neg_pcap)
+            except:
+                return False, neg_pcap + " is not valid, pcapng is not supported by dpkt."
+        else:
+            return False, neg_pcap + " does not exist."
+        neg_pcap_validated = True
+
+    neg_filters_validated = False
+    if procedure["neg_filters"] != []:
+        neg_filters = procedure["neg_filters"]
+        if not all([data.utils.build_subnet(i[0]) for i in neg_filters]):
+            return False, "Negative input filters are not valid IP addresses or subnets."
+        neg_filters_validated = True
+
+    if neg_pcap_validated and neg_filters_validated:
+        neg_reparsing_possible = True
+    else:
+        neg_reparsing_possible = False
+
+    for run in procedure["runs"]:
 
         if any([i not in run for i in constants.PROCEDURE_RUN_FIELDS]):
             return False, "A specified run in strategy script " + run["strategy"] + " is missing required field(s)."
@@ -145,18 +198,13 @@ def validate_procedure(procedure, strategy_map):
 
         pt_collection_valid = False
         if mongo_reader.select(run["pt_collection"]):
-            pt_filters = mongo_reader.get_input_filters()
             pt_collection_valid = True
-        else:
-            pt_filters = run["pt_filters"]
-            if not all([data.utils.build_subnet(i[0]) for i in pt_filters]):
-                return False, "PT input filters are not valid IP addresses or subnets."
+
+        if pt_filters_validated:
             if Counter([i[1] for i in pt_filters]) != Counter(strat["pt_filters"]):
                 return False, "Some PT input filters are not of a valid type, or not supplied with an invalid existing collection."
 
-        pt_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["pt_pcap"]))
-
-        if not (pt_pcap_valid or pt_collection_valid):
+        if (not pt_collection_valid) and (not pt_reparsing_possible):
             return False, "Neither the supplied PT pcap file and filters, nor an existing PT collection is valid."
 
         # Skip validating negative inputs if not required by the strategy.
@@ -165,20 +213,14 @@ def validate_procedure(procedure, strategy_map):
 
         neg_collection_valid = False
         if mongo_reader.select(run["neg_collection"]):
-            neg_filters = mongo_reader.get_input_filters()
             neg_collection_valid = True
-        else:
-            neg_filters = run["neg_filters"]
-            if not all([data.utils.build_subnet(i[0]) for i in neg_filters]):
-                return False, "negative input filters are not valid IP addresses or subnets."
+
+        if neg_filters_validated:
             if Counter([i[1] for i in neg_filters]) != Counter(strat["negative_filters"]):
                 return False, "Some negative input filters are not of a valid type, or not supplied with an invalid existing collection."
 
-        neg_pcap_valid = data.utils.check_file_exists(os.path.expanduser(run["neg_pcap"]))
-
-        if not (neg_pcap_valid or neg_collection_valid):
+        if not (neg_collection_valid or neg_reparsing_possible):
             return False, "Neither the supplied negative pcap file and filters, nor an existing negative collection is valid."
-
 
     return True, "The procedure is successfully validated."
 
@@ -208,10 +250,6 @@ def save_procedure(export_path, procedure, strategy_map):
 
     if not check_write_permission(os.path.dirname(export_path)):
         return False
-
-    for run in procedure:
-        if run["pt_collection"] != "" or run["neg_collection"] != "":
-            print("Note: some or all of your strategy runs configured in this procedure import existing collections from MongoDB, this saved procedure will thus not be portable between systems.")
 
     try:
         with open(export_path, 'w') as export_file:
@@ -266,7 +304,12 @@ def execute_procedure(procedure, strategy_map):
 
     mongo_reader = data.retrieve.Retriever()
     completed_instances = []
-    for run in procedure:
+    procedure_pt_filters = procedure["pt_filters"]
+    procedure_pt_pcap = procedure["pt_pcap"]
+    procedure_neg_filters = procedure["neg_filters"]
+    procedure_neg_pcap = procedure["neg_pcap"]
+
+    for run in procedure["runs"]:
         strat = strategy_map[run["strategy"]]
         strategy_module = getattr(strategy, strat["module"])
         strategy_object = getattr(strategy_module, strat["object"])
@@ -278,7 +321,7 @@ def execute_procedure(procedure, strategy_map):
             pt_filters = mongo_reader.get_input_filters()
             pt_use_collection = True
         else:
-            pt_filters = run["pt_filters"]
+            pt_filters = procedure_pt_filters
             pt_use_collection = False
 
         if use_negative:
@@ -286,7 +329,7 @@ def execute_procedure(procedure, strategy_map):
                 negative_filters = mongo_reader.get_input_filters()
                 negative_use_collection = True
             else:
-                negative_filters = run["neg_filters"]
+                negative_filters = procedure_neg_filters
                 negative_use_collection = False
 
         # Length and composition should have been validated in strategy map
@@ -308,14 +351,14 @@ def execute_procedure(procedure, strategy_map):
             pt_params = ["_", [], run["pt_collection"]]
         else:
             pt_filters_mapped = [tuple(i) for i in pt_filters_mapped] # Compability.
-            pt_params = [run["pt_pcap"], pt_filters_mapped, None]
+            pt_params = [os.path.expanduser(procedure_pt_pcap), pt_filters_mapped, None]
 
         if use_negative:
             if negative_use_collection:
                 neg_params = ["_", [], run["neg_collection"]]
             else:
                 negative_filters_mapped = [tuple(i) for i in negative_filters_mapped] # Compability.
-                neg_params = [run["neg_pcap"], negative_filters_mapped, None]
+                neg_params = [os.path.expanduser(procedure_neg_pcap), negative_filters_mapped, None]
         else:
             neg_params = [None, [], None]
 
@@ -329,7 +372,7 @@ def execute_procedure(procedure, strategy_map):
                                     negative_collection=neg_params[2])
             strategy_instance.run(**user_params)
         except Exception as e:
-            print(str(e))
+            print("Error: " + str(e))
             print("Exception was raised during the execution of this strategy, skipping...")
             continue
 
