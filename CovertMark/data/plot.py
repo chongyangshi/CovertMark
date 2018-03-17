@@ -1,3 +1,6 @@
+from data import utils
+
+import os
 import matplotlib.pyplot as plt
 import csv
 import numpy as np
@@ -6,14 +9,15 @@ from operator import itemgetter
 
 COLOURS = ['b', 'g', 'r', 'y']
 
-def plot_fprs(csvs_in, names, show=True, img_out=None, title=None):
+def plot_fprs(csvs_in, names, x_name, show=True, img_out=None, title=None):
     """
-    Given CSVs containing the occurrence thresholds, and FPR rates. Produce a
-    curve with errorbars containing these information.
+    Given CSVs containing the same x-axis property, and FPR rates. Produce
+    curves with errorbars containing these information.
     :param csvs_in: input CSVs, each must contain all information above in unique
         columns.
     :param names: list of strings giving legend of the lines plotted, must match
         the length of csvs_in.
+    :param x_name: the name of the shared x-axis property.
     :param show: if True, show the plot through a GUI interface.
     :param img_out: if set, output the plot to the path specified in this.
     :param title: if set, display the title as specified in string.
@@ -31,10 +35,10 @@ def plot_fprs(csvs_in, names, show=True, img_out=None, title=None):
         line_colour = COLOURS[n % len(COLOURS)] # Alternating colours.
         FPRs = defaultdict(list)
 
-        with open(csv_in, 'r') as csvfile:
+        with open(os.path.expanduser(csv_in), 'r') as csvfile:
             reader = csv.DictReader(csvfile, delimiter=",")
 
-            threshold_key = [k for k in reader.fieldnames if 'threshold' in k.lower()]
+            threshold_key = [k for k in reader.fieldnames if x_name.lower() in k.lower()]
             FPR_key = [k for k in reader.fieldnames if 'fpr' in k.lower()]
 
             if len(FPR_key) != 1 or len(threshold_key) != 1:
@@ -64,7 +68,9 @@ def plot_fprs(csvs_in, names, show=True, img_out=None, title=None):
     fpr_axis.legend()
 
     if img_out is not None:
-        plt.savefig(img_out, dpi=200)
+        out_path = utils.get_full_path(img_out)
+        if out_path:
+            plt.savefig(os.path.expanduser(out_path), dpi=200)
 
     if show:
         plt.show()
@@ -72,14 +78,15 @@ def plot_fprs(csvs_in, names, show=True, img_out=None, title=None):
     return True
 
 
-def plot_ips(csvs_in, names, show=True, img_out=None, title=None):
+def plot_ips(csvs_in, names, x_name, show=True, img_out=None, title=None):
     """
-    Given CSVs containing the occurrence thresholds, and IP block rates. Produce
-    a curve with errorbars containing these information.
+    Given CSVs containing the same x-axis property, and IP block rates. Produce
+    curves with errorbars containing these information.
     :param csvs_in: input CSVs, each must contain all information above in unique
         columns.
     :param names: list of strings giving legend of the lines plotted, must match
         the length of csvs_in.
+    :param x_name: the name of the shared x-axis property.
     :param show: if True, show the plot through a GUI interface.
     :param img_out: if set, output the plot to the path specified in this.
     :param title: if set, display the title as specified in string.
@@ -97,10 +104,10 @@ def plot_ips(csvs_in, names, show=True, img_out=None, title=None):
         line_colour = COLOURS[n % len(COLOURS)] # Alternating colours.
         IPs = defaultdict(list)
 
-        with open(csv_in, 'r') as csvfile:
+        with open(os.path.expanduser(csv_in), 'r') as csvfile:
             reader = csv.DictReader(csvfile, delimiter=",")
 
-            threshold_key = [k for k in reader.fieldnames if 'threshold' in k.lower()]
+            threshold_key = [k for k in reader.fieldnames if x_name.lower() in k.lower()]
             IP_key = [k for k in reader.fieldnames if 'ip' in k.lower()]
 
             if len(IP_key) != 1 or len(threshold_key) != 1:
@@ -130,7 +137,9 @@ def plot_ips(csvs_in, names, show=True, img_out=None, title=None):
     ip_axis.set_ylim(ymin=0)
     ip_axis.legend()
     if img_out is not None:
-        plt.savefig(img_out, dpi=200)
+        out_path = utils.get_full_path(img_out)
+        if out_path:
+            plt.savefig(os.path.expanduser(out_path), dpi=200)
 
     if show:
         plt.show()
@@ -138,14 +147,15 @@ def plot_ips(csvs_in, names, show=True, img_out=None, title=None):
     return True
 
 
-def plot_fnrs(csvs_in, names, show=True, img_out=None, title=None):
+def plot_fnrs(csvs_in, names, x_name, show=True, img_out=None, title=None):
     """
-    Given CSVs containing the occurrence thresholds, and false negative rates.
-    Produce scatterplot containing these information.
+    Given CSVs containing the same x-axis property, and false negative rates,
+    Produce a mixed scatterplot containing these information.
     :param csvs_in: input CSVs, each must contain all information above in unique
         columns.
     :param names: list of strings giving legend of the lines plotted, must match
         the length of csvs_in.
+    :param x_name: the name of the shared x-axis property.
     :param show: if True, show the plot through a GUI interface.
     :param img_out: if set, output the plot to the path specified in this.
     :param title: if set, display the title as specified in string.
@@ -164,10 +174,10 @@ def plot_fnrs(csvs_in, names, show=True, img_out=None, title=None):
         FNRs = []
         thresholds = []
 
-        with open(csv_in, 'r') as csvfile:
+        with open(os.path.expanduser(csv_in), 'r') as csvfile:
             reader = csv.DictReader(csvfile, delimiter=",")
 
-            threshold_key = [k for k in reader.fieldnames if 'threshold' in k.lower()]
+            threshold_key = [k for k in reader.fieldnames if x_name.lower() in k.lower()]
             FNR_key = [k for k in reader.fieldnames if 'fnr' in k.lower()]
 
             if len(FNR_key) != 1 or len(threshold_key) != 1:
@@ -191,7 +201,9 @@ def plot_fnrs(csvs_in, names, show=True, img_out=None, title=None):
     fnr_axis.set_ylim(ymin=0)
     fnr_axis.legend()
     if img_out is not None:
-        plt.savefig(img_out, dpi=200)
+        out_path = utils.get_full_path(img_out)
+        if out_path:
+            plt.savefig(os.path.expanduser(out_path), dpi=200)
 
     if show:
         plt.show()

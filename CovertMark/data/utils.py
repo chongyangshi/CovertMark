@@ -19,6 +19,24 @@ def check_file_exists(file_path):
         return False
 
 
+def get_full_path(file_path):
+    """
+    Given the path to a file, return the full path containing the file by
+    expanding any user prefixes. This does not require the target file to exist.
+    :param file_path: full or user-prefix path to file.
+    :returns: the path to the directory containing the specified file. None if
+        the directory does not exist.
+    """
+
+    directory = os.path.dirname(file_path)
+    full_dir = os.path.expanduser(directory)
+
+    if not os.path.isdir(full_dir):
+        return None
+
+    return os.path.join(full_dir, os.path.basename(file_path))
+
+
 def read_mongo_credentials():
     """
     Read and return mongo credentials stored in mongo-auth.json.
