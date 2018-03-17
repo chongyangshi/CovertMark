@@ -18,14 +18,14 @@ class EntropyStrategy(DetectionStrategy):
     NAME = "Entropy Distribution Strategy"
     DESCRIPTION = "Detecting high-entropy PTs based on payload byte-uniformity and entropy-distribution."
     _DEBUG_PREFIX = "Entropy"
-
-    BLOCK_SIZE = 8
+    RUN_CONFIG_DESCRIPTION = ["Block Size", "p-value Threshold"]
 
     # Three criteria possible: [conservative, majority voting, and sensitive].
     # Corresponding to [all, majority, any] when deciding whether to flag
     # a packet as likely high-entropy encrypted PT traffic.
     CRITERIA = ['conservative', 'majority', 'sensitive']
     P_THRESHOLDS = [0.05, 0.1, 0.15, 0.2]
+    BLOCK_SIZE = 8 # Default.
     BLOCK_SIZES = [4, 8, 16, 32, 64]
     CANDIDATES = 3
     FALSE_POSITIVE_SCORE_WEIGHT = 0.5

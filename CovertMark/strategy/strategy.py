@@ -20,6 +20,9 @@ class DetectionStrategy(ABC):
     NAME = "Default Strategy"
     DESCRIPTION = "A description of this strategy here."
     _DEBUG_PREFIX = "DefaultStrategy" # For prefixing debug messages only.
+    RUN_CONFIG_DESCRIPTION = [] # A list of strings representing the fixed format
+                                # of configuration for each run initiated in
+                                # self.positive_run and self._negative_run.
 
     def __init__(self, pt_pcap, negative_pcap=None, recall_pcap=None, debug=False):
         self.__debug_on = debug
@@ -321,6 +324,9 @@ class DetectionStrategy(ABC):
         if config is None:
             return False
 
+        if (isinstance(config, list) or isinstance(config, tuple)):
+            assert(len(config) == len(self.RUN_CONFIG_DESCRIPTION))
+
         time_start = default_timer()
         tpr = self.positive_run(**kwargs)
         duration = default_timer() - time_start
@@ -347,10 +353,16 @@ class DetectionStrategy(ABC):
         if not self._traces_loaded:
             self._load_into_memory()
 
+        if config is None:
+            return False
+
+        if (isinstance(config, list) or isinstance(config, tuple)):
+            assert(len(config) == len(self.RUN_CONFIG_DESCRIPTION))
+
         fpr = self.negative_run(**kwargs)
         self._false_positive_rate = fpr
-        self._register_performance_stats(config, FPR=fpr)
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
+        self._register_performance_stats(config, FPR=fpr, ip_block_rate=self._false_positive_blocked_rate)
 
         return self._false_positive_rate
 
@@ -371,7 +383,8 @@ class DetectionStrategy(ABC):
         return self._recall_rate
 
 
-    def _register_performance_stats(self, config, time=None, TPR=None, FPR=None):
+    def _register_performance_stats(self, config, time=None, TPR=None, FPR=None,
+     ip_block_rate=None):
         """
         Register timed performance metrics for each specific configuration.
         :param config: a consistently-styled index containing configurations such
@@ -382,10 +395,13 @@ class DetectionStrategy(ABC):
             record specified by config. Float between 0 and 1.
         :param FPR: if not None, update the false positive rate of the performance
             record specified by config. Float between 0 and 1.
+        :param ip_block_rate: if not None, update the rate of falsely blocked IPs
+            of the strategy execution specified by config. Float between 0 and 1.
         """
 
         if config not in self._time_statistics:
-            self._time_statistics[config] = {'time': None, 'TPR': 0, 'FPR': 1}
+            self._time_statistics[config] = {'time': None, 'TPR': 0, 'FPR': 1,
+             'block_rate': 1}
             # Assume worst case if they are not later amended.
 
         if isinstance(TPR, float) and 0 <= TPR <= 1:
@@ -396,6 +412,9 @@ class DetectionStrategy(ABC):
 
         if isinstance(time, float) and time >= 0:
             self._time_statistics[config]['time'] = time
+
+        if isinstance(ip_block_rate, float) and 0 <= ip_block_rate <= 1:
+            self._time_statistics[config]['block_rate'] = ip_block_rate
 
 
     def _score_performance_stats(self):
@@ -408,7 +427,7 @@ class DetectionStrategy(ABC):
 
         # Filter out records yielding unacceptable TPR or FPR values.
         acceptables = list(filter(lambda x: x[1]['TPR'] >= constants.TPR_BOUNDARY \
-         and x[1]['FPR'] <= constants.FPR_BOUNDARY and isinstance(x[1]['time'], float),
+         and x[1]['FPR'] <= constants.FPR_BOUNDARY and all([isinstance(i, float) for i in x[1]]),
          self._time_statistics.items()))
         acceptable_runs = [i[1] for i in acceptables]
         acceptable_configs = [i[0] for i in acceptables]
@@ -431,12 +450,16 @@ class DetectionStrategy(ABC):
         fpr_penalties = [log1p((max(0, i['FPR'] - constants.FPR_TARGET))*100) for i in acceptable_runs] # Hard target for FPR.
         time_penalties = [log1p((i - best_scaled_time)*100) for i in scaled_times]
 
+        # For IP falsely blocked rate, penalise from zero.
+        block_rate_penalties = [log1p(i['block_rate']*100) for i in acceptable_runs]
+
         # Calculate weighted penalties across all metrics.
         overall_penalties = []
         for i in range(len(tpr_penalties)):
             overall_penalties.append(tpr_penalties[i] * constants.PENALTY_WEIGHTS[0] + \
                                      fpr_penalties[i] * constants.PENALTY_WEIGHTS[1] + \
-                                     time_penalties[i] * constants.PENALTY_WEIGHTS[2])
+                                     time_penalties[i] * constants.PENALTY_WEIGHTS[2] + \
+                                     block_rate_penalties[i] * constants.PENALTY_WEIGHTS[3])
 
         # Now find out the minimum penalty required to reach the acceptable
         # TPR and FPR performance, and calculate the scores accordingly.
@@ -614,6 +637,36 @@ class DetectionStrategy(ABC):
         if self._neg_collection is not None:
             self.__neg_parser.clean_up(self._neg_collection)
 
+
+    def make_csv(self):
+        """
+        Return a CSV containing the performance metrics for each run (potentially)
+        with different config sets. Each element of the run config set will be
+        supplied in a separate column. This CSV can also be used for plotting in
+        data.plot.
+        :returns: csv providing all performance stats.
+        """
+
+        csv_str = ""
+        title = ""
+        for desp in self.RUN_CONFIG_DESCRIPTION:
+            title += desp + ","
+
+        time_stats_keys = sorted(constants.TIME_STATS_DESCRIPTIONS.keys())
+        for stat in time_stats_keys:
+            title += constants.TIME_STATS_DESCRIPTIONS[stat] + ","
+
+        title = title[:-1] + "\n" # Remove the trailing comma.
+        csv_str += title
+
+        for config in self._time_statistics:
+            for i in config:
+                csv_str += str(i) + ","
+            for stat in time_stats_keys:
+                csv_str += "{:0.3f},".format(self._time_statistics[config][stat])
+            csv_str = csv_str[:-1] + "\n" # Remove the trailing comma again.
+
+        return csv_str
 
     # ========================To be implemented below==========================#
 

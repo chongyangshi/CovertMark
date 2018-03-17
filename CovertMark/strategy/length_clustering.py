@@ -17,6 +17,7 @@ class LengthClusteringStrategy(DetectionStrategy):
     NAME = "Length Clustering Strategy"
     DESCRIPTION = "Detecting low-payload heartbeat messages."
     _DEBUG_PREFIX = "LenClustering"
+    RUN_CONFIG_DESCRIPTION = ["MeanShift bandwidth"]
 
     TLS_INCLUSION_THRESHOLD = 0.1
     MEANSHIFT_BWS = [1, 2, 3, 5, 10]
@@ -130,6 +131,7 @@ class LengthClusteringStrategy(DetectionStrategy):
             if len(trace['tcp_info']['payload']) in top_cluster:
                 top_falsely_identified += 1
                 self._strategic_states['blocked'][(bandwidth, 1)].add(trace['dst'])
+        blocked_one = self._strategic_states['blocked'][(bandwidth, 1)]
 
         top_two_clusters = self._strategic_states['top_two_clusters'][bandwidth]
         top_two_falsely_identified = 0
@@ -138,11 +140,13 @@ class LengthClusteringStrategy(DetectionStrategy):
             if len(trace['tcp_info']['payload']) in top_two_clusters:
                 top_two_falsely_identified += 1
                 self._strategic_states['blocked'][(bandwidth, 2)].add(trace['dst'])
+        blocked_two = self._strategic_states['blocked'][(bandwidth, 2)]
 
         # Unlike the positive case, we consider the false positive rate to be
         # over all traces, rather than just the ones were are interested in.
         self._strategic_states['FPR'][(bandwidth, 1)] = float(top_falsely_identified) / self._neg_collection_total
         self._strategic_states['FPR'][(bandwidth, 2)] = float(top_two_falsely_identified) / self._neg_collection_total
+        self._negative_blocked_ips = min([blocked_one, blocked_two], key=len)
 
         return min(self._strategic_states['FPR'][(bandwidth, 1)], self._strategic_states['FPR'][(bandwidth, 2)])
 
