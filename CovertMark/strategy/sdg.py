@@ -190,7 +190,8 @@ class SDGStrategy(DetectionStrategy):
         # fine.
         self._register_performance_stats(config=(threshold_pct, run_num),
                                    TPR=self._strategic_states[run_num]["TPR"],
-                                   FPR=self._strategic_states[run_num]["FPR"])
+                                   FPR=self._strategic_states[run_num]["FPR"],
+                                   ip_block_rate=self._strategic_states[run_num]["false_positive_blocked_rate"])
 
         return self._strategic_states[run_num]["TPR"]
 
@@ -399,9 +400,6 @@ class SDGStrategy(DetectionStrategy):
                 self.debug_print("Falsely blocked {} ({:0.2f}%) of IPs in validation.".format(\
                  len(self._strategic_states[i]["negative_blocked_ips"]),
                  self._strategic_states[i]["false_positive_blocked_rate"]*100))
-                self._register_performance_stats((threshold_pct, i),
-                 ip_block_rate=self._strategic_states[i]["false_positive_blocked_rate"])
-                 # Manual registration due to lack of self._run_on_negative calls.
 
             # As LR is relatively stable, we only need to pick the lowest FPR and
             # do not need to worry about too low a corresponding TPR.

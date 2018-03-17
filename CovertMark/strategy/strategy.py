@@ -361,7 +361,6 @@ class DetectionStrategy(ABC):
 
         fpr = self.negative_run(**kwargs)
         self._false_positive_rate = fpr
-        self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
         self._register_performance_stats(config, FPR=fpr, ip_block_rate=self._false_positive_blocked_rate)
 
         return self._false_positive_rate
@@ -404,16 +403,16 @@ class DetectionStrategy(ABC):
              'block_rate': 1}
             # Assume worst case if they are not later amended.
 
-        if isinstance(TPR, float) and 0 <= TPR <= 1:
+        if TPR is not None and 0 <= TPR <= 1:
             self._time_statistics[config]['TPR'] = TPR
 
-        if isinstance(FPR, float) and 0 <= FPR <= 1:
+        if FPR is not None and 0 <= FPR <= 1:
             self._time_statistics[config]['FPR'] = FPR
 
-        if isinstance(time, float) and time >= 0:
+        if time is not None and time >= 0:
             self._time_statistics[config]['time'] = time
 
-        if isinstance(ip_block_rate, float) and 0 <= ip_block_rate <= 1:
+        if ip_block_rate is not None and 0 <= ip_block_rate <= 1:
             self._time_statistics[config]['block_rate'] = ip_block_rate
 
 
@@ -427,8 +426,7 @@ class DetectionStrategy(ABC):
 
         # Filter out records yielding unacceptable TPR or FPR values.
         acceptables = list(filter(lambda x: x[1]['TPR'] >= constants.TPR_BOUNDARY \
-         and x[1]['FPR'] <= constants.FPR_BOUNDARY and all([isinstance(i, float) for i in x[1]]),
-         self._time_statistics.items()))
+         and x[1]['FPR'] <= constants.FPR_BOUNDARY and all(x[1]), self._time_statistics.items()))
         acceptable_runs = [i[1] for i in acceptables]
         acceptable_configs = [i[0] for i in acceptables]
 
@@ -663,7 +661,7 @@ class DetectionStrategy(ABC):
             for i in config:
                 csv_str += str(i) + ","
             for stat in time_stats_keys:
-                csv_str += "{:0.3f},".format(self._time_statistics[config][stat])
+                csv_str += "{:0.5f},".format(self._time_statistics[config][stat])
             csv_str = csv_str[:-1] + "\n" # Remove the trailing comma again.
 
         return csv_str

@@ -323,3 +323,4 @@ if __name__ == "__main__":
     print(detector.report_blocked_ips())
     score, best_config = detector._score_performance_stats()
     print("Score: {}, best config: {}.".format(score, detector.interpret_config(best_config)))
+    print(detector.make_csv())
