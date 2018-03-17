@@ -501,7 +501,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 
 def synchronise_traces(traces, target_time, sort=False):
     """
-    Synhronise the input traces by shifting the time of the first frame to align
+    Synchronise the input traces by shifting the time of the first frame to align
     with the target time provided.
     :param traces: input traces to be time shifted, should be chronologically
         ordered or set sort to True, otherwise results will be unexpected.
