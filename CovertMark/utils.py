@@ -297,9 +297,10 @@ def execute_procedure(procedure, strategy_map):
             assert(len(negative_filters) == len(strat["negative_filters"]))
 
         # Map the filters.
-        pt_filters_mapped = [[x[0], strategy.constants.FILTERS_REVERSE_MAP[x[1]]] for x in pt_filters]
-        if use_negative:
-            negative_filters_mapped = [[x[0], strategy.constants.FILTERS_REVERSE_MAP[x[1]]] for x in negative_filters]
+        if run_info["pt_filters_reverse"]:
+            pt_filters = [[x[0], strategy.constants.FILTERS_REVERSE_MAP[x[1]]] for x in pt_filters]
+        if use_negative and run_info["negative_filters_reverse"]:
+            negative_filters = [[x[0], strategy.constants.FILTERS_REVERSE_MAP[x[1]]] for x in negative_filters]
 
         print("Attempting to execute " + strategy_object.NAME + " for " + run_info["run_description"] + "...\n")
 
@@ -307,15 +308,15 @@ def execute_procedure(procedure, strategy_map):
         if pt_use_collection:
             pt_params = ["_", [], run["pt_collection"]]
         else:
-            pt_filters_mapped = [tuple(i) for i in pt_filters_mapped] # Compability.
-            pt_params = [run["pt_pcap"], pt_filters_mapped, None]
+            pt_filters = [tuple(i) for i in pt_filters] # Compability.
+            pt_params = [run["pt_pcap"], pt_filters, None]
 
         if use_negative:
             if negative_use_collection:
                 neg_params = ["_", [], run["neg_collection"]]
             else:
-                negative_filters_mapped = [tuple(i) for i in negative_filters_mapped] # Compability.
-                neg_params = [run["neg_pcap"], negative_filters_mapped, None]
+                negative_filters = [tuple(i) for i in negative_filters] # Compability.
+                neg_params = [run["neg_pcap"], negative_filters, None]
         else:
             neg_params = [None, [], None]
 
