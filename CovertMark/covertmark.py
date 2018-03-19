@@ -31,6 +31,8 @@ print(c.CM_LICENSE)
 print("A terminal of at least 3/4 screen width is recommended.")
 print(c.DIVIDER)
 
+available_runs, run_indices = utils.get_strategy_runs(strategy_map)
+
 load_existing = False
 if args.import_saved != "_":
     if data.utils.check_file_exists(args.import_saved):
@@ -47,6 +49,6 @@ if load_existing:
 else:
     # Collect runs of all strategies for the user to choose.
     print("The following runs of strategies are implemented and available: ")
-    print(utils.get_strategy_runs(strategy_map))
+    print(available_runs)
 
 # TODO: add interactive interface to manage collections, program procedures, and inspect results.

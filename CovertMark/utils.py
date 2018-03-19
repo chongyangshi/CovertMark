@@ -345,7 +345,9 @@ def get_strategy_runs(strategy_map):
     Return a pretty print tabulate for showing the user all available runs in
     all procedures.
     :param strategy_map: the strategy map to draw these information from.
-    :returns: a tabulate.tabulate object containing these information.
+    :returns: a tuple containing a tabulate.tabulate object containing these
+        information, and a list of tuples containing the strategy key and the
+        run order specified for each row.
     """
 
     available_runs = [] # (selection_id, strategy_name, run_description)
@@ -356,8 +358,29 @@ def get_strategy_runs(strategy_map):
         strategy_class = getattr(getattr(strategy, strat["module"]), strat["object"])
         strategy_name = strategy_class.NAME
         for run in strat["runs"]:
-            available_runs.append((selection_id, strategy_name, run["run_description"]))
+            available_runs.append((selection_id, width(strategy_name, 30),
+             width(run["run_description"], 30)))
             available_runs_indices.append((strategy_map_key, run["run_order"]))
             selection_id += 1
 
-    return tabulate(available_runs, available_runs_header, tablefmt="fancy_grid")
+    return tabulate(available_runs, available_runs_header, tablefmt="fancy_grid"), available_runs_indices
+
+
+def width(text, width):
+    """
+    Insert a new line character for each block of `width` characters into the
+    input text.
+    :param text: the input text for newlining.
+    :param width: a positive integer for dividing input with new lines.
+    :returns: the newlined text.
+    """
+
+    if not isinstance(width, int) or width < 1:
+        return text
+
+    if not isinstance(text, str):
+        return None
+
+    text_segments = [text[i:i+width] for i in range(0, len(text), width)]
+
+    return '\n'.join(text_segments)
