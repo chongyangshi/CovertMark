@@ -29,6 +29,7 @@ class CommandHandler:
 
         # Handler states.
         self._current_procedure = []
+        self._results = []
 
 
     def dispatch(self, command):
@@ -60,24 +61,8 @@ class CommandHandler:
     @Commands.register("List all available traces.")
     def traces(self):
         traces = self.__reader.list()
-        header = ('Description', 'Created', 'Stream Direction(s)', 'Packets')
-        output = []
-        for trace in traces:
-            description = utils.width(trace['description'], 30)
-            created = utils.width(trace['creation_time'], 10)
-            directions = ""
-            for f in trace["input_filters"]:
-                if f[1] == data.constants.IP_SRC:
-                    directions += "from    " + f[0] + '\n'
-                elif f[1] == data.constants.IP_DST:
-                    directions += "to      " + f[0] + '\n'
-                else:
-                    directions += "from/to " + f[0] + '\n'
-            size = trace['count']
-            output.append((description, created, directions, size))
-
-        print(tabulate(output, header, tablefmt="fancy_grid"))
-        print("IDs for selection will be available when programming a benchmark procedure.")
+        traces_tabulate, _ = utils.list_traces(traces)
+        print(traces_tabulate)
 
 
     @Commands.register("Load and execute an existing benchmark procedure in json.")
@@ -88,7 +73,43 @@ class CommandHandler:
             print(path + " does not seem to exist.")
         else:
             print("Procedure has been successfully loaded, executing...")
-            utils.execute_procedure(procedure, self._strategy_map)
+            results, new_procedure = utils.execute_procedure(procedure, self._strategy_map, db_sub=True)
+            if len(results) > 0:
+                replace = input("Do you wish to update PCAP and input filters with a local MongoDB copy? This will make the new procedure unportable [y/N]:")
+                if replace.lower() == 'y':
+                    self._current_procedure = new_procedure
+                    print("Procedure settings replaced, save the procedure to apply the changes.")
+                else:
+                    self._current_procedure = procedure
+                self._results.append(results)
+            else:
+                print("No strategy run has been successfully executed.")
 
 
-    
+    @Commands.register("Program a new benchmark procedure.")
+    def new(self):
+        # Store previous inputs to save the user's time.
+        previous_pt = []
+        previous_neg = []
+
+        print("Programming a new benchmark procedure.)
+        while True:
+            print("List of available strategy runs: ")
+            runs, indices = utils.get_strategy_runs(self._strategy_map)
+
+            while True:
+                next_run = input("Enter a Run ID to configure a run, or enter `end` to finish: ").strip()
+                if next_run == "end":
+                    break
+                try:
+                    next_run = int(next_run)
+                    if 0 <= next_run <= len(indices):
+                        break
+                except:
+                    print("Invalid Run ID.")
+
+            if next_run == "end":
+                break
+
+            run_strategy = indices[next_run][0]
+            run_strat_order = indices[next_run][1]

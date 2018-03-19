@@ -403,6 +403,37 @@ def get_strategy_runs(strategy_map):
     return tabulate(available_runs, available_runs_header, tablefmt="fancy_grid"), available_runs_indices
 
 
+def list_traces(traces):
+    """
+    Fetch stored traces in MongoDB for user selection.
+    :param traces: a list of (un)filtered traces from data.retrieve.Retriever.list().
+    :returns: tuple of a pretty-printable tabulate containing information of traces,
+        and a dictionary mapping displayed IDs to the internal collection name.
+    """
+
+    header = ('ID', 'Description', 'Created', 'Stream Direction(s)', 'Packets')
+    output = []
+    collections = {}
+    display_id = 0
+    for trace in traces:
+        description = width(trace['description'], 30)
+        created = width(trace['creation_time'], 10)
+        directions = ""
+        for f in trace["input_filters"]:
+            if f[1] == data.constants.IP_SRC:
+                directions += "from    " + f[0] + '\n'
+            elif f[1] == data.constants.IP_DST:
+                directions += "to      " + f[0] + '\n'
+            else:
+                directions += "from/to " + f[0] + '\n'
+        size = trace['count']
+        output.append((display_id, description, created, directions, size))
+        collections[display_id] = trace['name']
+        display_id += 1
+
+    return tabulate(output, header, tablefmt="fancy_grid"), collections
+
+
 def width(text, width):
     """
     Insert a new line character for each block of `width` characters into the
