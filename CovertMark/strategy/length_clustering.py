@@ -15,7 +15,7 @@ class LengthClusteringStrategy(DetectionStrategy):
     """
 
     NAME = "Length Clustering Strategy"
-    DESCRIPTION = "Detecting low-payload heartbeat messages."
+    DESCRIPTION = "Detecting low-payload heartbeat messages. TLS modes: only (TLS packets only), all (all packets), none (non-TLS packets only)."
     _DEBUG_PREFIX = "LenClustering"
     RUN_CONFIG_DESCRIPTION = ["MeanShift bandwidth"]
 
