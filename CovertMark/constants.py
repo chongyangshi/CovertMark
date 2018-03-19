@@ -21,9 +21,10 @@ PROCEDURE_RUN_FIELDS = ["strategy", "run_order", "user_params", "pt_pcap",
 
 # UI colours.
 class colours:
-    PURPLE = '\033[95m'
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
+    PURPLE = '\033[95m'
     RED = '\033[91m'
     GRAY = '\033[90m'
+    BGC = "\033[;7m"
     ENDC = '\033[0m'

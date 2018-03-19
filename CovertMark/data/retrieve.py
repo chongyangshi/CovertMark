@@ -1,7 +1,6 @@
 from data import utils, constants, mongo
 
 from base64 import b64decode
-from collections import Counter
 
 class Retriever:
 
@@ -26,7 +25,7 @@ class Retriever:
             qualified_traces = []
             for trace in traces:
                 filter_types = [i[1] for i in trace["input_filters"]]
-                if Counter(filter_types) == Counter(match_filters):
+                if set(filter_types) == set(match_filters):
                     qualified_traces.append(trace)
             traces = qualified_traces
 
