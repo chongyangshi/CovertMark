@@ -44,7 +44,7 @@ if load_existing:
         print(args.import_saved + " cannot be validated during import.")
         sys.exit(1)
     print("Executing imported procedure...\n")
-    current_results = utils.execute_procedure(procedure, strategy_map)
+    current_results, _ = utils.execute_procedure(procedure, strategy_map, db_sub=True)
 
 else:
     # Collect runs of all strategies for the user to choose.

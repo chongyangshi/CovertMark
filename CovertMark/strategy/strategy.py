@@ -635,6 +635,8 @@ class DetectionStrategy(ABC):
         if self._neg_collection is not None:
             self.__neg_parser.clean_up(self._neg_collection)
 
+        self._traces_parsed = False
+
 
     def make_csv(self):
         """
@@ -665,6 +667,23 @@ class DetectionStrategy(ABC):
             csv_str = csv_str[:-1] + "\n" # Remove the trailing comma again.
 
         return csv_str
+
+
+    def destroy_traces(self):
+        """
+        Erase imported positive, negative and recall traces (if any) from memory,
+        but preserving statistical states. This allows light-weight storage of the
+        strategy instance for further analysis. The strategy will no longer be
+        usable after this.
+        """
+
+        self._traces_parsed = False
+        self._pt_traces = []
+        self._pt_test_traces = []
+        self._pt_validation_traces = []
+        self._neg_traces = []
+        self._recall_traces = []
+
 
     # ========================To be implemented below==========================#
 

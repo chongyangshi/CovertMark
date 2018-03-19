@@ -250,22 +250,30 @@ def import_procedure(import_path, strategy_map):
     return procedure
 
 
-def execute_procedure(procedure, strategy_map):
+def execute_procedure(procedure, strategy_map, db_sub=False):
     """
     Execute a validated procedure and preserve their strategy states in order.
     :param procedure: a dict containing a CovertMark procedure.
     :param strategy_map: a strategy map validated by covertmark.py.
+    :param db_sub: subsitute PCAP and input filters specified in the procedure
+        with MongoDB-stored collection names, eliminating importing the same
+        pcap file with same filters.
     :returns: a list of tuples each containing a strategy instances executed
         based on runs specified in the procedure, and the run specification.
-        Returns empty list if execution fails.
+        Returns empty list if execution fails. If `db_sub` is set, the updated
+        procedure will also be returned as the second element of a tuple.
     """
 
     val, _ = validate_procedure(procedure, strategy_map)
     if not val:
-        return []
+        if db_sub:
+            return [], procedure
+        else:
+            return []
 
     mongo_reader = data.retrieve.Retriever()
     completed_instances = []
+    imported_pcaps = {}
     for run in procedure:
         strat = strategy_map[run["strategy"]]
         strategy_module = getattr(strategy, strat["module"])
@@ -279,7 +287,12 @@ def execute_procedure(procedure, strategy_map):
             pt_use_collection = True
         else:
             pt_filters = run["pt_filters"]
-            pt_use_collection = False
+            pt_key = format_pcap_filters(run["pt_pcap"], pt_filters, run_info["pt_filters_reverse"])
+            if db_sub and pt_key in imported_pcaps:
+                run["pt_collection"] = imported_pcaps[pt_key]
+                pt_use_collection = True
+            else:
+                pt_use_collection = False
 
         if use_negative:
             if mongo_reader.select(run["neg_collection"]):
@@ -288,6 +301,12 @@ def execute_procedure(procedure, strategy_map):
             else:
                 negative_filters = run["neg_filters"]
                 negative_use_collection = False
+                neg_key = format_pcap_filters(run["neg_pcap"], negative_filters, run_info["negative_filters_reverse"])
+                if db_sub and pt_key in imported_pcaps:
+                    run["neg_collection"] = imported_pcaps[neg_key]
+                    negative_use_collection = True
+                else:
+                    negative_use_collection = False
 
         # Composition of filters should have been validated in strategy map
         # reading, but for correctness asserted here.
@@ -329,6 +348,21 @@ def execute_procedure(procedure, strategy_map):
                                     pt_collection=pt_params[2],
                                     negative_collection=neg_params[2])
             strategy_instance.run(**user_params)
+
+            # Record collection imported for possible reuse.
+            if not pt_use_collection:
+                pt_key = format_pcap_filters(run["pt_pcap"], pt_filters, run_info["pt_filters_reverse"])
+                imported_pcaps[pt_key] = strategy_instance._pt_collection
+                if db_sub:
+                    run["pt_collection"] = strategy_instance._pt_collection
+            if use_negative and (not negative_use_collection):
+                neg_key = format_pcap_filters(run["neg_pcap"], negative_filters, run_info["negative_filters_reverse"])
+                imported_pcaps[neg_key] = strategy_instance._neg_collection
+                if db_sub:
+                    run["neg_collection"] = strategy_instance._neg_collection
+
+            # Light weight storage of states we actually need.
+            strategy_instance.destroy_traces()
         except Exception as e:
             print(str(e))
             print("Exception was raised during the execution of this strategy, skipping...")
@@ -337,7 +371,10 @@ def execute_procedure(procedure, strategy_map):
         print("Strategy run execution successful, saving the instance states.\n")
         completed_instances.append((strategy_instance, run))
 
-    return completed_instances
+    if db_sub:
+        return completed_instances, procedure
+    else:
+        return completed_instances
 
 
 def get_strategy_runs(strategy_map):
@@ -384,3 +421,28 @@ def width(text, width):
     text_segments = [text[i:i+width] for i in range(0, len(text), width)]
 
     return '\n'.join(text_segments)
+
+
+def format_pcap_filters(pcap_path, input_filters, reverse):
+    """
+    Format the pcap path and its associated input filters into a dict key with
+    consistent alphanumeric ordering for indexing same inputs to different
+    strategy runs. Assumes path and input filters passed are all valid.
+    :param pcap_path: the path to a pcap specified by a procedure run.
+    :param input_filters: the associated input filters in the procedure run.
+    :param reverse: whether the procedure run reversed the input filters from
+        its original direction, affecting PCAP importing.
+    :returns: a tuple containing the above information in a consistent ordering.
+    """
+
+    input_filters = sorted(input_filters, key=itemgetter(0, 1))
+    if reverse:
+        reversed_import = 1
+    else:
+        reversed_import = 0
+
+    key = (pcap_path, reversed_import)
+    for f in input_filters:
+        key += (tuple(f),)
+
+    return key
