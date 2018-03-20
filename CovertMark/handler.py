@@ -123,6 +123,7 @@ class CommandHandler:
             neg_filter_types = strat["negative_filters"]
 
             # See if we have matching traces already in the database.
+            print()
             print(c.colours.BGC + c.colours.RED + "Configuring positive (PT) traffic for this run." + c.colours.ENDC)
             pts_in_db = self.__reader.list(in_string=False, match_filters=pt_filter_types)
             trace_id = ""
@@ -130,7 +131,7 @@ class CommandHandler:
                 pts_in_db, collections = utils.list_traces(pts_in_db)
                 print("The following traces already in MongoDB can be used with this strategy run: ")
                 print(pts_in_db)
-                print(c.colours.BGC + c.colours.RED + "Check directions very carefully as the traces listed may have been imported for the opposite direction to this run, thus inappropriate to use." + c.colours.ENDC)
+                print(c.colours.BGC + c.colours.RED + "Check directions very carefully, as the traces listed may have been imported for the opposite direction to this run, thus inappropriate to use." + c.colours.ENDC)
                 print("If you choose to reuse an existing trace collection here, the procedure will not be portable between computers.")
                 trace_id = input("Enter a trace ID to select and reuse as PT traffic, or enter nothing to skip and use a new PCAP: ").strip()
 
@@ -155,9 +156,10 @@ class CommandHandler:
                         print("The PCAP path entered does not seem to exist.")
 
                 # Set input filters.
+                print("Collecting PT IP filters for importing the PCAP, please enter IPv4/IPv6 addresses or subnets separated by ',':")
                 if data.constants.IP_SRC in pt_filter_types:
                     while True:
-                        clients = input("Enter IP addresses or subnets for clients using PT, separated by ',': ").split(",")
+                        clients = input("Who are the PT clients: ").split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -168,7 +170,7 @@ class CommandHandler:
 
                 if data.constants.IP_EITHER in pt_filter_types:
                     while True:
-                        clients = input("Enter IP addresses or subnets for clients or servers using PT under observation interest, separated by ',': ").split(",")
+                        clients = input("Observe traffic in both directions passing through: ").split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -179,7 +181,7 @@ class CommandHandler:
 
                 if data.constants.IP_DST in pt_filter_types:
                     while True:
-                        clients = input("Enter IP addresses or subnets for servers hosting PT bridges, separated by ',': ").split(",")
+                        clients = input("Who are the PT bridge servers: ").split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -193,6 +195,7 @@ class CommandHandler:
                 run['pt_collection'] = collections[trace_id]
 
             # Now do the same for negative traffic.
+            print()
             print(c.colours.BGC + c.colours.GREEN + "Configuring negative (innocent) validation traffic for this run." + c.colours.ENDC)
             negs_in_db = self.__reader.list(in_string=False, match_filters=neg_filter_types)
             trace_id = ""
@@ -200,7 +203,7 @@ class CommandHandler:
                 negs_in_db, collections = utils.list_traces(negs_in_db)
                 print("The following traces already in MongoDB can be used with this strategy run: ")
                 print(negs_in_db)
-                print(c.colours.BGC + c.colours.GREEN + "Check directions very carefully as the traces listed may have been imported for the opposite direction to this run, thus inappropriate to use." + c.colours.ENDC)
+                print(c.colours.BGC + c.colours.GREEN + "Check directions very carefully, as the traces listed may have been imported for the opposite direction to this run, thus inappropriate to use." + c.colours.ENDC)
                 print("If you choose to reuse an existing trace collection here, the procedure will not be portable between computers.")
                 trace_id = input("Enter a trace ID to select and reuse as negative traffic, or enter nothing to skip and use a new PCAP: ").strip()
 
@@ -225,9 +228,10 @@ class CommandHandler:
                         print("The PCAP path entered does not seem to exist.")
 
                 # Set input filters.
+                print("Collecting negative IP filters for importing the PCAP, please enter IPv4/IPv6 addresses or subnets separated by ',':")
                 if data.constants.IP_SRC in neg_filter_types:
                     while True:
-                        clients = input("Enter IP addresses or subnets for innocent clients in the PCAP, separated by ',': ").split(",")
+                        clients = input("Who are the innocent clients under suspicion: ").split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -238,7 +242,7 @@ class CommandHandler:
 
                 if data.constants.IP_EITHER in neg_filter_types:
                     while True:
-                        clients = input("Enter IP addresses or subnets for innocent clients or servers under observation interest, separated by ',': ").split(",")
+                        clients = input("Observe traffic in both directions passing through: ").split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -249,7 +253,7 @@ class CommandHandler:
 
                 if data.constants.IP_DST in neg_filter_types:
                     while True:
-                        clients = input("Enter IP addresses or subnets for primary innocent servers in the PCAP, separated by ',': ").split(",")
+                        clients = input("Who are the innocent servers under suspicion: ").split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -278,4 +282,4 @@ class CommandHandler:
             print("Strategy run has been successfully added to the current procedure.")
 
         self._current_procedure = procedure
-        print(procedure)
+        print("Procedure successfully created.")
