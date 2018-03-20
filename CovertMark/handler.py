@@ -30,7 +30,8 @@ class CommandHandler:
 
         # Handler states.
         self._current_procedure = []
-        self._results = []
+        self._results = {}
+        self.__result_counter = 0
         self._imported_path = ""
 
 
@@ -336,7 +337,9 @@ class CommandHandler:
             if replace.lower() == 'y':
                 self._current_procedure = new_procedure
                 print("Procedure settings replaced, `save` the procedure to file to permanently apply the changes.")
-            self._results.append(results)
+            for result in results:
+                self._results[self.__result_counter] = [result[1]["strategy"], result[1]["run_order"], result[0]]
+                self.__result_counter += 1
         else:
             print("No strategy run has been successfully executed.")
 
@@ -366,3 +369,53 @@ class CommandHandler:
                 break
             else:
                 print("Unable to save current procedure due to invalid output path or a permissions issue.")
+
+
+    @Commands.register("List results from strategy runs in this session.")
+    def results(self):
+
+        if len(self._results) == 0:
+            print("There are no results yet, enter `execute` to run the current procedure for results.")
+            return
+
+        print(utils.printable_results(self._results, self._strategy_map))
+
+
+    @Commands.register("Clear the currently stored results.")
+    def delresults(self):
+
+        confirm = input("Are you sure you want to delete all results in this session? [y/N]:").strip()
+        if confirm.lower() == "y":
+            self._results = {}
+            print("Deletion successful.")
+        else:
+            print("Deletion abandoned.")
+
+
+    @Commands.register("Get the Wireshark display filters for a result.")
+    def wireshark(self):
+
+        if len(self._results) == 0:
+            print("There are no results yet, enter `execute` to run the current procedure for results.")
+            return
+
+        print("Available results:")
+        print(utils.printable_results(self._results, self._strategy_map))
+
+        while True:
+            try:
+                result = input("Enter result ID to view its falsely blocked IPs' Wireshark display filter (`end` to quit): ").strip()
+                if result == "end":
+                    break
+                else:
+                    result = int(result)
+                if result not in self._results:
+                    raise ValueError()
+            except:
+                print("Invalid result ID.")
+                continue
+
+            print(self._results[result][2].report_blocked_ips())
+            print()
+
+    

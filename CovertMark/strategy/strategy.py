@@ -77,7 +77,8 @@ class DetectionStrategy(ABC):
         # For scoring runs.
         # The top level dictionary is arbitrarily indexed to allow subsequent
         # amendments of records from the same run configuration.
-        # {'time': execution_time, 'TPR': True Positive Rate, 'FPR': False Positive Rate}
+        # {'time': execution_time, 'TPR': True Positive Rate, 'FPR': False Positive Rate,
+        # 'block_rate': False Positive IP Block Rate}
         # 'time' records the positive execution time, as negative validation is
         # normally not required during live DPI operations.
         self._time_statistics = {}

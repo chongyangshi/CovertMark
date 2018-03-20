@@ -486,6 +486,31 @@ def list_traces(traces):
     return tabulate(output, header, tablefmt="fancy_grid"), collections
 
 
+def printable_results(results, strategy_map):
+    """
+    Provide a pretty-print tabulate of results.
+    :param results: a dictionary of results from the handler indexed by a global
+        handler counter, containing strategy modules, run orders, and result
+        instances.
+    :param strategy_map: a validated CovertMark strategy map.
+    :returns: a tuple of a formatted tabulate of results.
+    """
+
+    headers = ("ID", "Strategy", "Run Description", "IPs", "Records")
+    lines = []
+    for c, result in results.items():
+        strat = strategy_map[result[0]]
+        run_info = [i for i in strat["runs"] if i["run_order"] == result[1]][0]
+        strategy_name = width(strat["object"], 15)
+        instance = result[2]
+        run_description = width(run_info["run_description"], 20)
+        ips = width(",".join([str(i) for i in instance._positive_subnets + instance._negative_subnets]), 25)
+        records = len(instance._time_statistics)
+        lines.append((c, strategy_name, run_description, ips, records))
+
+    return tabulate(lines, headers, tablefmt="fancy_grid")
+
+
 def width(text, width):
     """
     Insert a new line character for each block of `width` characters into the
