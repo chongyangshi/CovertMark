@@ -31,6 +31,7 @@ class CommandHandler:
         # Handler states.
         self._current_procedure = []
         self._results = []
+        self._imported_path = ""
 
 
     def dispatch(self, command):
@@ -81,6 +82,7 @@ class CommandHandler:
         else:
             self._current_procedure = procedure
             print("Procedure has been successfully loaded, enter `execute` to run it.")
+            self._imported_path = path
 
 
     @Commands.register("Program a new benchmark procedure to replace the current procedure.")
@@ -303,9 +305,34 @@ class CommandHandler:
             replace = input("Do you wish to update PCAP and input filters with a local MongoDB copy? This will make the new procedure unportable [y/N]:")
             if replace.lower() == 'y':
                 self._current_procedure = new_procedure
-                print("Procedure settings replaced, save the procedure to apply the changes.")
-            else:
-                self._current_procedure = procedure
+                print("Procedure settings replaced, `save` the procedure to file to permanently apply the changes.")
             self._results.append(results)
         else:
             print("No strategy run has been successfully executed.")
+
+
+    @Commands.register("Save the current procedure to file.")
+    def save(self):
+
+        if len(self._current_procedure) == 0 or not utils.validate_procedure(self._current_procedure, self._strategy_map):
+            print("There is no valid procedure loaded, enter `new` to create a new procedure.")
+            return
+
+        while True:
+            if self._imported_path != "":
+                path_prompt = "Enter the export path for the procedure [" + self._imported_path + "]: "
+            else:
+                path_prompt = "Enter the export path for the procedure (e.g. ~/Documents/covertmark.json): "
+            out_path = input(path_prompt).strip()
+
+            if out_path == "cancel":
+                break
+
+            if self._imported_path != "" and out_path == "":
+                out_path = self._imported_path
+
+            if utils.save_procedure(out_path, self._current_procedure, self._strategy_map):
+                print("Successfully saved current procedure to " + out_path + ".")
+                break
+            else:
+                print("Unable to save current procedure due to invalid output path or a permissions issue.")
