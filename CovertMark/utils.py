@@ -407,17 +407,20 @@ def printable_procedure(procedure, strategy_map):
         else:
             pt_input = "from MongoDB"
 
-        if run["neg_collection"] == "":
-            neg_input = width(run["neg_pcap"], 25) + "\n"
-            for f in run["neg_filters"]:
-                if f[1] == data.constants.IP_SRC:
-                    neg_input += "from    " + f[0] + '\n'
-                elif f[1] == data.constants.IP_DST:
-                    neg_input += "to      " + f[0] + '\n'
-                else:
-                    neg_input += "from/to " + f[0] + '\n'
+        if strategy_map[run["strategy"]]["negative_input"]:
+            if run["neg_collection"] == "":
+                neg_input = width(run["neg_pcap"], 25) + "\n"
+                for f in run["neg_filters"]:
+                    if f[1] == data.constants.IP_SRC:
+                        neg_input += "from    " + f[0] + '\n'
+                    elif f[1] == data.constants.IP_DST:
+                        neg_input += "to      " + f[0] + '\n'
+                    else:
+                        neg_input += "from/to " + f[0] + '\n'
+            else:
+                neg_input = "from MongoDB"
         else:
-            neg_input = "from MongoDB"
+            neg_input = "n/a"
 
         run_param = "\n".join([i[0] + ": " + str(i[1]) for i in run["user_params"]])
 
