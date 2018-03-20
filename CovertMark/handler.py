@@ -23,7 +23,7 @@ class CommandHandler:
     def __init__(self, strategy_map):
 
         # Access facilities.
-        self.__db = data.mongo.MongoClient()
+        self.__db = data.mongo.MongoDBManager()
         self.__reader = data.retrieve.Retriever()
         self._strategy_map = strategy_map
         self._collections = self.__reader.list()
@@ -71,6 +71,36 @@ class CommandHandler:
         traces = self.__reader.list()
         traces_tabulate, _ = utils.list_traces(traces)
         print(traces_tabulate)
+
+
+    @Commands.register("Select and delete traces.")
+    def delete(self):
+        traces = self.__reader.list()
+        traces_tabulate, names = utils.list_traces(traces)
+        print("The following traces are currently stored in MongoDB, which were imported during strategy runs.")
+        print("Deleting them will make procedures files referencing MongoDB collections only unusuable.")
+        print(traces_tabulate)
+        while True:
+            deletes = input("Enter a Trace ID or a list of IDs (separated by ',') for deletion, or `end` to finish: ").strip()
+            if deletes == "end":
+                break
+            deletes = [i.strip() for i in deletes.split(',')]
+
+            if all([i.isdigit() for i in deletes]):
+                deletes = [int(i) for i in deletes]
+            else:
+                print("Contains invalid IDs, not deleting.")
+                continue
+
+            if all([i in names for i in deletes]):
+                confirm = input("Are you sure to delete {} trace collections? [y/N]:".format(len(deletes)))
+                if confirm.lower() == 'y':
+                    for i in deletes:
+                        self.__db.delete_collection(names[i])
+                    print("Deletion successful.")
+                else:
+                    print("Deletion cancelled.")
+                break
 
 
     @Commands.register("Load and execute an existing benchmark procedure in json.")
