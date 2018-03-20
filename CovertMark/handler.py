@@ -114,6 +114,7 @@ class CommandHandler:
             # Strategy map should have already been validated during read.
             strat = self._strategy_map[indices[next_run][0]]
             run_info = [i for i in strat["runs"] if i["run_order"] == indices[next_run][1]][0]
+            use_negative = strat["negative_input"]
             print("Adding {} on {}.".format(strat["object"], run_info["run_description"]))
 
             run = {'strategy': indices[next_run][0], 'run_order': indices[next_run][1]}
@@ -199,7 +200,7 @@ class CommandHandler:
             print(c.colours.BGC + c.colours.GREEN + "Configuring negative (innocent) validation traffic for this run." + c.colours.ENDC)
             negs_in_db = self.__reader.list(in_string=False, match_filters=neg_filter_types)
             trace_id = ""
-            if len(negs_in_db) > 0:
+            if use_negative and len(negs_in_db) > 0:
                 negs_in_db, collections = utils.list_traces(negs_in_db)
                 print("The following traces already in MongoDB can be used with this strategy run: ")
                 print(negs_in_db)
@@ -216,7 +217,7 @@ class CommandHandler:
             run['neg_filters'] = []
             run['neg_collection'] = ""
             run["neg_pcap"] = ""
-            if not isinstance(trace_id, int) or trace_id not in collections:
+            if use_negative and (not isinstance(trace_id, int) or trace_id not in collections):
 
                 # Set PCAP.
                 while True:
@@ -263,7 +264,7 @@ class CommandHandler:
                             print("Some addresses or subnets entered are invalid.")
 
             # We can use an existing collection instead.
-            else:
+            elif use_negative:
                 run['neg_collection'] = collections[trace_id]
 
             run['user_params'] = []
