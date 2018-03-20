@@ -51,6 +51,12 @@ class CommandHandler:
         return True
 
 
+    @Commands.register("Exit this program.")
+    def exit(self):
+        # Handled by the calling module.
+        return
+
+
     @Commands.register("Display this help information.")
     def help(self):
         padding = len(max(Commands.cs, key=len)) + 1
@@ -71,23 +77,13 @@ class CommandHandler:
         path = input("Enter the path to the procedure json: ").strip()
         procedure = utils.import_procedure(path, self._strategy_map)
         if not procedure:
-            print(path + " does not seem to exist.")
+            print(path + " does not seem to exist or is invalid.")
         else:
-            print("Procedure has been successfully loaded, executing...")
-            results, new_procedure = utils.execute_procedure(procedure, self._strategy_map, db_sub=True)
-            if len(results) > 0:
-                replace = input("Do you wish to update PCAP and input filters with a local MongoDB copy? This will make the new procedure unportable [y/N]:")
-                if replace.lower() == 'y':
-                    self._current_procedure = new_procedure
-                    print("Procedure settings replaced, save the procedure to apply the changes.")
-                else:
-                    self._current_procedure = procedure
-                self._results.append(results)
-            else:
-                print("No strategy run has been successfully executed.")
+            self._current_procedure = procedure
+            print("Procedure has been successfully loaded, enter `execute` to run it.")
 
 
-    @Commands.register("Program a new benchmark procedure.")
+    @Commands.register("Program a new benchmark procedure to replace the current procedure.")
     def new(self):
 
         print("Programming a new benchmark procedure.")
@@ -282,5 +278,34 @@ class CommandHandler:
             procedure.append(run)
             print("Strategy run has been successfully added to the current procedure.")
 
-        self._current_procedure = procedure
-        print("Procedure successfully created.")
+        if len(procedure) > 0:
+            self._current_procedure = procedure
+            print("Procedure successfully created, enter `execute` to run it.")
+        else:
+            print("No strategy run has been programmed into the procedure, abandoning it.")
+
+
+    @Commands.register("Display the current procedure.")
+    def current(self):
+        print(utils.printable_procedure(self._current_procedure, self._strategy_map))
+
+
+    @Commands.register("Execute the current procedure.")
+    def execute(self):
+
+        if len(self._current_procedure) == 0 or not utils.validate_procedure(self._current_procedure, self._strategy_map):
+            print("There is no valid procedure loaded, enter `new` to create a new procedure.")
+            return
+
+        results, new_procedure = utils.execute_procedure(self._current_procedure, self._strategy_map, db_sub=True)
+        print("Execution of the current procedure is complete.")
+        if len(results) > 0:
+            replace = input("Do you wish to update PCAP and input filters with a local MongoDB copy? This will make the new procedure unportable [y/N]:")
+            if replace.lower() == 'y':
+                self._current_procedure = new_procedure
+                print("Procedure settings replaced, save the procedure to apply the changes.")
+            else:
+                self._current_procedure = procedure
+            self._results.append(results)
+        else:
+            print("No strategy run has been successfully executed.")

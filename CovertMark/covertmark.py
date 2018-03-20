@@ -5,7 +5,7 @@ import argparse
 
 import data, analytics, strategy
 import constants as c
-import utils
+import utils, handler
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--import-saved", help="Import a saved CovertMark benchmark procedure.", default="_")
@@ -52,3 +52,13 @@ else:
     print(available_runs)
 
 # TODO: add interactive interface to manage collections, program procedures, and inspect results.
+command_handler = handler.CommandHandler(strategy_map)
+print("\nCommands available:")
+command_handler.dispatch("help")
+while True:
+    command = input(c.CM_NAME + " >>> ").strip()
+    if command == "exit":
+        break
+    if not command_handler.dispatch(command):
+        print("Invalid command, enter `help` to get a description of possible commands.")
+    print()

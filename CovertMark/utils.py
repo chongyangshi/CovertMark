@@ -377,6 +377,54 @@ def execute_procedure(procedure, strategy_map, db_sub=False):
         return completed_instances
 
 
+def printable_procedure(procedure, strategy_map):
+    """
+    Provide a pretty-print tabulate of programmed strategy runs in the procedure.
+    :param procedure: an imported CovertMark procedure.
+    :param strategy_map: a strategy map validated by covertmark.py.
+    :returns: a tabulate object containing the formatted procedure.
+    """
+    if len(procedure) == 0:
+        return "The current procedure is empty."
+
+    headers = ("Strategy", "Run Description", "PT Input", "Negative Input", "Runtime Parameters")
+    runs = []
+    for run in procedure:
+        strategy_name = width(strategy_map[run["strategy"]]["object"], 15)
+        run_info = [i for i in strategy_map[run["strategy"]]["runs"] if i["run_order"] == run["run_order"]][0]
+        run_description = width(run_info["run_description"], 15)
+
+        if run["pt_collection"] == "":
+            pt_input = width(run["pt_pcap"], 25) + "\n"
+            for f in run["pt_filters"]:
+                if f[1] == data.constants.IP_SRC:
+                    pt_input += "from    " + f[0] + '\n'
+                elif f[1] == data.constants.IP_DST:
+                    pt_input += "to      " + f[0] + '\n'
+                else:
+                    pt_input += "from/to " + f[0] + '\n'
+        else:
+            pt_input = "from MongoDB"
+
+        if run["neg_collection"] == "":
+            neg_input = width(run["neg_pcap"], 25) + "\n"
+            for f in run["neg_filters"]:
+                if f[1] == data.constants.IP_SRC:
+                    neg_input += "from    " + f[0] + '\n'
+                elif f[1] == data.constants.IP_DST:
+                    neg_input += "to      " + f[0] + '\n'
+                else:
+                    neg_input += "from/to " + f[0] + '\n'
+        else:
+            neg_input = "from MongoDB"
+
+        run_param = "\n".join([i[0] + ": " + str(i[1]) for i in run["user_params"]])
+
+        runs.append((strategy_name, run_description, pt_input, neg_input, run_param))
+
+    return tabulate(runs, headers, tablefmt="fancy_grid")
+
+
 def get_strategy_runs(strategy_map):
     """
     Return a pretty print tabulate for showing the user all available runs in
