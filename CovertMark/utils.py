@@ -501,8 +501,8 @@ def printable_results(results, strategy_map):
     for c, result in results.items():
         strat = strategy_map[result[0]]
         run_info = [i for i in strat["runs"] if i["run_order"] == result[1]][0]
-        strategy_name = width(strat["object"], 15)
         instance = result[2]
+        strategy_name = width(instance.NAME, 15)
         run_description = width(run_info["run_description"], 20)
         ips = width(",".join([str(i) for i in instance._positive_subnets + instance._negative_subnets]), 25)
         records = len(instance._time_statistics)

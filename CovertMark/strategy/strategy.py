@@ -473,7 +473,7 @@ class DetectionStrategy(ABC):
 
         best_score = max(strategy_penalised_scores)
         best_config = acceptable_configs[strategy_penalised_scores.index(max(strategy_penalised_scores))]
-        self.debug_print("Best score: {:0.2f} under config: {}.".format(best_score, str(best_config)))
+        # self.debug_print("Best score: {:0.2f} under config: {}.".format(best_score, str(best_config)))
 
         return best_score, best_config
 

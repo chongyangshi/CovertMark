@@ -4,6 +4,7 @@ import utils
 
 import os, sys
 from tabulate import tabulate
+from operator import itemgetter
 
 
 class Commands:
@@ -418,4 +419,58 @@ class CommandHandler:
             print(self._results[result][2].report_blocked_ips())
             print()
 
-    
+
+    @Commands.register("Compute CovertMark scores for the current results.")
+    def score(self):
+
+        if len(self._results) == 0:
+            print("There are no results yet, enter `execute` to run the current procedure for results.")
+            return
+
+        print("Available results:")
+        print(utils.printable_results(self._results, self._strategy_map))
+        print("The overall score will assume that all these results are for the same PT protocol involved.")
+        print()
+
+        results = {}
+        for n, result in self._results.items():
+            score, config = result[2]._score_performance_stats()
+            results[n] = {}
+
+            if 0 <= score <= 100:
+                for r in c.RATINGS:
+                    if r[0] <= score < r[1]:
+                        attrs = c.RATINGS[r]
+                        results[n]["colour"] = attrs[0]
+                        results[n]["explanation"] = attrs[1]
+                        break
+
+                results[n]["score"] = round(score, 2)
+                results[n]["config"] = result[2].interpret_config(config)
+
+                results[n]["strategy_name"] = result[2].NAME
+                results[n]["run_description"] = [i for i in self._strategy_map[result[0]]["runs"] if i["run_order"] == result[1]][0]["run_description"]
+
+        results = sorted(results.items(), key=lambda x: x[1]["score"])
+        # The lower the score, the better the protocol. Therefore ascending.
+
+        print(c.CM_NAME + " Report:")
+        # Tabulate is funky with spaces when ANSI colour is involved, therefore not using.
+        for _, result in results:
+            print("-"*80)
+            print(result["colour"] + str(result["score"]) + c.colours.ENDC + " from " +\
+             result["strategy_name"] + " | " + result["run_description"])
+            print(c.colours.BOLD + result["explanation"] + c.colours.ENDC)
+            print("Best strategy configuration: " + result["config"])
+            print("-"*80)
+
+        overall_score = results[0][1]["score"]
+        overall_colour = results[0][1]["colour"]
+        overall_band = ""
+        for r in c.RATING_BANDS:
+            if r[0] <= score < r[1]:
+                overall_band = c.RATING_BANDS[r]
+                break
+
+        print("Overall rating: " + overall_colour + overall_band + c.colours.ENDC)
+        print("The overall rating is determined by the weakest performance among all benchmark strategies.")
