@@ -5,6 +5,8 @@ import random, string
 from operator import itemgetter
 from collections import Counter
 from tabulate import tabulate
+from datetime import date
+import hashlib
 
 import data, strategy
 import constants
@@ -554,3 +556,44 @@ def format_pcap_filters(pcap_path, input_filters, reverse):
         key += (tuple(f),)
 
     return key
+
+
+def random_file_name(prefix, extension):
+    """
+    Generate a random file name with fixed prefixes to be relatively collision-free.
+    :param prefix: the fixed portion of the file name.
+    :param extension: the filename extension of the file without dot.
+    :returns: a valid UNIX file name containing the prefix and 8 random hexdigest
+        characters.
+    """
+
+    today = date.today().strftime("%Y%m%d")
+
+    return prefix + "_" + today + "_" + hashlib.sha1(os.urandom(8)).hexdigest()[:8] + "." + extension
+
+
+def save_file(content, path):
+    """
+    Save string-formatted content to the file specified.
+    :param content: string-formatted content to be written.
+    :param path: a fully qualified path for the content to be written to.
+    :returns: True if successfully written, False otherwise.
+    """
+
+    if not isinstance(content, str):
+        return False
+
+    # Check the export path is valid and writable.
+    export_path = os.path.expanduser(path.strip())
+    if data.utils.check_file_exists(export_path):
+        return False
+
+    if not check_write_permission(os.path.dirname(export_path)):
+        return False
+
+    try:
+        with open(export_path, 'w') as export_file:
+            export_file.write(content)
+        return True
+    except:
+        return False

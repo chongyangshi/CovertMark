@@ -489,3 +489,33 @@ class CommandHandler:
 
         print("Overall rating: " + overall_colour + overall_band + c.colours.ENDC)
         print("The overall rating is determined by its weakest performance among all benchmark strategies.")
+
+
+    @Commands.register("Generate and export full CSVs of results.")
+    def csv(self):
+
+        if len(self._results) == 0:
+            print("There are no results yet, enter `execute` to run the current procedure for results.")
+            return
+
+        default_path = "~/Documents/"
+        out_path = input("Enter the directory for CSVs to be saved to [" + default_path + "]: ").strip()
+        if out_path == "":
+            out_path = default_path
+
+        if not os.path.isdir(os.path.expanduser(out_path)):
+            print("Invalid path.")
+            return
+
+        writes = {}
+        for _, result in self._results.items():
+            path = os.path.join(out_path, utils.random_file_name(result[0] + "_" + str(result[1]), "csv"))
+            writes[path] = result[2].make_csv()
+
+        written = [utils.save_file(writes[i], i) for i in writes]
+        if all(written):
+            print("All CSVs have been successfully written to " + out_path + ".")
+        elif any(written):
+            print("Some CSVs have been successfully written to " + out_path + ", but others failed.")
+        elif not any(written):
+            print("Could not write the CSVs to " + out_path + ", check for strategy execution errors and permissions.")
