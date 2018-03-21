@@ -626,6 +626,11 @@ class CommandHandler:
             names = [csv_names[i] for i in relevant_results]
             out_file = os.path.join(out_path, utils.random_file_name(plot_attr[0] + "_" + plot_attr[1], "png"))
             out_file = out_file.replace(" ", "_")
+            default_title = plot_attr[1]
+            print("Plotting {} against {}...".format(plot_attr[1], plot_attr[0]))
+            title = input("Give this plot a title [{}]: ".format(plot_attr[1])).strip()
+            if title == "":
+                title = default_title
             data.plot.plot_performance(relevant_csvs, names, plot_attr[0], plot_attr[1],
-             show=False, img_out=out_file, title=plot_attr[1])
+             show=False, img_out=out_file, title=title)
             print("Saving " + out_file + "...")
