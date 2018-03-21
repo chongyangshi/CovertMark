@@ -31,9 +31,9 @@ class colours:
     ENDC = '\033[0m'
 
 RATINGS = {
-    (0, 75.0): (colours.GREEN, " This strategy is not very effective in identifying this obfuscation protocol."),
-    (75.0, 90.0): (colours.PURPLE, " This strategy is reasonably effective in identifying this obfuscation protocol, and can be deployed by a state censor with some difficulties."),
-    (90.0, 100.0): (colours.RED, " This strategy is very effective in identifying this obfuscation protocol, and can be easily deployed by a state censor.")
+    (0, 75.0): (colours.GREEN, "This strategy is not very effective in identifying this obfuscation protocol."),
+    (75.0, 90.0): (colours.PURPLE, "This strategy is reasonably effective in identifying this obfuscation protocol, and can be deployed by a state censor with some difficulties."),
+    (90.0, 100.0): (colours.RED, "This strategy is very effective in identifying this obfuscation protocol, and can be easily deployed by a state censor.")
 }
 
 RATING_BANDS = {

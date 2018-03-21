@@ -455,7 +455,7 @@ class CommandHandler:
         # The lower the score, the better the protocol. Therefore ascending.
 
         print(c.CM_NAME + " Report:")
-        # Tabulate is funky with spaces when ANSI colour is involved, therefore not using.
+        # Tabulate is funky with spaces when ANSI colour is involved, therefore not used.
         for _, result in results:
             print("-"*80)
             print(result["colour"] + str(result["score"]) + c.colours.ENDC + " from " +\
@@ -473,4 +473,4 @@ class CommandHandler:
                 break
 
         print("Overall rating: " + overall_colour + overall_band + c.colours.ENDC)
-        print("The overall rating is determined by the weakest performance among all benchmark strategies.")
+        print("The overall rating is determined by its weakest performance among all benchmark strategies.")
