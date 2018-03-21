@@ -160,7 +160,11 @@ class CommandHandler:
 
             # Get filter information.
             pt_filter_types = strat["pt_filters"]
+            if run_info["pt_filters_reverse"]:
+                pt_filter_types = [strategy.constants.FILTERS_REVERSE_MAP[i] for i in pt_filter_types]
             neg_filter_types = strat["negative_filters"]
+            if run_info["negative_filters_reverse"]:
+                neg_filter_types = [strategy.constants.FILTERS_REVERSE_MAP[i] for i in neg_filter_types]
 
             # See if we have matching traces already in the database.
             print()
@@ -607,6 +611,7 @@ class CommandHandler:
             relevant_results = attributes[plot_attr[0]]
             relevant_csvs = [csvs[i] for i in relevant_results]
             out_file = os.path.join(out_path, utils.random_file_name(plot_attr[0] + "_" + plot_attr[1], "png"))
+            out_file = out_file.replace(" ", "_")
             data.plot.plot_performance(relevant_csvs, ["unnamed" for i in relevant_csvs], plot_attr[0], plot_attr[1],
              show=False, img_out=out_file, title=plot_attr[1])
             print("Saving " + out_file + "...")
