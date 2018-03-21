@@ -473,6 +473,7 @@ def list_traces(traces):
         description = width(trace['description'], 30)
         created = width(trace['creation_time'], 10)
         directions = ""
+        trace_filters = sorted(trace["input_filters"], key=itemgetter(1))
         for f in trace["input_filters"]:
             if f[1] == data.constants.IP_SRC:
                 directions += "from    " + f[0] + '\n'
