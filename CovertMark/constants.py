@@ -17,7 +17,8 @@ CM_TITLE = """\
 DIVIDER = "-" * 40
 
 PROCEDURE_RUN_FIELDS = ["strategy", "run_order", "user_params", "pt_pcap",
- "pt_filters", "pt_collection", "neg_pcap", "neg_filters", "neg_collection"]
+ "pt_filters", "pt_collection", "neg_pcap", "neg_filters", "neg_collection",
+ "user_defined_name"]
 
 # UI colours.
 class colours:

@@ -325,6 +325,7 @@ def execute_procedure(procedure, strategy_map, db_sub=False):
             negative_filters = [[x[0], strategy.constants.FILTERS_REVERSE_MAP[x[1]]] for x in negative_filters]
 
         print("Attempting to execute " + strategy_object.NAME + " for " + run_info["run_description"] + "...\n")
+        print("User defined name: " + run["user_defined_name"] + ".")
 
         # Construct the parameters if applicable (PCAP path, input filters, existing collection)
         if pt_use_collection:
@@ -390,12 +391,11 @@ def printable_procedure(procedure, strategy_map):
     if len(procedure) == 0:
         return "The current procedure is empty."
 
-    headers = ("Strategy", "Run Description", "PT Input", "Negative Input", "Runtime Parameters")
+    headers = ("Strategy", "Name", "PT Input", "Negative Input", "Runtime Parameters")
     runs = []
     for run in procedure:
         strategy_name = width(strategy_map[run["strategy"]]["object"], 15)
-        run_info = [i for i in strategy_map[run["strategy"]]["runs"] if i["run_order"] == run["run_order"]][0]
-        run_description = width(run_info["run_description"], 15)
+        run_name = width(run["user_defined_name"], 15)
 
         if run["pt_collection"] == "":
             pt_input = width(run["pt_pcap"], 25) + "\n"
@@ -426,7 +426,7 @@ def printable_procedure(procedure, strategy_map):
 
         run_param = "\n".join([i[0] + ": " + str(i[1]) for i in run["user_params"]])
 
-        runs.append((strategy_name, run_description, pt_input, neg_input, run_param))
+        runs.append((strategy_name, run_name, pt_input, neg_input, run_param))
 
     return tabulate(runs, headers, tablefmt="fancy_grid")
 
@@ -502,13 +502,12 @@ def printable_results(results, strategy_map):
     lines = []
     for c, result in results.items():
         strat = strategy_map[result[0]]
-        run_info = [i for i in strat["runs"] if i["run_order"] == result[1]][0]
         instance = result[2]
         strategy_name = width(instance.NAME, 15)
-        run_description = width(run_info["run_description"], 20)
+        run_name = width(result[3], 20)
         ips = width(",".join([str(i) for i in instance._positive_subnets + instance._negative_subnets]), 25)
         records = len(instance._time_statistics)
-        lines.append((c, strategy_name, run_description, ips, records))
+        lines.append((c, strategy_name, run_name, ips, records))
 
     return tabulate(lines, headers, tablefmt="fancy_grid")
 

@@ -322,6 +322,13 @@ class CommandHandler:
                         except:
                             print("The value entered is invalid.")
 
+            # Ask user for a name.
+            user_defined_name = input("Add a custom name to this run for easy identification: ").strip()
+            if user_defined_name == "":
+                user_defined_name = "{} on {}".format(strat["object"], run_info["run_description"])
+                print("Defaulting name to {}.".format(user_defined_name))
+            run["user_defined_name"] = user_defined_name
+
             procedure.append(run)
             print("Strategy run has been successfully added to the current procedure.")
 
@@ -361,7 +368,11 @@ class CommandHandler:
                     self._current_procedure = new_procedure
                     print("Procedure settings replaced, `save` the procedure to file to permanently apply the changes.")
             for result in results:
-                self._results[self.__result_counter] = [result[1]["strategy"], result[1]["run_order"], result[0]]
+                # Indexed by a global counter, each contains strategy module,
+                # run order of the strategy, the instance spawn, and the run's
+                # user defined name.
+                self._results[self.__result_counter] = [result[1]["strategy"],
+                 result[1]["run_order"], result[0], result[1]["user_defined_name"]]
                 self.__result_counter += 1
         else:
             print("No strategy run has been successfully executed.")
@@ -472,6 +483,7 @@ class CommandHandler:
 
                 results[n]["strategy_name"] = result[2].NAME
                 results[n]["run_description"] = [i for i in self._strategy_map[result[0]]["runs"] if i["run_order"] == result[1]][0]["run_description"]
+                results[n]["run_name"] = result[3]
 
         results = sorted(results.items(), key=lambda x: x[1]["score"])
         # The lower the score, the better the protocol. Therefore ascending.
@@ -481,7 +493,7 @@ class CommandHandler:
         for _, result in results:
             print("-"*80)
             print(result["colour"] + str(result["score"]) + c.colours.ENDC + " from " +\
-             result["strategy_name"] + " | " + result["run_description"])
+             result["strategy_name"] + " | " + result["run_name"])
             print(c.colours.BOLD + result["explanation"] + c.colours.ENDC)
             print("Best strategy configuration: " + result["config"])
             print("-"*80)
@@ -546,6 +558,7 @@ class CommandHandler:
         os.makedirs(temp_dir)
         csvs = {i: utils.save_csvs({i: self._results[i]}, temp_dir)[0] for i in self._results}
         csv_headers = {i: self._results[i][2].make_csv().splitlines()[0] for i in self._results}
+        csv_names = {i: self._results[i][3] for i in self._results}
 
         # Extract the attributes available for plotting.
         y_keys = list(strategy.constants.TIME_STATS_DESCRIPTIONS.keys())
@@ -610,8 +623,9 @@ class CommandHandler:
         for plot_attr in plot_attrs:
             relevant_results = attributes[plot_attr[0]]
             relevant_csvs = [csvs[i] for i in relevant_results]
+            names = [csv_names[i] for i in relevant_results]
             out_file = os.path.join(out_path, utils.random_file_name(plot_attr[0] + "_" + plot_attr[1], "png"))
             out_file = out_file.replace(" ", "_")
-            data.plot.plot_performance(relevant_csvs, ["unnamed" for i in relevant_csvs], plot_attr[0], plot_attr[1],
+            data.plot.plot_performance(relevant_csvs, names, plot_attr[0], plot_attr[1],
              show=False, img_out=out_file, title=plot_attr[1])
             print("Saving " + out_file + "...")
