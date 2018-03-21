@@ -190,6 +190,8 @@ class EntropyStrategy(DetectionStrategy):
             self._strategic_states['blocked_ips'][(block_size, p_threshold, i)] = blocked_ips[i]
             false_positives_rates.append(float(identified[i]) / self._neg_collection_total)
 
+        self._false_positive_blocked_rate = float(len(min(blocked_ips, key=len))) / self._negative_unique_ips
+
         return min(false_positives_rates)
 
 

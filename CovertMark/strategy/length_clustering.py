@@ -147,6 +147,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         self._strategic_states['FPR'][(bandwidth, 1)] = float(top_falsely_identified) / self._neg_collection_total
         self._strategic_states['FPR'][(bandwidth, 2)] = float(top_two_falsely_identified) / self._neg_collection_total
         self._negative_blocked_ips = min([blocked_one, blocked_two], key=len)
+        self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
 
         return min(self._strategic_states['FPR'][(bandwidth, 1)], self._strategic_states['FPR'][(bandwidth, 2)])
 
