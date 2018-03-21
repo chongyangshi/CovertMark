@@ -644,7 +644,8 @@ class DetectionStrategy(ABC):
         Return a CSV containing the performance metrics for each run (potentially)
         with different config sets. Each element of the run config set will be
         supplied in a separate column. This CSV can also be used for plotting in
-        data.plot.
+        data.plot. For the ease of plotting very small values, values entered
+        into the CSV will be converted into percentages.
         :returns: csv providing all performance stats.
         """
 
@@ -664,7 +665,10 @@ class DetectionStrategy(ABC):
             for i in config:
                 csv_str += str(i) + ","
             for stat in time_stats_keys:
-                csv_str += "{:0.5f},".format(self._time_statistics[config][stat])
+                if constants.TIME_STATS_IS_FRACTION[stat]:
+                    csv_str += "{:0.5f},".format(self._time_statistics[config][stat]*100)
+                else:
+                    csv_str += "{:0.5f},".format(self._time_statistics[config][stat])
             csv_str = csv_str[:-1] + "\n" # Remove the trailing comma again.
 
         return csv_str

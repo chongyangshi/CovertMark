@@ -7,10 +7,16 @@ PENALTY_WEIGHTS = (0.25, 0.4, 0.25, 0.1) # Penalisation weight between TPR, FPR,
 assert(sum(PENALTY_WEIGHTS) == 1)
 
 TIME_STATS_DESCRIPTIONS = {
-    "TPR": "True Positive Rate",
-    "FPR": "False Positive Rate",
-    "time": "Positive Run Execution Time(s)",
-    "block_rate": "Block Rate of False Positive Remote IPs"
+    "TPR": "True Positive Rate (%)",
+    "FPR": "False Positive Rate (%)",
+    "time": "Positive Run Execution Time (s)",
+    "block_rate": "Block Rate of False Positive Remote IPs (%)"
+}
+TIME_STATS_IS_FRACTION = {
+    "TPR": True,
+    "FPR": True,
+    "time": False,
+    "block_rate": True
 }
 
 JSON_FILTERS = {
