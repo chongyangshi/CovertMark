@@ -597,3 +597,24 @@ def save_file(content, path):
         return True
     except:
         return False
+
+
+def save_csvs(results, out_path):
+    """
+    Save CSVs to a qualified path.
+    :param results: a standard CovertMark results dictionary.
+    :param out_path: a valid directory to export the CSVs.
+    :return: a list of successfully written CSV full paths.
+    """
+
+    writes = {}
+    for _, result in results.items():
+        path = os.path.join(out_path, random_file_name(result[0] + "_" + str(result[1]), "csv"))
+        writes[path] = result[2].make_csv()
+
+    successful_paths = []
+    for i in writes:
+        if save_file(writes[i], i):
+            successful_paths.append(i)
+
+    return successful_paths

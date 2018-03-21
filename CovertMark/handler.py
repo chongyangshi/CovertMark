@@ -5,6 +5,9 @@ import utils
 import os, sys
 from tabulate import tabulate
 from operator import itemgetter
+from tempfile import gettempdir
+from collections import defaultdict
+from itertools import product
 
 
 class Commands:
@@ -507,15 +510,103 @@ class CommandHandler:
             print("Invalid path.")
             return
 
-        writes = {}
-        for _, result in self._results.items():
-            path = os.path.join(out_path, utils.random_file_name(result[0] + "_" + str(result[1]), "csv"))
-            writes[path] = result[2].make_csv()
+        written = utils.save_csvs(self._results, out_path)
 
-        written = [utils.save_file(writes[i], i) for i in writes]
-        if all(written):
+        if len(written) == len(self._results):
             print("All CSVs have been successfully written to " + out_path + ".")
-        elif any(written):
+        elif len(written) < len(self._results) and len(written) > 0:
             print("Some CSVs have been successfully written to " + out_path + ", but others failed.")
-        elif not any(written):
+        else:
             print("Could not write the CSVs to " + out_path + ", check for strategy execution errors and permissions.")
+
+
+    @Commands.register("Select and plot data from results.")
+    def plot(self):
+
+        if len(self._results) == 0:
+            print("There are no results yet, enter `execute` to run the current procedure for results.")
+            return
+
+        # Get destination of the plots first.
+        default_path = "~/Documents/"
+        out_path = input("Enter the directory for plots to be saved to [" + default_path + "]: ").strip()
+        if out_path == "":
+            out_path = default_path
+
+        if not os.path.isdir(os.path.expanduser(out_path)):
+            print("Invalid path.")
+            return
+
+        # Save the CSVs to a temporary location by saving single CSVs.
+        temp_dir = os.path.join(gettempdir(), utils.random_file_name(c.CM_NAME, "csvs"))
+        os.makedirs(temp_dir)
+        csvs = {i: utils.save_csvs({i: self._results[i]}, temp_dir)[0] for i in self._results}
+        csv_headers = {i: self._results[i][2].make_csv().splitlines()[0] for i in self._results}
+
+        # Extract the attributes available for plotting.
+        y_keys = list(strategy.constants.TIME_STATS_DESCRIPTIONS.keys())
+        y_values = list(strategy.constants.TIME_STATS_DESCRIPTIONS.values())
+        attributes = defaultdict(list)
+        for i, header in csv_headers.items():
+            attrs = [x.strip() for x in header.split(",")]
+            for attr in attrs:
+                if attr not in y_values:
+                    attributes[attr].append(i)
+
+        # Display the selection table.
+        headers = ("ID", "Attribute", "Results From")
+        contents = []
+        attr_id = 0
+        attr_id_to_attr = {}
+        for attr, in_results in attributes.items():
+            attribute_name = utils.width(attr, 25)
+            results_names = utils.width(",".join(list(set([self._results[i][2].NAME for i in in_results]))), 30)
+            contents.append((attr_id, attribute_name, results_names))
+            attr_id_to_attr[attr_id] = attr
+            attr_id += 1
+
+        print("The following attributes are available on the x-axis of the plot:")
+        print(tabulate(contents, headers, tablefmt="fancy_grid"))
+
+        while True:
+            x_attrs = input("Select a list of x-axis attribute IDs for plotting, separated by ',': ").strip()
+            try:
+                x_attrs = [int(i.strip()) for i in x_attrs.split(",")]
+                if len(x_attrs) < 1:
+                    raise ValueError()
+                for x_attr in x_attrs:
+                    if x_attr < 0 or x_attr >= attr_id:
+                        raise ValueError()
+                break
+            except:
+                print("Invalid attribute ID(s) were entered.")
+        x_attrs_selected = [attr_id_to_attr[i] for i in x_attrs]
+
+        print("The following attributes are available on the y-axis of the plot:")
+        print(tabulate([(i, y_keys[i], y_values[i]) for i, _ in enumerate(y_keys)],
+         ("ID", "Attribute Key", "Attribute Text"), tablefmt="fancy_grid"))
+        y_id_to_y = {i: y_values[i] for i, _ in enumerate(y_keys)}
+        # All strategies should have these information available after execution.
+
+        while True:
+            y_attrs = input("Select a list of y-axis attribute IDs for plotting, separated by ',': ").strip()
+            try:
+                y_attrs = [int(i.strip()) for i in y_attrs.split(",")]
+                if len(y_attrs) < 1:
+                    raise ValueError()
+                for y_attr in y_attrs:
+                    if y_attr < 0 or y_attr >= len(y_keys):
+                        raise ValueError()
+                break
+            except:
+                print("An invalid attribute ID was entered.")
+        y_attrs_selected = [y_id_to_y[i] for i in y_attrs]
+
+        plot_attrs = product(x_attrs_selected, y_attrs_selected)
+        for plot_attr in plot_attrs:
+            relevant_results = attributes[plot_attr[0]]
+            relevant_csvs = [csvs[i] for i in relevant_results]
+            out_file = os.path.join(out_path, utils.random_file_name(plot_attr[0] + "_" + plot_attr[1], "png"))
+            data.plot.plot_performance(relevant_csvs, ["unnamed" for i in relevant_csvs], plot_attr[0], plot_attr[1],
+             show=False, img_out=out_file, title=plot_attr[1])
+            print("Saving " + out_file + "...")
