@@ -161,15 +161,19 @@ class CommandHandler:
             # Get filter information.
             pt_filter_types = strat["pt_filters"]
             if run_info["pt_filters_reverse"]:
-                pt_filter_types = [strategy.constants.FILTERS_REVERSE_MAP[i] for i in pt_filter_types]
+                search_pt_filter_types = [strategy.constants.FILTERS_REVERSE_MAP[i] for i in pt_filter_types]
+            else:
+                search_pt_filter_types = pt_filter_types
             neg_filter_types = strat["negative_filters"]
             if run_info["negative_filters_reverse"]:
-                neg_filter_types = [strategy.constants.FILTERS_REVERSE_MAP[i] for i in neg_filter_types]
+                search_neg_filter_types = [strategy.constants.FILTERS_REVERSE_MAP[i] for i in neg_filter_types]
+            else:
+                search_neg_filter_types = neg_filter_types
 
             # See if we have matching traces already in the database.
             print()
             print(c.colours.BGC + c.colours.RED + "Configuring positive (PT) traffic for this run." + c.colours.ENDC)
-            pts_in_db = self.__reader.list(in_string=False, match_filters=pt_filter_types)
+            pts_in_db = self.__reader.list(in_string=False, match_filters=search_pt_filter_types)
             trace_id = ""
             if len(pts_in_db) > 0:
                 pts_in_db, collections = utils.list_traces(pts_in_db)
@@ -241,7 +245,7 @@ class CommandHandler:
             # Now do the same for negative traffic.
             print()
             print(c.colours.BGC + c.colours.GREEN + "Configuring negative (innocent) validation traffic for this run." + c.colours.ENDC)
-            negs_in_db = self.__reader.list(in_string=False, match_filters=neg_filter_types)
+            negs_in_db = self.__reader.list(in_string=False, match_filters=search_neg_filter_types)
             trace_id = ""
             if use_negative and len(negs_in_db) > 0:
                 negs_in_db, collections = utils.list_traces(negs_in_db)
@@ -398,7 +402,7 @@ class CommandHandler:
             if self._imported_path != "" and out_path == "":
                 out_path = self._imported_path
 
-            if utils.save_procedure(out_path, self._current_procedure, self._strategy_map):
+            if utils.save_procedure(out_path, self._current_procedure, self._strategy_map, overwrite=True):
                 print("Successfully saved current procedure to " + out_path + ".")
                 break
             else:

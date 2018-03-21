@@ -396,10 +396,15 @@ def printable_procedure(procedure, strategy_map):
     for run in procedure:
         strategy_name = width(strategy_map[run["strategy"]]["object"], 15)
         run_name = width(run["user_defined_name"], 15)
+        run_info = [i for i in strategy_map[run["strategy"]]["runs"] if i["run_order"] == run["run_order"]][0]
 
         if run["pt_collection"] == "":
             pt_input = width(run["pt_pcap"], 25) + "\n"
-            for f in run["pt_filters"]:
+            fs = run["pt_filters"]
+            if run_info["pt_filters_reverse"]:
+                fs = [[f[0], strategy.constants.FILTERS_REVERSE_MAP[f[1]]] for f in fs]
+            fs = sorted(fs, key=itemgetter(1))
+            for f in fs:
                 if f[1] == data.constants.IP_SRC:
                     pt_input += "from    " + f[0] + '\n'
                 elif f[1] == data.constants.IP_DST:
@@ -412,7 +417,11 @@ def printable_procedure(procedure, strategy_map):
         if strategy_map[run["strategy"]]["negative_input"]:
             if run["neg_collection"] == "":
                 neg_input = width(run["neg_pcap"], 25) + "\n"
-                for f in run["neg_filters"]:
+                fs = run["neg_filters"]
+                if run_info["negative_filters_reverse"]:
+                    fs = [[f[0], strategy.constants.FILTERS_REVERSE_MAP[f[1]]] for f in fs]
+                fs = sorted(fs, key=itemgetter(1))
+                for f in fs:
                     if f[1] == data.constants.IP_SRC:
                         neg_input += "from    " + f[0] + '\n'
                     elif f[1] == data.constants.IP_DST:
