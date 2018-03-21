@@ -38,16 +38,22 @@ class CommandHandler:
 
     def dispatch(self, command):
         """
-        Dispatch a user command to the correct method.
+        Dispatch a user command or a sequence of commands to the correct methods.
         :param command: a top-level command matching the name of a handler method,
-            with parameter gathering handled by the handler method itself.
+            with parameter gathering handled by the handler method itself. This
+            can also be a sequence of commands separated by ";".
         :returns: False if the command does not map to a handler method, True
             if otherwise handler successfully executed.
         """
 
         command = command.strip()
         if command not in Commands.cs:
-            return False
+            command_seq = [i.strip() for i in command.split(";")]
+            if all([i in Commands.cs for i in command_seq]):
+                for cmd in command_seq:
+                    Commands.cs[cmd](self)
+            else:
+                return False
         else:
             Commands.cs[command](self)
 
@@ -334,10 +340,19 @@ class CommandHandler:
         results, new_procedure = utils.execute_procedure(self._current_procedure, self._strategy_map, db_sub=True)
         print("Execution of the current procedure is complete.")
         if len(results) > 0:
-            replace = input("Do you wish to update PCAP and input filters with a local MongoDB copy? This will make the new procedure unportable [y/N]:")
-            if replace.lower() == 'y':
-                self._current_procedure = new_procedure
-                print("Procedure settings replaced, `save` the procedure to file to permanently apply the changes.")
+            # Check if there were any non-collection inputs.
+            original_procedure_has_explicit_inputs = False
+            for run in self._current_procedure:
+                if run["pt_collection"] == "" or run["neg_collection"] == "":
+                    original_procedure_has_explicit_inputs = True
+                    break
+
+            # If so, ask the user whether they want to replace it.
+            if original_procedure_has_explicit_inputs:
+                replace = input("Do you wish to use the MongoDB copy/copies instead of the PCAP(s) from now on? This will make the new procedure faster but unportable [y/N]:")
+                if replace.lower() == 'y':
+                    self._current_procedure = new_procedure
+                    print("Procedure settings replaced, `save` the procedure to file to permanently apply the changes.")
             for result in results:
                 self._results[self.__result_counter] = [result[1]["strategy"], result[1]["run_order"], result[0]]
                 self.__result_counter += 1

@@ -51,7 +51,6 @@ else:
     print("The following runs of strategies are implemented and available: ")
     print(available_runs)
 
-# TODO: add interactive interface to manage collections, program procedures, and inspect results.
 command_handler = handler.CommandHandler(strategy_map)
 print("\nCommands available:")
 command_handler.dispatch("help")
@@ -60,5 +59,5 @@ while True:
     if command == "exit":
         break
     if not command_handler.dispatch(command):
-        print("Invalid command, enter `help` to get a description of possible commands.")
+        print("Invalid command, enter `help` to get descriptions of available commands.")
     print()
