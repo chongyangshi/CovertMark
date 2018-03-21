@@ -498,8 +498,8 @@ class CommandHandler:
             print("Best strategy configuration: " + result["config"])
             print("-"*80)
 
-        overall_score = results[0][1]["score"]
-        overall_colour = results[0][1]["colour"]
+        overall_score = results[-1][1]["score"]
+        overall_colour = results[-1][1]["colour"]
         overall_band = ""
         for r in c.RATING_BANDS:
             if r[0] <= score < r[1]:
