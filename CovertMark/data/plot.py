@@ -1,6 +1,8 @@
 from data import utils
 
 import os
+import matplotlib as mpl
+mpl.use('Agg') # Fix non-TK dependency issue.
 import matplotlib.pyplot as plt
 import csv
 import numpy as np
