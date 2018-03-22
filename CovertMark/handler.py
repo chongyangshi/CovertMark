@@ -506,7 +506,7 @@ class CommandHandler:
         overall_colour = results[-1][1]["colour"]
         overall_band = ""
         for r in c.RATING_BANDS:
-            if r[0] <= score < r[1]:
+            if r[0] <= overall_score < r[1]:
                 overall_band = c.RATING_BANDS[r]
                 break
 
