@@ -52,7 +52,7 @@ def plot_performance(csvs_in, names, x_name, y_name, show=True, img_out=None,
             y_key = y_key[0]
 
             for row in reader:
-                y_content[int(row[x_key])].append(float(row[y_key]))
+                y_content[float(row[x_key])].append(float(row[y_key]))
 
         if len(y_content) < 1:
             return False
