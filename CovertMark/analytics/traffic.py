@@ -24,7 +24,9 @@ def ordered_tcp_payload_length_frequency(traces, tls_only=False, bandwidth=3):
     :param bandwidth: the maximum distance within clusters, i.e. max difference
         between payload lengths.
     :returns: a list of sets containing clustered values ordered from most
-        frequent to least.
+        frequent to least. Packets with TCP payload lengths close to a likely
+        MTU limit are not included in clustering to prevent bias against commonly
+        seen non-Large Segment Offload traces captured on devices.
     """
 
     # Collect the lengths.
@@ -33,6 +35,8 @@ def ordered_tcp_payload_length_frequency(traces, tls_only=False, bandwidth=3):
         if trace['tcp_info'] is None:
             continue
         elif tls_only and trace['tls_info'] is None:
+            continue
+        elif len(trace['tcp_info']['payload']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD:
             continue
         else:
             lengths.append(len(trace['tcp_info']['payload']))
