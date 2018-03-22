@@ -110,6 +110,8 @@ class LengthClusteringStrategy(DetectionStrategy):
 
         self._strategic_states['TPR'][(bandwidth, 1)] = top_cluster_identified / len(self._pt_traces)
         self._strategic_states['TPR'][(bandwidth, 2)] = top_two_clusters_identified / len(self._pt_traces)
+        self.debug_print("TCP payload lengths in the top cluster: {}.".format(', '.join(list(top_cluster))))
+        self.debug_print("TCP payload lengths in top clusters: {}.".format(', '.join(list(top_two_clusters))))
 
         return max(self._strategic_states['TPR'][(bandwidth, 1)], self._strategic_states['TPR'][(bandwidth, 2)])
 
