@@ -455,10 +455,10 @@ if __name__ == "__main__":
     neg_path = os.path.join(parent_path, 'examples', 'local', argv[4])
     recall_path = os.path.join(parent_path, 'examples', 'local', argv[7])
     detector = SDGStrategy(pt_path, neg_path, recall_pcap=recall_path, debug=True)
-    detector.setup(pt_ip_filters=[(argv[2], data.constants.IP_EITHER)],
-     negative_ip_filters=[(argv[5], data.constants.IP_EITHER)],
+    detector.setup(pt_ip_filters=[(i, data.constants.IP_EITHER) for i in argv[2].split(",")],
+     negative_ip_filters=[(i, data.constants.IP_EITHER) for i in argv[5].split(",")],
      pt_collection=argv[3], negative_collection=argv[6], test_recall=True,
-     recall_ip_filters=[(argv[8], data.constants.IP_EITHER)],
+     recall_ip_filters=[(i, data.constants.IP_EITHER) for i in argv[8].split(",")],
      recall_collection=argv[9])
     detector.run(window_size=int(argv[10]), test_recall=True)
     print(detector.make_csv())
