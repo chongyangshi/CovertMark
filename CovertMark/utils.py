@@ -305,7 +305,7 @@ def execute_procedure(procedure, strategy_map, db_sub=False):
                 negative_filters = run["neg_filters"]
                 negative_use_collection = False
                 neg_key = format_pcap_filters(run["neg_pcap"], negative_filters, run_info["negative_filters_reverse"])
-                if db_sub and pt_key in imported_pcaps:
+                if db_sub and neg_key in imported_pcaps:
                     run["neg_collection"] = imported_pcaps[neg_key]
                     negative_use_collection = True
                 else:
@@ -483,7 +483,7 @@ def list_traces(traces):
         created = width(trace['creation_time'], 10)
         directions = ""
         trace_filters = sorted(trace["input_filters"], key=itemgetter(1))
-        for f in trace["input_filters"]:
+        for f in trace_filters:
             if f[1] == data.constants.IP_SRC:
                 directions += "from    " + f[0] + '\n'
             elif f[1] == data.constants.IP_DST:
