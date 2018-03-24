@@ -594,12 +594,15 @@ class DetectionStrategy(ABC):
     def load(self):
         """
         Load parsed or stored traces from their collections.
-        Call this method when it is ready to load traces from memory.
+        Call this method when it is ready to load traces from memory. Call this
+        method again after calling :py:meth:set_strategic_filter to set a new
+        strategic filter, as after traces need to be reloaded based on the new
+        filter.
         """
 
-        self.debug_print("- Setting initial strategic filter...")
+        self.debug_print("- Setting strategic filter...")
         self.set_strategic_filter()
-        self.debug_print("Pre-examination filter: {}".format(self._strategic_packet_filter))
+        self.debug_print("Strategy filter on traces from MongoDB: {}".format(self._strategic_packet_filter))
 
         self.debug_print("- Loading packets according to the initial strategic filter...")
         self._load_into_memory()
