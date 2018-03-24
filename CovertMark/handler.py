@@ -129,6 +129,9 @@ class CommandHandler:
     @Commands.register("Program a new benchmark procedure to replace the current procedure.")
     def new(self):
 
+        previous_inputs = defaultdict(str)
+        # Time saving when setting up multiple strategies for a new pcap.
+
         print("Programming a new benchmark procedure.")
         procedure = []
         while True:
@@ -196,7 +199,11 @@ class CommandHandler:
 
                 # Set PCAP.
                 while True:
-                    pt_pcap = input("Enter the path to the PCAP file containing PT traffic: ").strip()
+                    pt_pcap = input("Enter the path to the PCAP file containing PT traffic [" + previous_inputs["pt_pcap"] +"]: ").strip()
+                    if pt_pcap == "":
+                        pt_pcap = previous_inputs["pt_pcap"]
+                    else:
+                        previous_inputs["pt_pcap"] = pt_pcap
                     if data.utils.check_file_exists(os.path.expanduser(pt_pcap)):
                         run["pt_pcap"] = pt_pcap
                         break
@@ -207,7 +214,12 @@ class CommandHandler:
                 print("Collecting PT IP filters for importing the PCAP, please enter IPv4/IPv6 addresses or subnets separated by ',':")
                 if data.constants.IP_SRC in pt_filter_types:
                     while True:
-                        clients = input("Who are the PT clients: ").split(",")
+                        clients = input("Who are the PT clients [" + previous_inputs["pt_clients"] +"]: ").strip()
+                        if clients == "":
+                            clients = previous_inputs["pt_clients"].split(",")
+                        else:
+                            previous_inputs["pt_clients"] = clients
+                            clients = clients.split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -218,7 +230,12 @@ class CommandHandler:
 
                 if data.constants.IP_EITHER in pt_filter_types:
                     while True:
-                        clients = input("Observe traffic in both directions passing through: ").split(",")
+                        clients = input("Observe traffic in both directions passing through [" + previous_inputs["pt_either"] + "]: ").strip()
+                        if clients == "":
+                            clients = previous_inputs["pt_either"].split(",")
+                        else:
+                            previous_inputs["pt_either"] = clients
+                            clients = clients.split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -229,10 +246,15 @@ class CommandHandler:
 
                 if data.constants.IP_DST in pt_filter_types:
                     while True:
-                        clients = input("Who are the PT bridge servers: ").split(",")
-                        clients = [i.strip() for i in clients]
-                        if all([data.utils.build_subnet(i) for i in clients]):
-                            for i in clients:
+                        servers = input("Who are the PT bridge servers [" + previous_inputs["pt_servers"] + "]: ").strip()
+                        if servers == "":
+                            servers = previous_inputs["pt_servers"].split(",")
+                        else:
+                            previous_inputs["pt_servers"] = servers
+                            servers = servers.split(",")
+                        servers = [i.strip() for i in servers]
+                        if all([data.utils.build_subnet(i) for i in servers]):
+                            for i in servers:
                                 run['pt_filters'].append([i, data.constants.IP_DST])
                             break
                         else:
@@ -268,7 +290,11 @@ class CommandHandler:
 
                 # Set PCAP.
                 while True:
-                    neg_pcap = input("Enter the path to the PCAP file containing negative traffic: ").strip()
+                    neg_pcap = input("Enter the path to the PCAP file containing negative traffic [" + previous_inputs["neg_pcap"] + "]: ").strip()
+                    if neg_pcap == "":
+                        neg_pcap = previous_inputs["neg_pcap"]
+                    else:
+                        previous_inputs["neg_pcap"] = neg_pcap
                     if data.utils.check_file_exists(os.path.expanduser(neg_pcap)):
                         run["neg_pcap"] = neg_pcap
                         break
@@ -279,7 +305,12 @@ class CommandHandler:
                 print("Collecting negative IP filters for importing the PCAP, please enter IPv4/IPv6 addresses or subnets separated by ',':")
                 if data.constants.IP_SRC in neg_filter_types:
                     while True:
-                        clients = input("Who are the innocent clients under suspicion: ").split(",")
+                        clients = input("Who are the innocent clients under suspicion [" + previous_inputs["neg_clients"] + "]: ").strip()
+                        if clients == "":
+                            clients = previous_inputs["neg_clients"].split(",")
+                        else:
+                            previous_inputs["neg_clients"] = clients
+                            clients = clients.split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -290,7 +321,12 @@ class CommandHandler:
 
                 if data.constants.IP_EITHER in neg_filter_types:
                     while True:
-                        clients = input("Observe traffic in both directions passing through: ").split(",")
+                        clients = input("Observe traffic in both directions passing through [" + previous_inputs["neg_either"] + "]: ").strip()
+                        if clients == "":
+                            clients = previous_inputs["neg_either"].split(",")
+                        else:
+                            previous_inputs["neg_either"] = clients
+                            clients = clients.split(",")
                         clients = [i.strip() for i in clients]
                         if all([data.utils.build_subnet(i) for i in clients]):
                             for i in clients:
@@ -301,10 +337,15 @@ class CommandHandler:
 
                 if data.constants.IP_DST in neg_filter_types:
                     while True:
-                        clients = input("Who are the innocent servers under suspicion: ").split(",")
-                        clients = [i.strip() for i in clients]
-                        if all([data.utils.build_subnet(i) for i in clients]):
-                            for i in clients:
+                        servers = input("Who are the innocent servers under suspicion [" + previous_inputs["neg_servers"] + "]: ").strip()
+                        if servers == "":
+                            servers = previous_inputs["neg_servers"].split(",")
+                        else:
+                            previous_inputs["neg_servers"] = servers
+                            servers = servers.split(",")
+                        servers = [i.strip() for i in servers]
+                        if all([data.utils.build_subnet(i) for i in servers]):
+                            for i in servers:
                                 run['neg_filters'].append([i, data.constants.IP_DST])
                             break
                         else:
@@ -630,7 +671,7 @@ class CommandHandler:
             names = [csv_names[i] for i in relevant_results]
             out_file = os.path.join(out_path, utils.random_file_name(plot_attr[0] + "_" + plot_attr[1], "png"))
             out_file = out_file.replace(" ", "_")
-            default_title = plot_attr[1]
+            default_title = plot_attr[1] + " by " + plot_attr[0]
             print("Plotting {} against {}...".format(plot_attr[1], plot_attr[0]))
             title = input("Give this plot a title [{}]: ".format(plot_attr[1])).strip()
             if title == "":
