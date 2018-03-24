@@ -17,10 +17,11 @@ class LengthClusteringStrategy(DetectionStrategy):
     NAME = "Length Clustering Strategy"
     DESCRIPTION = "Detecting low-payload heartbeat messages. TLS modes: only (TLS packets only), all (all packets), none (non-TLS packets only)."
     _DEBUG_PREFIX = "LenClustering"
-    RUN_CONFIG_DESCRIPTION = ["MeanShift bandwidth"]
+    RUN_CONFIG_DESCRIPTION = ["MeanShift bandwidth", "Using top N clusters"]
 
     TLS_INCLUSION_THRESHOLD = 0.1
     MEANSHIFT_BWS = [1, 2, 3, 5, 10]
+    USE_TOP_CLUSTERS = [1, 2]
     MINIMUM_TPR = 0.40
     # While this method does not require high TPR, a minimum threshold needs to
     # be maintained to ensure fitness.
@@ -33,8 +34,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         super().__init__(pt_pcap, negative_pcap, debug=debug)
         self._strategic_states['TPR'] = {}
         self._strategic_states['FPR'] = {}
-        self._strategic_states['top_cluster'] = {}
-        self._strategic_states['top_two_clusters'] = {}
+        self._strategic_states['top_clusters'] = {}
         self._strategic_states['blocked'] = {}
         self._tls_mode = self.TLS_MODES[0]
 
@@ -56,7 +56,10 @@ class LengthClusteringStrategy(DetectionStrategy):
         Bandwidth is used to distinguish length clustering runs.
         """
         if config_set is not None:
-            return "TCP payload length clustering at MeanShift bandwidth {}.".format(config_set[0])
+            interpretation = "TCP payload length clustering at MeanShift bandwidth {} with top {} cluster(s). ".format(config_set[0], config_set[1])
+            best_clusters = [str(i) for i in self._strategic_states['top_clusters'][config_set]]
+            interpretation += "This cluster contain the following TCP payload lengths: {}.".format(', '.join(best_clusters))
+            return interpretation
         else:
             return ""
 
@@ -64,13 +67,18 @@ class LengthClusteringStrategy(DetectionStrategy):
     def config_specific_penalisation(self, config_set):
         """
         The smaller the cluster bandwidth, the easier it is to perform live
-        TCP payload length-based interceptions. Therefore 5% of penalty for
-        every 1 byte of cluster bandwidth beyond the minimum.
+        TCP payload length-based interceptions. Therefore 2.5% of penalty for
+        every 1 extra byte value in the cluster beyond the minimum cluster size
+        used across the board.
         """
 
-        if isinstance(config_set, tuple) and isinstance(config_set[0], int) and \
-         min(self.MEANSHIFT_BWS) <= config_set[0] <= max(self.MEANSHIFT_BWS):
-            return 0.05 * (config_set[0] - min(self.MEANSHIFT_BWS))
+        if config_set not in self._strategic_states['top_clusters']:
+            return 0
+
+        best_cluster = self._strategic_states['top_clusters'][config_set]
+        min_cluster_size = len(min(self._strategic_states['top_clusters'].values(), key=len))
+
+        return 0.025 * min(0, len(best_cluster) - min_cluster_size)
 
 
     def test_validation_split(self, split_ratio):
@@ -89,31 +97,31 @@ class LengthClusteringStrategy(DetectionStrategy):
         """
 
         bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
+        clusters = 1 if 'clusters' not in kwargs else kwargs['clusters']
 
         if self._tls_mode == "only":
             most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, True, bandwidth)
         else:
             most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, False, bandwidth)
-        top_cluster = most_frequent[0]
-        top_two_clusters = top_cluster.union(most_frequent[1])
-        top_cluster_identified = 0
-        top_two_clusters_identified = 0
+
+        top_clusters = most_frequent[0]
+        for i in range(1, clusters):
+            top_clusters = top_clusters.union(most_frequent[i])
+
+        identified = 0
         for trace in self._pt_traces:
-            if len(trace['tcp_info']['payload']) in top_cluster:
-                top_cluster_identified += 1
-                if len(trace['tcp_info']['payload']) in top_two_clusters:
-                    top_two_clusters_identified += 1
+            if len(trace['tcp_info']['payload']) in top_clusters:
+                identified += 1
 
         # Pass the cluster to the negative run.
-        self._strategic_states['top_cluster'][bandwidth] = top_cluster
-        self._strategic_states['top_two_clusters'][bandwidth] = top_two_clusters
+        self._strategic_states['top_clusters'][(bandwidth, clusters)] = top_clusters
 
-        self._strategic_states['TPR'][(bandwidth, 1)] = top_cluster_identified / len(self._pt_traces)
-        self._strategic_states['TPR'][(bandwidth, 2)] = top_two_clusters_identified / len(self._pt_traces)
-        self.debug_print("TCP payload lengths in the top cluster: {}.".format(', '.join([str(i) for i in list(top_cluster)])))
-        self.debug_print("TCP payload lengths in top clusters: {}.".format(', '.join([str(i) for i in list(top_two_clusters)])))
+        self._strategic_states['TPR'][(bandwidth, clusters)] = identified / len(self._pt_traces)
+        self.debug_print("TCP payload lengths in the {} cluster(s): {}.".format(clusters, ', '.join([str(i) for i in list(top_clusters)])))
+        self.register_performance_stats((bandwidth, clusters),
+         TPR=self._strategic_states['TPR'][(bandwidth, clusters)])
 
-        return max(self._strategic_states['TPR'][(bandwidth, 1)], self._strategic_states['TPR'][(bandwidth, 2)])
+        return self._strategic_states['TPR'][(bandwidth, clusters)]
 
 
     def negative_run(self, **kwargs):
@@ -125,33 +133,26 @@ class LengthClusteringStrategy(DetectionStrategy):
         """
 
         bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
+        clusters = 1 if 'clusters' not in kwargs else kwargs['clusters']
 
-        top_cluster = self._strategic_states['top_cluster'][bandwidth]
-        top_falsely_identified = 0
-        self._strategic_states['blocked'][(bandwidth, 1)] = set([])
+        top_cluster = self._strategic_states['top_clusters'][(bandwidth, clusters)]
+        falsely_identified = 0
+        self._strategic_states['blocked'][(bandwidth, clusters)] = set([])
         for trace in self._neg_traces:
             if len(trace['tcp_info']['payload']) in top_cluster:
-                top_falsely_identified += 1
-                self._strategic_states['blocked'][(bandwidth, 1)].add(trace['dst'])
-        blocked_one = self._strategic_states['blocked'][(bandwidth, 1)]
-
-        top_two_clusters = self._strategic_states['top_two_clusters'][bandwidth]
-        top_two_falsely_identified = 0
-        self._strategic_states['blocked'][(bandwidth, 2)] = set([])
-        for trace in self._neg_traces:
-            if len(trace['tcp_info']['payload']) in top_two_clusters:
-                top_two_falsely_identified += 1
-                self._strategic_states['blocked'][(bandwidth, 2)].add(trace['dst'])
-        blocked_two = self._strategic_states['blocked'][(bandwidth, 2)]
+                falsely_identified += 1
+                self._strategic_states['blocked'][(bandwidth, clusters)].add(trace['dst'])
 
         # Unlike the positive case, we consider the false positive rate to be
         # over all traces, rather than just the ones were are interested in.
-        self._strategic_states['FPR'][(bandwidth, 1)] = float(top_falsely_identified) / self._neg_collection_total
-        self._strategic_states['FPR'][(bandwidth, 2)] = float(top_two_falsely_identified) / self._neg_collection_total
-        self._negative_blocked_ips = min([blocked_one, blocked_two], key=len)
+        self._strategic_states['FPR'][(bandwidth, clusters)] = float(falsely_identified) / self._neg_collection_total
+        self._negative_blocked_ips = self._strategic_states['blocked'][(bandwidth, clusters)]
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
+        self.register_performance_stats((bandwidth, clusters),
+         FPR=self._strategic_states['FPR'][(bandwidth, clusters)],
+         ip_block_rate=self._false_positive_blocked_rate)
 
-        return min(self._strategic_states['FPR'][(bandwidth, 1)], self._strategic_states['FPR'][(bandwidth, 2)])
+        return self._strategic_states['FPR'][(bandwidth, clusters)]
 
 
     def report_blocked_ips(self):
@@ -172,9 +173,9 @@ class LengthClusteringStrategy(DetectionStrategy):
             if i < len(self._negative_blocked_ips) - 1:
                 wireshark_output += "|| "
         wireshark_output += ") && ("
-        for i, l in enumerate(list(self._strategic_states['top_cluster'])):
+        for i, l in enumerate(list(self._strategic_states['top_clusters'])):
             wireshark_output += "tcp.len == " + str(l)
-            if i < len(self._strategic_states['top_cluster']) - 1:
+            if i < len(self._strategic_states['top_clusters']) - 1:
                 wireshark_output += " || "
         wireshark_output += ")"
 
@@ -224,20 +225,17 @@ class LengthClusteringStrategy(DetectionStrategy):
 
         self.debug_print("- Testing the following bandwidths for MeanShift: {}".format(', '.join([str(i) for i in self.MEANSHIFT_BWS])))
         for bw in self.MEANSHIFT_BWS:
+            for c_size in self.USE_TOP_CLUSTERS:
 
-            self.debug_print("- Running MeanShift on positives with bandwidth {}...".format(bw))
-            self.run_on_positive((bw,), bandwidth=bw)
-            tpr_top_cluster = self._strategic_states['TPR'][(bw, 1)]
-            tpr_top_two_clusters = self._strategic_states['TPR'][(bw, 2)]
-            self.debug_print("True positive rate on bandwidth {} for top cluster: {}".format(bw, tpr_top_cluster))
-            self.debug_print("True positive rate on bandwidth {} for top two clusters: {}".format(bw, tpr_top_two_clusters))
+                self.debug_print("- Running MeanShift on positives with bandwidth {} using top {} cluster(s)...".format(bw, c_size))
+                self.run_on_positive((bw, c_size), bandwidth=bw, clusters=c_size)
+                tpr = self._strategic_states['TPR'][(bw, c_size)]
+                self.debug_print("True positive rate on bandwidth {} for top {} cluster(s): {}".format(bw, c_size, tpr))
 
-            self.debug_print("- Checking MeanShift on negatives with bandwidth {}...".format(bw))
-            self.run_on_negative((bw,), bandwidth=bw)
-            fpr_top_cluster = self._strategic_states['FPR'][(bw, 1)]
-            fpr_top_two_clusters = self._strategic_states['FPR'][(bw, 2)]
-            self.debug_print("False positive rate on bandwidth {} for top cluster: {}".format(bw, fpr_top_cluster))
-            self.debug_print("False positive rate on bandwidth {} for top two clusters: {}".format(bw, fpr_top_two_clusters))
+                self.debug_print("- Checking MeanShift on negatives with bandwidth {} using top {} cluster(s)...".format(bw, c_size))
+                self.run_on_negative((bw, c_size), bandwidth=bw, clusters=c_size)
+                fpr = self._strategic_states['FPR'][(bw, c_size)]
+                self.debug_print("False positive rate on bandwidth {} for top {} cluster(s): {}".format(bw, c_size, fpr))
 
         # Round performance to four decimal places.
         tps = self._strategic_states['TPR']
@@ -265,10 +263,6 @@ class LengthClusteringStrategy(DetectionStrategy):
 
         self._true_positive_rate = tps[best_config]
         self._false_positive_rate = fps[best_config]
-        if best_config[1] == 1:
-            self._strategic_states['top_cluster'] = self._strategic_states['top_cluster'][best_config[0]]
-        else:
-            self._strategic_states['top_cluster'] = self._strategic_states['top_two_clusters'][best_config[0]]
 
         self.debug_print("Best classification performance:")
         self.debug_print("Bandwidth: {}, using top {} cluster(s).".format(best_config[0], best_config[1]))
