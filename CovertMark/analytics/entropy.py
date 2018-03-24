@@ -13,13 +13,15 @@ class EntropyAnalyser:
     """
 
     def __init__(self):
-        self.random_bytes = numpy.random.bytes(constants.INITIAL_RANDOM_BLOCK_COUNT)
+        self.random_bytes = sorted([numpy.random.bytes(constants.INITIAL_RANDOM_BLOCK_COUNT) for i in range(5)], key=EntropyAnalyser.byte_entropy)[-1]
 
     def request_random_bytes(self, request_size, block_size):
         """
         It is computationally bottlenecking to generate fresh uniform distributions
         each time a block is analysed, therefore a constant uniformly distributed
-        sample is kept, unless enlargement required due to request size.
+        sample is kept, unless enlargement required due to request size. However,
+        each such generation is repeated five times with the highest entropy taken,
+        to prevent accidental low entropy distribution used.
         :param request_size: an integer representing the size of requested uniformly
             distributed bytes.
         :param block_size: the number of bytes in each block.
@@ -36,7 +38,7 @@ class EntropyAnalyser:
         if request_size <= len(self.random_bytes):
             requested_bytes = self.random_bytes[:request_size]
         else:
-            self.random_bytes = numpy.random.bytes(request_size)
+            self.random_bytes = sorted([numpy.random.bytes(request_size) for i in range(5)], key=EntropyAnalyser.byte_entropy)[-1]
             requested_bytes = self.random_bytes
 
         blocks = [requested_bytes[i:i+block_size] for i in range(0, len(requested_bytes), block_size)]
