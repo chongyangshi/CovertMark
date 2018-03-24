@@ -251,7 +251,9 @@ class EntropyStrategy(DetectionStrategy):
                 pt_http_count += 1
 
         if float(pt_tls_count) / len(self._pt_traces) >= self.TLS_HTTP_INCLUSION_THRESHOLD:
-            self.debug_print("Considering TLS packets based on PT trace observations.")
+            self.debug_print("Considering TLS packets based on PT trace observations only.")
+            self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is not None]
+            self._neg_traces = [i for i in self._neg_traces if i["tls_info"] is not None]
         else:
             self.debug_print("Disregarding TLS packets based on PT trace observations.")
             self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is None]
@@ -259,7 +261,9 @@ class EntropyStrategy(DetectionStrategy):
             self._disregard_tls = True
 
         if float(pt_http_count) / len(self._pt_traces) >= self.TLS_HTTP_INCLUSION_THRESHOLD:
-            self.debug_print("Considering HTTP packets based on PT trace observations.")
+            self.debug_print("Considering HTTP packets based on PT trace observations only.")
+            self._pt_traces = [i for i in self._pt_traces if i["http_info"] is not None]
+            self._neg_traces = [i for i in self._neg_traces if i["http_info"] is not None]
         else:
             self.debug_print("Disregarding HTTP packets based on PT trace observations.")
             self._pt_traces = [i for i in self._pt_traces if i["http_info"] is None]
