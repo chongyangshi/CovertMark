@@ -226,14 +226,14 @@ class LengthClusteringStrategy(DetectionStrategy):
         for bw in self.MEANSHIFT_BWS:
 
             self.debug_print("- Running MeanShift on positives with bandwidth {}...".format(bw))
-            self._run_on_positive((bw,), bandwidth=bw)
+            self.run_on_positive((bw,), bandwidth=bw)
             tpr_top_cluster = self._strategic_states['TPR'][(bw, 1)]
             tpr_top_two_clusters = self._strategic_states['TPR'][(bw, 2)]
             self.debug_print("True positive rate on bandwidth {} for top cluster: {}".format(bw, tpr_top_cluster))
             self.debug_print("True positive rate on bandwidth {} for top two clusters: {}".format(bw, tpr_top_two_clusters))
 
             self.debug_print("- Checking MeanShift on negatives with bandwidth {}...".format(bw))
-            self._run_on_negative((bw,), bandwidth=bw)
+            self.run_on_negative((bw,), bandwidth=bw)
             fpr_top_cluster = self._strategic_states['FPR'][(bw, 1)]
             fpr_top_two_clusters = self._strategic_states['FPR'][(bw, 2)]
             self.debug_print("False positive rate on bandwidth {} for top cluster: {}".format(bw, fpr_top_cluster))

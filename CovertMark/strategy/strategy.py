@@ -305,10 +305,11 @@ class DetectionStrategy(ABC):
         return False
 
 
-    def _run_on_positive(self, config, **kwargs):
+    def run_on_positive(self, config, **kwargs):
         """
-        Wrapper for self.positive_run, testing the detection strategy on positive
-        PT traces.
+        Test the detection strategy on positive PT traces, call this instead of
+        :py:meth:positive_run, due to the need of timing positive executions for
+        performance statistics.
         :param config: a consistently-styled index containing configurations such
             as window size and threshold in a tuple for performance indexing. It
             should be sufficiently specific to distinguish individual runs of the
@@ -332,15 +333,15 @@ class DetectionStrategy(ABC):
         tpr = self.positive_run(**kwargs)
         duration = default_timer() - time_start
         self._true_positive_rate = tpr
-        self._register_performance_stats(config, time=duration, TPR=tpr)
+        self.register_performance_stats(config, time=duration, TPR=tpr)
 
         return self._true_positive_rate
 
 
-    def _run_on_negative(self, config, **kwargs):
+    def run_on_negative(self, config, **kwargs):
         """
-        Wrapper for the optional self.negative_run, testing the detection
-        strategy on negative traces.
+        Optionally test the detection strategy on positive PT traces, call this
+        instead of :py:meth:negative_run.
         :param config: a consistently-styled index containing configurations such
             as window size and threshold in a tuple for performance indexing. It
             should be sufficiently specific to distinguish individual runs of the
@@ -362,12 +363,12 @@ class DetectionStrategy(ABC):
 
         fpr = self.negative_run(**kwargs)
         self._false_positive_rate = fpr
-        self._register_performance_stats(config, FPR=fpr, ip_block_rate=self._false_positive_blocked_rate)
+        self.register_performance_stats(config, FPR=fpr, ip_block_rate=self._false_positive_blocked_rate)
 
         return self._false_positive_rate
 
 
-    def _run_on_recall(self, **kwargs):
+    def run_on_recall(self, **kwargs):
         """
         Wrapper for the optional self.recall_run, testing the trained classifier
         on positive recall traces.
@@ -383,10 +384,11 @@ class DetectionStrategy(ABC):
         return self._recall_rate
 
 
-    def _register_performance_stats(self, config, time=None, TPR=None, FPR=None,
+    def register_performance_stats(self, config, time=None, TPR=None, FPR=None,
      ip_block_rate=None):
         """
-        Register timed performance metrics for each specific configuration.
+        Register timed performance metrics for each specific configuration. This
+        should be called after each individual operation cycle of the strategy.
         :param config: a consistently-styled index containing configurations such
             as window size and threshold in a tuple, useful for separately
             setting the TPR and FPR values (below) in different method calls.
@@ -706,18 +708,18 @@ class DetectionStrategy(ABC):
         """
 
         self.debug_print("- Running detection strategy on positive test traces...")
-        self._true_positive_rate = self._run_on_positive()
+        self._true_positive_rate = self.run_on_positive()
         self.debug_print("Reported true positive rate: {}".format(self._true_positive_rate))
 
         if self._neg_collection is not None:
             self.debug_print("- Validating detection strategy on negative test traces...")
-            self._false_positive_rate = self._run_on_negative()
+            self._false_positive_rate = self.run_on_negative()
             self.debug_print("Reported false positive rate: {}".format(self._false_positive_rate))
             self.debug_print("False positive IPs blocked rate: {}".format(self._false_positive_blocked_rate))
 
         if test_recall:
             self.debug_print("- Validating best strategy on positive recall traces...")
-            self._recall_rate = self._run_on_recall()
+            self._recall_rate = self.run_on_recall()
             self.debug_print("Reported positive recall rate: {}".format(self._recall_rate))
 
         return (self._true_positive_rate, self._false_positive_rate)
@@ -829,8 +831,8 @@ class DetectionStrategy(ABC):
 
     def interpret_config(self, config_set):
         """
-        Interpret as string a configuration passed into self._run_on_positive(...)
-        or self._run_on_negative(...), for user reporting.
+        Interpret as string a configuration passed into self.run_on_positive(...)
+        or self.run_on_negative(...), for user reporting.
         Override this method to customise reporting string.
         :param config_set: a tuple of arbitrary configuration as determined by
             the implementing strategy.

@@ -26,7 +26,7 @@ class EntropyStrategy(DetectionStrategy):
     CRITERIA = ['conservative', 'majority', 'sensitive']
     P_THRESHOLDS = [0.1, 0.2]
     BLOCK_SIZE = 8 # Default.
-    BLOCK_SIZES = [16, 32, 64]
+    BLOCK_SIZES = [16, 32, 64, 128]
     FALSE_POSITIVE_SCORE_WEIGHT = 0.5
     TLS_HTTP_INCLUSION_THRESHOLD = 0.1
 
@@ -276,11 +276,11 @@ class EntropyStrategy(DetectionStrategy):
             for b in self.BLOCK_SIZES:
 
                 self.debug_print("- Testing p={}, {} byte block on positive traces...".format(p, b))
-                tp = self._run_on_positive((b, p), block_size=b, p_threshold=p)
+                tp = self.run_on_positive((b, p), block_size=b, p_threshold=p)
                 self.debug_print("p={}, {} byte block gives true positive rate {}.".format(p, b, tp))
 
                 self.debug_print("- Testing p={}, {} byte block on negative traces...".format(p, b))
-                fp = self._run_on_negative((b, p), block_size=b, p_threshold=p)
+                fp = self.run_on_negative((b, p), block_size=b, p_threshold=p)
                 self.debug_print("p={}, {} byte block gives false positive rate {}.".format(p, b, fp))
 
         # Find the best true positive and false positive performance.

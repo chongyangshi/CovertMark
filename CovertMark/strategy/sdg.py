@@ -40,7 +40,6 @@ class SDGStrategy(DetectionStrategy):
     def __init__(self, pt_pcap, negative_pcap, recall_pcap=None, debug=True):
         super().__init__(pt_pcap, negative_pcap, recall_pcap, debug=debug)
         self._trained_classifiers = {}
-        self._performance_csv = "Occurrence Threshold (pct),FNR (% PT packets missed),FPR (% Innocent packets incorrectly blocked),% Innocent IP's blocked overall\n"
 
 
     def set_strategic_filter(self):
@@ -57,7 +56,7 @@ class SDGStrategy(DetectionStrategy):
         """
 
         if config_set is not None:
-            return "Run #{} of Threshold percentile {}.".format(config_set[1]+1, config_set[0])
+            return "Run #{} of Occurrence Threshold at {}%ile.".format(config_set[1]+1, config_set[0])
         else:
             return ""
 
@@ -186,9 +185,9 @@ class SDGStrategy(DetectionStrategy):
         self._strategic_states[run_num]["classifier"] = SDG
 
         # Manual update of performance stats due to combined runs.
-        # self._run_on_positive will set TPR to the same value again, but it is
+        # self.run_on_positive will set TPR to the same value again, but it is
         # fine.
-        self._register_performance_stats(config=(threshold_pct, run_num),
+        self.register_performance_stats(config=(threshold_pct, run_num),
                                    TPR=self._strategic_states[run_num]["TPR"],
                                    FPR=self._strategic_states[run_num]["FPR"],
                                    ip_block_rate=self._strategic_states[run_num]["false_positive_blocked_rate"])
@@ -389,7 +388,7 @@ class SDGStrategy(DetectionStrategy):
                 self._decision_threshold = floor(np.percentile(list(self._target_ip_occurrences.values()), threshold_pct))
 
                 self._strategic_states[i] = {}
-                self._run_on_positive((threshold_pct, i), run_num=i, threshold_pct=threshold_pct)
+                self.run_on_positive((threshold_pct, i), run_num=i, threshold_pct=threshold_pct)
 
                 self.debug_print("Results of {}pct validation run #{}: ".format(threshold_pct, i+1))
                 self.debug_print("Total: {}".format(self._strategic_states[i]["total"]))
@@ -444,7 +443,7 @@ class SDGStrategy(DetectionStrategy):
 
         if test_recall:
             self.debug_print("Running recall test as requested now.")
-            self._run_on_recall()
+            self.run_on_recall()
 
         return (self._true_positive_rate, self._false_positive_rate)
 
