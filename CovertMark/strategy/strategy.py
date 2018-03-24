@@ -363,7 +363,7 @@ class DetectionStrategy(ABC):
 
         fpr = self.negative_run(**kwargs)
         self._false_positive_rate = fpr
-        self.register_performance_stats(config, FPR=fpr, ip_block_rate=self._false_positive_blocked_rate)
+        self.register_performance_stats(config, FPR=fpr)
 
         return self._false_positive_rate
 

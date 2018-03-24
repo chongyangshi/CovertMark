@@ -72,7 +72,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         used across the board.
         """
 
-        if config_set not in self._strategic_states['top_clusters']:
+        if config_set not in self._strategic_states['top_clusters'].keys():
             return 0
 
         best_cluster = self._strategic_states['top_clusters'][config_set]
@@ -94,6 +94,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         Because this simple strategy is based on common global TCP payload lengths,
         the identified trace ratio is not very useful here.
         :param bandwidth: the bandwidth used for meanshift clustering payload lengths.
+        :param clusters: the number of top length clusters to use in classification.
         """
 
         bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
@@ -130,6 +131,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         TLS packets with a TCP payload as small as meek's are actually very
         rare, this simple strategy becomes effective.
         :param bandwidth: the bandwidth used for meanshift clustering payload lengths.
+        :param clusters: the number of top length clusters to use in classification.
         """
 
         bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
@@ -270,7 +272,7 @@ class LengthClusteringStrategy(DetectionStrategy):
 
         self._negative_blocked_ips = self._strategic_states['blocked'][best_config]
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
-        self.debug_print("This classification configuration blocked {:0.2f}% of IPs seen.".format(self._false_positive_blocked_rate))
+        self.debug_print("This classification configuration blocked {:0.2f}% of IPs seen.".format(self._false_positive_blocked_rate*100))
 
         return (self._true_positive_rate, self._false_positive_rate)
 
