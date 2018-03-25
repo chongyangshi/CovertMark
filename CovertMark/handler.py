@@ -42,7 +42,7 @@ class CommandHandler:
     def dispatch(self, command):
         """
         Dispatch a user command or a sequence of commands to the correct methods.
-        :param command: a top-level command matching the name of a handler method,
+        :param str command: a top-level command matching the name of a handler method,
             with parameter gathering handled by the handler method itself. This
             can also be a sequence of commands separated by ";".
         :returns: False if the command does not map to a handler method, True
