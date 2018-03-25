@@ -125,6 +125,7 @@ class SDGStrategy(DetectionStrategy):
         """
         Perform SDG learning on the training/testing dataset, and validate
         overfitting on validation dataset.
+
         :param int threshold_pct: the occurrence threshold %ile used to tolerate
             low number of classifier positive hits to reduce false positives.
         :param int run_num: the integer run number of this training/validation run.
@@ -269,6 +270,7 @@ class SDGStrategy(DetectionStrategy):
         otherwise.
         Sacrificing some false negatives for low false positive rate, under
         dynamic occurrence thresholding.
+
         :param int window_size: the number of traces in each segment of single
             client-remote TCP sessions.
         :param int decision_threshold: leave as None for automatic decision threshold

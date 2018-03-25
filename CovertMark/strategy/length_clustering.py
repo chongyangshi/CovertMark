@@ -93,6 +93,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         """
         Because this simple strategy is based on common global TCP payload lengths,
         the identified trace ratio is not very useful here and will be fairly low (33-80%).
+
         :param int bandwidth: the bandwidth used for meanshift clustering payload lengths.
         :param int clusters: the number of top length clusters to use in classification.
         """
@@ -130,6 +131,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         Now we check the identified lengths against negative traces. Because
         TLS packets with TCP payload lengths as small as meek's are actually very
         rare, this simple strategy becomes very effective.
+
         :param int bandwidth: the bandwidth used for meanshift clustering payload lengths.
         :param int clusters: the number of top length clusters to use in classification.
         """
@@ -161,6 +163,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
         traces in Wireshark. Useful for studying false positives.
+
         :returns: a Wireshark-compatible filter expression string.
         """
 
@@ -189,6 +192,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         PT clients and servers in the input PCAP should be specified via :const:data.constants.IP_SRC
         and :const:data.constants.IP_DST respectively, while negative clients should be specified via
         :const:data.constants.IP_SRC.
+
         :param str tls_mode: Optionally set tls_mode between "all", "only", or "none"
             to test all packets, TLS packets only, or non-TLS packets only. Set
             it as "guess" or omit this parameter for the strategy to guess.

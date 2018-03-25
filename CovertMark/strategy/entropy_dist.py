@@ -104,6 +104,7 @@ class EntropyStrategy(DetectionStrategy):
         Entropy Distribution, and Anderson_Darling tests together, with variable p-value
         thresholds and test block sizes. Results from these tests detect uniformly
         high entropy payloads that are likely results of proxy encryptions.
+
         :param int block_size: the size of blocks of payload bytes tested in KS and
             AD. Default is set in :const:BLOCK_SIZE.
         :param float p_threshold: the p-value threshold at which uniform random
@@ -149,6 +150,7 @@ class EntropyStrategy(DetectionStrategy):
     def negative_run(self, **kwargs):
         """
         Test an identical configuration on negative traces. Reporting falsely blocked IPs.
+
         :param int block_size: the size of blocks of payload bytes tested in KS and
             AD. Default is set in :const:BLOCK_SIZE.
         :param float p_threshold: the p-value threshold at which uniform random
@@ -200,6 +202,7 @@ class EntropyStrategy(DetectionStrategy):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
         traces in Wireshark. Useful for studying false positives.
+
         :returns: a Wireshark-compatible filter expression string.
         """
 
@@ -231,6 +234,7 @@ class EntropyStrategy(DetectionStrategy):
         PT input filters should be given as :const:data.constants.IP_SRC and :const:data.constants.IP_DST,
         and changed around if testing for downstream rather than upstream direction.
         Negative input filters specifying innocent clients should be given as an :const:data.constants.IP_SRC.
+
         :param int protocol_min_length: Optionally set the minimum handshake TCP
             payload length of packets in that direction, allowing disregard of
             short packets.
