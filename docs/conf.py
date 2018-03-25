@@ -22,10 +22,10 @@ import CovertMark
 
 project = 'CovertMark'
 copyright = '2018, C Shi'
-author = 'C Shi'
+author = 'C Shi (and hopefully, contributors)'
 
 # The short X.Y version
-version = ''
+version = '0.1'
 # The full version, including alpha/beta/rc tags
 release = '0.1alpha'
 
@@ -53,7 +53,7 @@ templates_path = ['_templates']
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = ['.rst', '.md']
 
 # The master toctree document.
 master_doc = 'index'
@@ -72,6 +72,10 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
+
+source_parsers = {
+   '.md': 'recommonmark.parser.CommonMarkParser',
+}
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -162,3 +166,4 @@ texinfo_documents = [
 
 # -- Extension configuration -------------------------------------------------
 html_theme = "sphinx_rtd_theme"
+exclude_patterns = ['_build', 'api/CovertMark.rst', 'api/covertmark.rst']

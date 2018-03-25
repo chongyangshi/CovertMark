@@ -3,15 +3,20 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to CovertMark's documentation!
+.. include:: ../README.md
+
+Library Documentation
 ======================================
 
+Information on specific functions, classes, and methods.
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :glob:
+   :maxdepth: 1
+
+   api/*
 
 Indices and tables
 ==================
 * :ref:`modindex`
-* :ref:`search`
 * :ref:`genindex`

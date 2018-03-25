@@ -1,3 +1,6 @@
 #!/bin/sh
 
-make clean; rm -rf source; sphinx-apidoc -o source ../; make html
+make clean;
+rm -rf api;
+sphinx-apidoc -MeT -o api ../
+make html
