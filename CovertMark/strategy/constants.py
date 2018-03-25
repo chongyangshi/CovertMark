@@ -1,4 +1,4 @@
-import data.constants as data_constants
+from ..data import constants as data_constants
 
 TPR_BOUNDARY = 0.333 # Below which results in ineffective detection.
 FPR_BOUNDARY = 0.050 # Above which results in unacceptable false positives.

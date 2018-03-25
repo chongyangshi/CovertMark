@@ -1,4 +1,4 @@
-from analytics import constants
+from . import constants
 
 import scipy.stats
 import numpy.random

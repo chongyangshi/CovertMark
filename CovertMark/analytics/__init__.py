@@ -1,1 +1,1 @@
-from analytics import constants, entropy, traffic, learning
+from . import constants, entropy, traffic, learning

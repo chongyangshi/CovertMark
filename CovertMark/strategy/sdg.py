@@ -1,5 +1,5 @@
-import analytics, data
-from strategy.strategy import DetectionStrategy
+from .. import analytics, data
+from .strategy import DetectionStrategy
 
 import os
 from sys import exit, argv

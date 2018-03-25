@@ -1,4 +1,4 @@
-from data import utils, constants, mongo
+from . import utils, constants, mongo
 
 from os.path import isfile
 from base64 import b64encode, b64decode

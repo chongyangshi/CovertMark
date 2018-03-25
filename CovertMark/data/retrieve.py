@@ -1,4 +1,4 @@
-from data import utils, constants, mongo
+from . import utils, constants, mongo
 
 from base64 import b64decode
 

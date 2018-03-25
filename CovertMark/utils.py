@@ -8,8 +8,8 @@ from tabulate import tabulate
 from datetime import date
 import hashlib
 
-import data, strategy
-import constants
+from . import data, strategy
+from . import constants
 
 def read_strategy_map():
     """

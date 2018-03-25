@@ -1,5 +1,5 @@
-from analytics import constants, entropy
-import data.utils
+from . import constants, entropy
+from ..data import utils as data_utils
 
 from abc import ABC
 from sklearn import preprocessing, model_selection, linear_model

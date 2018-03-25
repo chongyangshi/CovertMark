@@ -1,5 +1,5 @@
-from analytics import constants, entropy
-import data.utils
+from . import constants, entropy
+from ..data import utils as data_utils
 
 import numpy as np
 from scipy import stats
@@ -184,8 +184,8 @@ def group_traces_by_ip_fixed_size(traces, clients, window_size):
     client_traces = defaultdict(list)
     for trace in traces:
 
-        trace_srcnet = data.utils.build_subnet(trace['src'])
-        trace_dstnet = data.utils.build_subnet(trace['dst'])
+        trace_srcnet = data_utils.build_subnet(trace['src'])
+        trace_dstnet = data_utils.build_subnet(trace['dst'])
         trace_client = None
 
         for client in clients:
@@ -249,7 +249,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             client ips seen in this window.
     """
 
-    client_subnets = [data.utils.build_subnet(i) for i in client_ips]
+    client_subnets = [data_utils.build_subnet(i) for i in client_ips]
     client_ips_seen = set([])
 
     all_features = True if (feature_selection is None) or (len(feature_selection) == 0) else False
@@ -280,7 +280,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     payload_lengths_up_bins = {i: 0 for i in tcp_len_ranges}
     psh_up = 0
     ack_up = 0
-    traces_up = list(filter(lambda x: any([i.overlaps(data.utils.build_subnet(x['src'])) for i in client_subnets]), windowed_traces))
+    traces_up = list(filter(lambda x: any([i.overlaps(data_utils.build_subnet(x['src'])) for i in client_subnets]), windowed_traces))
 
     seqs_seen_down = set([])
     entropies_down = []
@@ -290,7 +290,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     payload_lengths_down_bins = {i: 0 for i in tcp_len_ranges}
     psh_down = 0
     ack_down = 0
-    traces_down = list(filter(lambda x: any([i.overlaps(data.utils.build_subnet(x['dst'])) for i in client_subnets]), windowed_traces))
+    traces_down = list(filter(lambda x: any([i.overlaps(data_utils.build_subnet(x['dst'])) for i in client_subnets]), windowed_traces))
 
     if len(traces_up) > 0 and len(traces_down) > 0:
         stats['up_down_ratio'] = float(len(traces_up)) / len(traces_down)

@@ -1,4 +1,4 @@
-from data import constants, utils
+from . import constants, utils
 
 from pymongo import MongoClient
 import hashlib

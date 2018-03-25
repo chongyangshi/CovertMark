@@ -1,5 +1,5 @@
-import analytics, data
-from strategy import constants
+from .. import analytics, data
+from . import constants
 
 import os
 from abc import ABC, abstractmethod

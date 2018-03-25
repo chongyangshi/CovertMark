@@ -1,6 +1,6 @@
-import data, analytics, strategy
-import constants as c
-import utils
+from . import data, analytics, strategy
+from . import constants as c
+from . import utils
 
 import os, sys
 from tabulate import tabulate

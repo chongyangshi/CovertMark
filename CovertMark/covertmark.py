@@ -3,9 +3,9 @@ from importlib import import_module
 from tabulate import tabulate
 import argparse
 
-import data, analytics, strategy
-import constants as c
-import utils, handler
+from . import data, analytics, strategy
+from . import constants as c
+from . import utils, handler
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--import-saved", help="Import and execute a saved CovertMark benchmark procedure.", default="_")

@@ -1,4 +1,4 @@
-from data import utils
+from . import utils
 
 import os
 import matplotlib as mpl
