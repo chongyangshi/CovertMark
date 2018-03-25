@@ -64,7 +64,7 @@ class EntropyStrategy(DetectionStrategy):
 
     def interpret_config(self, config_set):
         """
-        Block size and p-value threshold are used to distinguish entropy distribution tests.
+        Block size, p-value threshold, and criteria distinguish entropy distribution tests.
         """
 
         if config_set is not None:
@@ -100,15 +100,16 @@ class EntropyStrategy(DetectionStrategy):
 
     def positive_run(self, **kwargs):
         """
-        Three different criteria of combing results from KS byte-uniformity, Entropy
-        Distribution, and Anderson_Darling tests together, with variable p-value
-        thresholds and test block sizes.
-        :param block_size: the size of blocks of payload bytes tested in KS and
-            AD. Default set in self.BLOCK_SIZE.
-        :param p_threshold: the p-value threshold at which uniform random
+        Three different criteria of combining results from KS byte-uniformity and
+        Entropy Distribution, and Anderson_Darling tests together, with variable p-value
+        thresholds and test block sizes. Results from these tests detect uniformly
+        high entropy payloads that are likely results of proxy encryptions.
+        :param int block_size: the size of blocks of payload bytes tested in KS and
+            AD. Default is set in :const:BLOCK_SIZE.
+        :param float p_threshold: the p-value threshold at which uniform random
             hypothesis can be rejected, defaulted at 0.1.
-        :param criterion: the number of rejected hypothesis among all tests needed
-            to reach a positive conclusion.
+        :param int criterion: the number of rejected hypothesis among all tests
+            needed to reach a positive conclusion.
         """
 
         block_size = self.BLOCK_SIZE if 'block_size' not in kwargs else kwargs['block_size']
@@ -147,13 +148,13 @@ class EntropyStrategy(DetectionStrategy):
 
     def negative_run(self, **kwargs):
         """
-        Test the same thing on negative traces. Reporting blocked IPs.
-        :param block_size: the size of blocks of payload bytes tested in KS and
-            AD. Default set in self.BLOCK_SIZE.
-        :param p_threshold: the p-value threshold at which uniform random
+        Test an identical configuration on negative traces. Reporting falsely blocked IPs.
+        :param int block_size: the size of blocks of payload bytes tested in KS and
+            AD. Default is set in :const:BLOCK_SIZE.
+        :param float p_threshold: the p-value threshold at which uniform random
             hypothesis can be rejected, defaulted at 0.1.
-        :param criterion: the number of rejected hypothesis among all tests needed
-            to reach a positive conclusion.
+        :param int criterion: the number of rejected hypothesis among all tests
+            needed to reach a positive conclusion.
         """
 
         block_size = self.BLOCK_SIZE if 'block_size' not in kwargs else kwargs['block_size']
@@ -227,10 +228,10 @@ class EntropyStrategy(DetectionStrategy):
 
     def run_strategy(self, **kwargs):
         """
-        PT input filters should be given in IP_SRC and IP_DST, and changed around
-        if testing for downstream rather than upstream direction.
-        Negative input filters specifying innocent clients should be given as IP_SRC.
-        :param protocol_min_length: Optionally set the minimum handshake TCP
+        PT input filters should be given as :const:data.constants.IP_SRC and :const:data.constants.IP_DST,
+        and changed around if testing for downstream rather than upstream direction.
+        Negative input filters specifying innocent clients should be given as an :const:data.constants.IP_SRC.
+        :param int protocol_min_length: Optionally set the minimum handshake TCP
             payload length of packets in that direction, allowing disregard of
             short packets.
         """

@@ -15,7 +15,7 @@ class LengthClusteringStrategy(DetectionStrategy):
     """
 
     NAME = "Length Clustering Strategy"
-    DESCRIPTION = "Detecting low-payload heartbeat messages. TLS modes: only (TLS packets only), all (all packets), none (non-TLS packets only)."
+    DESCRIPTION = "Detecting low-payload heartbeat messages."
     _DEBUG_PREFIX = "LenClustering"
     RUN_CONFIG_DESCRIPTION = ["MeanShift bandwidth", "Using top N clusters"]
 
@@ -53,7 +53,7 @@ class LengthClusteringStrategy(DetectionStrategy):
 
     def interpret_config(self, config_set):
         """
-        Bandwidth is used to distinguish length clustering runs.
+        Bandwidth and number of clusters used distinguish length clustering runs.
         """
         if config_set is not None:
             interpretation = "TCP payload length clustering at MeanShift bandwidth {} with top {} cluster(s). ".format(config_set[0], config_set[1])
@@ -92,9 +92,9 @@ class LengthClusteringStrategy(DetectionStrategy):
     def positive_run(self, **kwargs):
         """
         Because this simple strategy is based on common global TCP payload lengths,
-        the identified trace ratio is not very useful here.
-        :param bandwidth: the bandwidth used for meanshift clustering payload lengths.
-        :param clusters: the number of top length clusters to use in classification.
+        the identified trace ratio is not very useful here and will be fairly low (33-80%).
+        :param int bandwidth: the bandwidth used for meanshift clustering payload lengths.
+        :param int clusters: the number of top length clusters to use in classification.
         """
 
         bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
@@ -128,10 +128,10 @@ class LengthClusteringStrategy(DetectionStrategy):
     def negative_run(self, **kwargs):
         """
         Now we check the identified lengths against negative traces. Because
-        TLS packets with a TCP payload as small as meek's are actually very
-        rare, this simple strategy becomes effective.
-        :param bandwidth: the bandwidth used for meanshift clustering payload lengths.
-        :param clusters: the number of top length clusters to use in classification.
+        TLS packets with TCP payload lengths as small as meek's are actually very
+        rare, this simple strategy becomes very effective.
+        :param int bandwidth: the bandwidth used for meanshift clustering payload lengths.
+        :param int clusters: the number of top length clusters to use in classification.
         """
 
         bandwidth = 1 if 'bandwidth' not in kwargs else kwargs['bandwidth']
@@ -186,10 +186,10 @@ class LengthClusteringStrategy(DetectionStrategy):
 
     def run_strategy(self, **kwargs):
         """
-        PT clients and servers in the input PCAP should be specified via IP_SRC
-        and IP_DST respectively, while negative clients should be specified via
-        IP_SRC.
-        :param tls_mode: Optionally set tls_mode between "all", "only", or "none"
+        PT clients and servers in the input PCAP should be specified via :const:data.constants.IP_SRC
+        and :const:data.constants.IP_DST respectively, while negative clients should be specified via
+        :const:data.constants.IP_SRC.
+        :param str tls_mode: Optionally set tls_mode between "all", "only", or "none"
             to test all packets, TLS packets only, or non-TLS packets only. Set
             it as "guess" or omit this parameter for the strategy to guess.
         """

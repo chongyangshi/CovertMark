@@ -95,19 +95,19 @@ class DetectionStrategy(ABC):
         N.B. Filters at this stage are intended to be used to remove unrelated
         traces accidentally captured in the process, so that they do not affect
         testing/training of positive case analysis. If the analysis strategy
-        only examines a subset of all PT traffic (e.g. client-to-server-only),
-        its filters should be set separately in self.set_strategic_filter.
+        only examines a subset of all PT traffic (e.g. packets with TLS payloads),
+        its filters should be set separately in :meth:set_strategic_filter.
 
         This separation is by design so that source/destination import filtering
         can be changed dynamically at each run based on the actual pcap, while
         strategic filtering is expected to remain unchanged.
 
-        :param pt_filters: Parser filters for PT trace parsing. Presented as a
+        :param list pt_filters: Parser filters for PT trace parsing. Presented as a
             list of tuples to parse upstream or downstream packets only. e.g.
             [('192.168.0.42', data.constants.IP_SRC),
              ('13.32.68.100', data.constants.IP_DST)]
-            For filter matching rules, see CovertMark.data.parser.PCAPParser.set_ip_filter.
-            For an empty (allow-all) filter, use {}.
+            For filter matching rules, see :meth:data.parser.PCAPParser.set_ip_filter.
+            For an empty (allow-all) filter, use `{}`.
         :returns: True if a non-zero amount of traces were parsed, False otherwise.
         """
 
@@ -128,8 +128,8 @@ class DetectionStrategy(ABC):
     def _parse_negative_packets(self, negative_filters):
         """
         Parse negative test traces stored in the PCAP file.
-        :param negative_filters: same format as positive filters above. Allow-all
-            by default.
+        :param list negative_filters: same format as in :meth:_parse_PT_packets.
+            Allow-all by default.
         :returns: True if a non-zero amount of traces were parsed, False otherwise.
         """
 
@@ -150,8 +150,8 @@ class DetectionStrategy(ABC):
     def _parse_recall_packets(self, recall_filters):
         """
         Parse positive recall test traces stored in the PCAP file.
-        :param recall_filters: same format as positive filters above. Allow-all
-            by default.
+        :param list recall_filters: same format as in :meth:_parse_PT_packets.
+            Allow-all by default.
         :returns: True if a non-zero amount of traces were parsed, False otherwise.
         """
 
@@ -171,7 +171,7 @@ class DetectionStrategy(ABC):
     def _load_into_memory(self):
         """
         Load parsed positive (and if set, negative) test traces from MongoDB
-        into runtime memory for analysis, applying self._strategic_filter to
+        into runtime memory for analysis, applying :attr:_strategic_filter to
         both.
         :returns: True if successfully loaded, False otherwise.
         """
@@ -246,12 +246,12 @@ class DetectionStrategy(ABC):
     def set_case_membership(self, positive_filters, negative_filters):
         """
         Set an internal list of positive and negative subnets for membership
-        checking with self.in_positive_filter and self.in_negative_filter. This
-        is useful if a mixed pcap needs to be parsed into self._pt_traces only.
+        checking with :meth:in_positive_filter and :meth:in_negative_filter. This
+        is useful if a mixed pcap needs to be parsed into :attr:_pt_traces only.
         If only one of the two needs to be set, pass in None in the corresponding
         other parameter.
-        :param positive_filters: list of input filters covering PT traffic.
-        :param negative_filters: list of negative filters covering innocent traffic.
+        :param list positive_filters: list of input filters covering PT traffic.
+        :param list negative_filters: list of negative filters covering innocent traffic.
         """
 
         if positive_filters:
@@ -271,7 +271,7 @@ class DetectionStrategy(ABC):
 
     def in_positive_filter(self, ip):
         """
-        :param input IP or subnet.
+        :param str ip: input IP or subnet.
         :returns True if IP or subnet specified is in the positive input filter,
             False otherwise, or if input invalid.
         """
@@ -289,7 +289,7 @@ class DetectionStrategy(ABC):
 
     def in_negative_filter(self, ip):
         """
-        :param input IP or subnet.
+        :param str ip: input IP or subnet.
         :returns True if IP or subnet specified is in the negative input filter,
             False otherwise, or if input invalid.
         """
@@ -308,10 +308,10 @@ class DetectionStrategy(ABC):
     def run_on_positive(self, config, **kwargs):
         """
         Test the detection strategy on positive PT traces, call this instead of
-        :py:meth:positive_run, due to the need of timing positive executions for
+        :meth:positive_run, due to the need of timing positive executions for
         performance statistics.
-        :param config: a consistently-styled index containing configurations such
-            as window size and threshold in a tuple for performance indexing. It
+        :param tuple config: a consistently-formatted tuple containing configurations
+            such as window size and threshold for performance indexing in records. It
             should be sufficiently specific to distinguish individual runs of the
             same configuration, as otherwise performance records for the config
             will be overwritten between runs.
@@ -340,10 +340,10 @@ class DetectionStrategy(ABC):
 
     def run_on_negative(self, config, **kwargs):
         """
-        Optionally test the detection strategy on positive PT traces, call this
-        instead of :py:meth:negative_run.
-        :param config: a consistently-styled index containing configurations such
-            as window size and threshold in a tuple for performance indexing. It
+        Optionally test the detection strategy on negative client traces, call this
+        instead of :meth:negative_run.
+        :param tuple config: a consistently-formatted tuple containing configurations
+            such as window size and threshold for performance indexing in records. It
             should be sufficiently specific to distinguish individual runs of the
             same configuration, as otherwise performance records for the config
             will be overwritten between runs.
@@ -370,7 +370,7 @@ class DetectionStrategy(ABC):
 
     def run_on_recall(self, **kwargs):
         """
-        Wrapper for the optional self.recall_run, testing the trained classifier
+        Wrapper for the optional :meth:recall_run, testing the trained classifier
         on positive recall traces.
         """
 
@@ -389,15 +389,15 @@ class DetectionStrategy(ABC):
         """
         Register timed performance metrics for each specific configuration. This
         should be called after each individual operation cycle of the strategy.
-        :param config: a consistently-styled index containing configurations such
-            as window size and threshold in a tuple, useful for separately
+        :param tuple config: a consistently-styled tuple containing configurations
+            such as window size and threshold in a tuple, enabling separately
             setting the TPR and FPR values (below) in different method calls.
-        :param time: if not None, update the execution time of positive run.
-        :param TPR: if not None, update the true positive rate of the performance
+        :param float time: if not None, update the execution time of positive run.
+        :param float TPR: if not None, update the true positive rate of the performance
             record specified by config. Float between 0 and 1.
-        :param FPR: if not None, update the false positive rate of the performance
+        :param float FPR: if not None, update the false positive rate of the performance
             record specified by config. Float between 0 and 1.
-        :param ip_block_rate: if not None, update the rate of falsely blocked IPs
+        :param float ip_block_rate: if not None, update the rate of falsely blocked IPs
             of the strategy execution specified by config. Float between 0 and 1.
         """
 
@@ -475,19 +475,18 @@ class DetectionStrategy(ABC):
 
         best_score = max(strategy_penalised_scores)
         best_config = acceptable_configs[strategy_penalised_scores.index(max(strategy_penalised_scores))]
-        # self.debug_print("Best score: {:0.2f} under config: {}.".format(best_score, str(best_config)))
 
         return best_score, best_config
 
 
-    def _split_pt(self, split_ratio=0.7):
+    def split_pt(self, split_ratio=0.7):
         """
-        Gatekeeper method for self.test_validation_split, ensuring that it is
+        Gatekeeper method for :meth:test_validation_split, ensuring that it is
         called after traces have been loaded from MongoDB into memory. Performs
         an implicit trace load if not yet loaded. Call this method to perform
         a split.
-        Do not override this method, but override test_validation_split below.
-        :param split_ratio: the proportion of positive traces used as test
+        Do not override this method, but override :meth:test_validation_split below.
+        :param float split_ratio: the proportion of positive traces used as test
             rather than validation in a split.
         """
 
@@ -523,18 +522,18 @@ class DetectionStrategy(ABC):
         """
         Set up the analysis strategy with filters and any existing collection names.
         To skip parsing traces again and use existing collections in MongoDB,
-        both pt_collection and negative_collection need to be set to valid names.
-        Recall used for evaluation of strategy itself only, not for general use.
-        :param pt_ip_filter: input IP filter for positive test traces.
-        :param negative_ip_filter: input IP filter for negative test traces.
-        :param pt_collection: set pt_collection to be the name of an existing
+        both `pt_collection` and `negative_collection` need to be set to valid names.
+        Recall used for evaluation of strategy itself only, not for user's use.
+        :param list pt_ip_filters: input IP filters for positive test traces.
+        :param list negative_ip_filters: input IP filters for negative test traces.
+        :param str pt_collection: set pt_collection to be the name of an existing
             collection in MongoDB to skip parsing again.
-        :param negative_collection: set negative_collection to be the name of an
+        :param str negative_collection: set negative_collection to be the name of an
             existing collection in MongoDB to skip parsing again.
-        :param test_recall: if True, the strategy will also test the classifier
+        :param bool test_recall: if True, the strategy will also test the classifier
             on unseen positive recall traces to cross validate.
-        :param recall_ip_filters: input IP filter for recall test traces.
-        :param recall_collection: set recall_collection to be the name of an
+        :param list recall_ip_filters: input IP filter for recall test traces.
+        :param str recall_collection: set recall_collection to be the name of an
             existing collection in MongoDB to skip parsing again.
         """
 
@@ -597,7 +596,7 @@ class DetectionStrategy(ABC):
         """
         Load parsed or stored traces from their collections.
         Call this method when it is ready to load traces from memory. Call this
-        method again after calling :py:meth:set_strategic_filter to set a new
+        method again after calling :meth:set_strategic_filter to set a new
         strategic filter, as after traces need to be reloaded based on the new
         filter.
         """
@@ -616,8 +615,6 @@ class DetectionStrategy(ABC):
     def run(self, **kwargs):
         """
         The entry point of the strategy.
-        :param pt_split: True if splitting positive test cases into test and
-            validation sets. False otherwise.
         """
 
         if not self._traces_parsed:
@@ -651,7 +648,7 @@ class DetectionStrategy(ABC):
         supplied in a separate column. This CSV can also be used for plotting in
         data.plot. For the ease of plotting very small values, values entered
         into the CSV will be converted into percentages.
-        :returns: csv providing all performance stats.
+        :returns: a csv containing all performance stats.
         """
 
         csv_str = ""
@@ -701,10 +698,9 @@ class DetectionStrategy(ABC):
         """
         Run the detection strategy. See other methods for detailed syntax of
         IP and strategic filters. Override if custom procedures required, such
-        as adjusting a positive run after each negative run. self._run should
-        always be called at the start with the filters for setup.
-        Do *not* call this method, use self.run() as entry point.
-        :returns: tuple(self._true_positive_rate, self._false_positive_rate)
+        as adjusting a positive run after each negative run.
+        Do *not* call this method, use :meth:run as entry point.
+        :returns: tuple(:attr:_true_positive_rate, :attr:_false_positive_rate)
         """
 
         self.debug_print("- Running detection strategy on positive test traces...")
@@ -730,17 +726,17 @@ class DetectionStrategy(ABC):
         """
         While packets not related to the PT in the positive case should have
         been removed from positive traces when parsing the pcap file
-        (self._parse_PT_packets), if this strategy only examines certain packets
-        in the traces, such as client-to-server packets only, they should be
-        specified here in the strategic filter. The syntax follows MongoDB
-        queries on the trace syntax:
-        (see CovertMark.data.parser.PCAPParser.load_packet_info.)
-        Implement this method by assigning to self._strategic_packet_filter,
+        (e.g. :meth:_parse_PT_packets), if this strategy only wants to examine
+        certain packets in the traces, such as those with TLS payloads only,
+        they should be specified here in the strategic filter. The syntax follows
+        MongoDB queries on the trace syntax.
+        (For trace syntax see :meth:attr:.parser.PCAPParser.load_packet_info)
+        Implement this method by assigning to :meth:_strategic_packet_filter,
         optionally you can call this method again between positve and negative
         runs to adjust the filter as necessary with a new filter.
-        self._load_into_memory() should be called again after each change of
-        filter to reload the postive and negative traces with the new filter.
-        :param new_filter: MongoDB trace querying filter, examples:
+        :meth:load should be called again after each change of filter to reload
+        the postive and negative traces with the new filter.
+        :param dict new_filter: MongoDB trace querying filter, examples:
          - Only examine TCP packets: {"tcp_info": {"$ne": None}}
          - Only examine TCP packets with non-empty payload:
             {"tcp_info": {"$ne": None}, "tcp_info.payload": {"$ne": b''}}
@@ -754,7 +750,7 @@ class DetectionStrategy(ABC):
         Perform a split of positive test traces into test and validation sets if
         required by the strategy. Override this method if split required, otherwise,
         keep it returning a tuple of empty lists as followed.
-        :param split_ratio: passed in from self._split_pt
+        :param float split_ratio: passed in from :meth:split_pt
         :returns: tuple(test_traces, validation_traces)
         """
 
@@ -767,13 +763,13 @@ class DetectionStrategy(ABC):
         Perform PT detection strategy on positive test traces.
         Available data:
         - The number of positive traces in the collection under input filter:
-        --- self._pt_collection_total
+        --- :attr:self._pt_collection_total
         - All positive test traces under strategic filter:
-        --- self._pt_traces
+        --- :attr:self._pt_traces
         - If self._pt_split is True (split into test and validation traces)
-        --- self._pt_test_traces
-        --- self._pt_validation_traces
-        Assign to self._strategic_states if information needs to be stored
+        --- :attr:self._pt_test_traces
+        --- :attr:self._pt_validation_traces
+        Assign to :attr:self._strategic_states if information needs to be stored
         between runs or carried over into negative test runs.
         Implement this method.
         :returns: True positive identification rate as your strategy interprets.
@@ -788,12 +784,14 @@ class DetectionStrategy(ABC):
             Positive rate.
         Available data:
         - The number of negative traces in the collection under input filter:
-        --- self._neg_collection_total
+        --- :attr:self._neg_collection_total
         - All negative test traces under strategic filter:
-        --- self._neg_traces
+        --- :attr:self._neg_traces
+        - A set of unique IPs seen in negative traces:
+        --- :attr:self._negative_unique_ips
         Assign to self._strategic_states if information needs to be stored
         between runs or carried over into positive test runs.
-        Add to self._negative_blocked_ips to tally blocked IPs for reporting.
+        Add to :attr:self._negative_blocked_ips to tally blocked IPs for reporting.
         Implement this method, simply return 0 if no negative trace required.
         :returns: False positive identification rate as your strategy interprets.
         """
@@ -805,12 +803,12 @@ class DetectionStrategy(ABC):
         """
         Perform a recall on unseen positive traces specified in self._recall_traces.
         You should carry over best parameters obtained from positive and negative
-        runs or a best classifier through self._strategic_states or subclass
+        runs or a best classifier through :attr:self._strategic_states or subclass
         variables.
         It is assumed that after the recall input filter and the strategic filter,
-        all packets in self._recall_traces are positive traces unseen during
-        positve and negative runs prior. self._recall_subnets should have been
-        set after the main runs.
+        all packets in :attr:self._recall_traces are positive traces unseen during
+        positve and negative runs prior. :attr:self._recall_subnets should have been
+        set during :meth:_load_into_memory
         :returns: the positive recall rate.
         """
 
@@ -821,7 +819,7 @@ class DetectionStrategy(ABC):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
         traces in Wireshark. Useful for studying false positives. Override
-        this method if needed, draw data from self._negative_blocked_ips as set
+        this method if needed, draw data from :attr:self._negative_blocked_ips as set
         above.
         :returns: a Wireshark-compatible filter expression string.
         """
@@ -834,7 +832,7 @@ class DetectionStrategy(ABC):
         Interpret as string a configuration passed into self.run_on_positive(...)
         or self.run_on_negative(...), for user reporting.
         Override this method to customise reporting string.
-        :param config_set: a tuple of arbitrary configuration as determined by
+        :param tuple config_set: a tuple of arbitrary configuration as determined by
             the implementing strategy.
         :returns: a string interpreting the config set passed in.
         """
@@ -858,7 +856,8 @@ class DetectionStrategy(ABC):
         of run config parameters that would adversely affect censor performance
         in live operations, but will not increase execution time in CovertMark.
         Override this method if config-specific penalisation required.
-        :param config_set: strategy-specific arbitrary run parameters.
+        :param tuple config_set: a tuple of arbitrary configuration as determined by
+            the implementing strategy.
         :returns: a float number between 0 and 1 as the proportion of penalty
             applied based on the run parameters. This should be the proportion of
             score to be deducted, rather than a scaling factor.

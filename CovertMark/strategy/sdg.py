@@ -17,8 +17,7 @@ class SDGStrategy(DetectionStrategy):
     A generic SDG-based strategy for observing patterns of traffic in both
     directions of stream. Not designed for identifying any particular
     existing PT, should allow a general use case based on traffic patterns.
-    Should achieve better unseen recall performance than Logistic Regression.
-    A single client IP should be used.
+    It should achieve better unseen recall performance than Logistic Regression.
     """
 
     NAME = "SDG Classifier Strategy"
@@ -44,7 +43,7 @@ class SDGStrategy(DetectionStrategy):
 
     def set_strategic_filter(self):
         """
-        LR only supports TCP-based PTs for now.
+        Only supports TCP-based PTs for now due to SEQ-related shaping.
         """
 
         self._strategic_packet_filter = {"tcp_info": {"$ne": None}}
@@ -75,8 +74,13 @@ class SDGStrategy(DetectionStrategy):
 
     def test_validation_split(self, split_ratio):
         """
-        We call testing data used in training as test, and data used in negative
-        run unseen during training as validaton.
+        Split the inputs into test and validation traces through random sampling
+        over all feature rows.
+        We refer to testing data used in training as test, and data used in negative
+        run unseen during training as validaton. It is important to balance the
+        positive and negative sample counts, as over-supply of negative cases
+        can severely damage the recall performance on unseen inputs captured
+        separately.
         """
 
         if not isinstance(split_ratio, float) or not (0 <= split_ratio <= 1):
@@ -121,7 +125,9 @@ class SDGStrategy(DetectionStrategy):
         """
         Perform SDG learning on the training/testing dataset, and validate
         overfitting on validation dataset.
-        :param run_num: the integer run number of this training/validation run.
+        :param int threshold_pct: the occurrence threshold %ile used to tolerate
+            low number of classifier positive hits to reduce false positives.
+        :param int run_num: the integer run number of this training/validation run.
         """
 
         threshold_pct = 0 if 'threshold_pct' not in kwargs else kwargs['threshold_pct']
@@ -165,7 +171,7 @@ class SDGStrategy(DetectionStrategy):
                     if decide_to_block: # We got it wrong.
                         self._strategic_states[run_num]["negative_blocked_ips"].add(self._pt_validation_ips[i])
                         false_positives += 1
-                    else: # It was right to be conservative for this IP.
+                    else: # It was right to be conservative about this IP.
                         true_negatives += 1
 
             else:
@@ -197,7 +203,7 @@ class SDGStrategy(DetectionStrategy):
 
     def negative_run(self):
         """
-        Not used at this time, as FPR combined into self.positive_run.
+        Not used at this time, as FPR combined into :meth:positive_run.
         """
 
         return None
@@ -244,8 +250,9 @@ class SDGStrategy(DetectionStrategy):
 
     def report_blocked_ips(self):
         """
-        Cannot distinguish directions in this case.
+        We cannot distinguish directions in this strategy.
         """
+
         wireshark_output = "tcp && ("
         for i, ip in enumerate(list(self._negative_blocked_ips)):
             wireshark_output += "ip.dst_host == \"" + ip + "\" "
@@ -261,10 +268,10 @@ class SDGStrategy(DetectionStrategy):
         Input traces are assumed to be chronologically ordered, misfunctioning
         otherwise.
         Sacrificing some false negatives for low false positive rate, under
-        dynamic occurrence decision thresholding.
-        :param window_size: the number of traces in each segment of single
+        dynamic occurrence thresholding.
+        :param int window_size: the number of traces in each segment of single
             client-remote TCP sessions.
-        :param decision_threshold: leave as None for automatic decision threshold
+        :param int decision_threshold: leave as None for automatic decision threshold
             search, otherwise the number of IP occurrences before positive flagging.
         """
 
@@ -321,7 +328,7 @@ class SDGStrategy(DetectionStrategy):
                 window_ip = client_target[1]
                 for window in traces_by_client[client_target]:
                     # Extract features, IP information not needed as each window will
-                    # contain one individual client's traffic with a single only.
+                    # contain one individual client's traffic with a single target only.
                     feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]], self.FEATURE_SET)
                     if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                         continue
@@ -339,7 +346,7 @@ class SDGStrategy(DetectionStrategy):
                 window_ip = client_target[1]
                 for window in traces_by_client[client_target]:
                     # Extract features, IP information not needed as each window will
-                    # contain one individual client's traffic with a single only.
+                    # contain one individual client's traffic with a single target only.
                     feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]], self.FEATURE_SET)
                     if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                         continue
@@ -379,7 +386,7 @@ class SDGStrategy(DetectionStrategy):
 
                 # Redraw the samples and resplit.
                 self.debug_print("- Splitting training/validation by the ratio of {}.".format(self.PT_SPLIT_RATIO))
-                self._split_pt(self.PT_SPLIT_RATIO)
+                self.split_pt(self.PT_SPLIT_RATIO)
 
                 if not self._pt_split:
                     self.debug_print("Training/validation case splitting failed, check data.")
@@ -400,8 +407,7 @@ class SDGStrategy(DetectionStrategy):
                  len(self._strategic_states[i]["negative_blocked_ips"]),
                  self._strategic_states[i]["false_positive_blocked_rate"]*100))
 
-            # As LR is relatively stable, we only need to pick the lowest FPR and
-            # do not need to worry about too low a corresponding TPR.
+            # Pick the median false positive performance to decide whether to stop.
             fpr_results = [self._strategic_states[i]['FPR'] for i in range(self.NUM_RUNS)]
             median_fpr = sorted(fpr_results)[int(len(fpr_results)/2)]
             median_fpr_run = fpr_results.index(median_fpr)
