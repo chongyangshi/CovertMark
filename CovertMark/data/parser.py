@@ -33,16 +33,18 @@ class PCAPParser:
         destination address belongs to an address or subnet as specified.
         Always process single addresses as lowest-level subnets for convenience.
         Calling this method overwrites the previous filter configuration.
-        :param subjects: a list of acceptable IPv4/IPv6 addresses or subnets in
+        :param list subjects: a list of acceptable IPv4/IPv6 addresses or subnets in
             string format, and their direction. Format: [(NET, POSITION)], where
             NET represents the IPv4/IPv6 address or subnet to track, and POSITION
-            represents whether this is supposed to be IP_SRC, IP_DST, or IP_EITHER.
+            represents whether this is supposed to be :const:constants.IP_SRC,
+            :const:constants.IP_DST, or :const:constants.IP_EITHER.
             Precedence: for each packet, if there is either no IP_SRC or no IP_DST
             specified, then it will be seen as matched; otherwise, as long as its
-            src or dst matches one of the IP_SRC/IP_DST filters, it will be
-            seen as matched. In the case of IP_EITHER, the filter will match
-            either source or destination occurances of that IP, superceding
-            acceptance by IP_SRC/IP_DST filters covering the same subnets.
+            `src` or `dst` matches one of the :const:constants.IP_SRC/:const:constants.IP_DST
+            filters, it will be seen as matched. In the case of :const:constants.IP_EITHER,
+            the filter will match either source or destination occurrences of that IP,
+            superceding acceptance by :const:constants.IP_SRC/:const:constants.IP_DST
+             filters covering the same subnets.
         :returns: the number of successfully added filters (filter with
             overlapping subnets represented and processed separately).
         """
@@ -198,8 +200,8 @@ class PCAPParser:
     def load_and_insert_new(self, description=""):
         """
         Load packet traces from pcap file, and insert into a new collection.
-        N.B. Returned collection name must be verified to not be False.
-        :param description: description of the new collection, empty by default.
+        Returned collection name **must** be verified to not be False.
+        :param str description: description of the new collection, empty by default.
         :returns: name of the new collection, False if failed.
         """
 
@@ -222,7 +224,7 @@ class PCAPParser:
     def load_and_insert_existing(self, collection_name):
         """
         Load packet traces from pcap file, and insert into an existing collection.
-        N.B. Returned collection name must be verified to not be False.
+        Returned collection name **must** be verified to not be False.
         :returns: True if insertion successful, False if failed.
         """
 
@@ -241,7 +243,7 @@ class PCAPParser:
         """
         Drop the collection and its index to clean up space, if the stored traces
         are temporary only.
-        :param collection: the name of the collection to be cleaned up.
+        :param str collection: the name of the collection to be cleaned up.
         """
 
         self.__db.delete_collection(collection)

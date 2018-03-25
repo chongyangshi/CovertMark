@@ -32,8 +32,8 @@ class MongoDBManager:
     def lookup_collection(self, collection_name):
         """
         Check whether a collection by the name exists in MongoDB.
-        :param collection_name: the name of collection checked.
-        :returns: Boolean True if collection name exists, False otherwise.
+        :param str collection_name: the name of collection checked.
+        :returns: True if collection name exists, False otherwise.
         """
 
         if not collection_name:
@@ -63,8 +63,9 @@ class MongoDBManager:
     def new_collection(self, description="", input_filters=[]):
         """
         Create a new trace collection with a name, store and return it.
-        :param description: a description of this trace collection, empty by default.
-        :param input_filters: list of tuples (string-format filters, direction)
+        :param str description: a description of this trace collection, empty by
+            default.
+        :param list input_filters: list of tuples (string-format filters, direction)
             for input filters of this collection.
         :returns: the name of the new collection.
         """
@@ -100,7 +101,7 @@ class MongoDBManager:
     def delete_collection(self, collection_name):
         """
         Delete the index and the trace collection associated with collection_name.
-        :param collection_name: the name of the collection to be deleted.
+        :param str collection_name: the name of the collection to be deleted.
         :returns: True if deleted where appropriate, False otherwise.
         """
 
@@ -116,8 +117,8 @@ class MongoDBManager:
     def modify_collection_description(self, collection_name, description):
         """
         Modify the description of a trace collection.
-        :param collection_name: the name of the collection to be modified.
-        :param description: the new description of the collection.
+        :param str collection_name: the name of the collection to be modified.
+        :param str description: the new description of the collection.
         :returns: True if modification successful, False otherwise.
         """
 
@@ -150,10 +151,11 @@ class MongoDBManager:
 
     def insert_traces(self, traces, collection_name=""):
         """
-        Insert a list of fomatted packet traces. ONLY to be called by
-        data.parser.PCAPParser.load_packet_info, as format checking not done here.
-        :param traces: see docstring of that function for input format.
-        :param collection_name: The name of the collection to be inserted into,
+        Insert a list of fomatted packet traces. Should be used only by
+        :meth:parser.PCAPParser.load_packet_info, as format checking is not done
+            here.
+        :param list traces: see docstring of that function for input format.
+        :param str collection_name: The name of the collection to be inserted into,
             create a new collection with random name if unspecified.
         :returns: dict containing collection name and inserted count if insertion
             successful, False otherwise.
@@ -180,9 +182,9 @@ class MongoDBManager:
         """
         Return matched packet traces in the named collection up to a max of max_r
          traces.
-        :param collection_name: name of the queried collection.
-        :param query_params: query written in MongoDB query object format.
-        :param max_r: maximum number of returned traces, <= 0 means unlimited.
+        :param str collection_name: name of the queried collection.
+        :param dict query_params: query written in MongoDB query object format.
+        :param int max_r: maximum number of returned traces, <= 0 means unlimited.
         :returns: traces found matching the query parameters.
         """
 
@@ -207,9 +209,9 @@ class MongoDBManager:
     def count_traces(self, collection_name, query_params={}):
         """
         Return the number of query-matched packet traces in the named collection.
-        :param collection_name: name of the queried collection.
-        :param query_params: query written in MongoDB query object format.
-        :returns: number of traces found matching the query parameters.
+        :param str collection_name: name of the queried collection.
+        :param dict query_params: query written in MongoDB query object format.
+        :returns: the number of traces found matching the query parameters.
         """
 
         if not self.lookup_collection(collection_name):
@@ -224,9 +226,9 @@ class MongoDBManager:
     def distinct_traces(self, collection_name, field_name):
         """
         Return the number of distinct fields of a column in the named collection.
-        :param collection_name: name of the queried collection.
-        :param field_name: name of column to count distinct traces.
-        :returns: number of distinct fields found.
+        :param str collection_name: name of the queried collection.
+        :param str field_name: name of column to count distinct traces.
+        :returns: the number of distinct fields found.
         """
 
         if not self.lookup_collection(collection_name):
@@ -241,8 +243,8 @@ class MongoDBManager:
     def delete_traces(self, collection_name, query_params):
         """
         Delete matched packet traces in the named collection.
-        :param collection_name: name of the queried collection.
-        :param query_params: query written in MongoDB query object format.
+        :param str collection_name: name of the queried collection.
+        :param str query_params: query written in MongoDB query object format.
         :returns: traces deleted matching the query parameters.
         """
 
@@ -270,7 +272,6 @@ class MongoDBManager:
     def log_error(error_content):
         """
         Utility function to log database errors.
-        :returns: None
         """
         if constants.LOG_ERROR and isfile(constants.LOG_FILE):
             with open(constants.LOG_FILE, "a") as log_file:

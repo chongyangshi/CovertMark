@@ -2,7 +2,7 @@ from data import utils
 
 import os
 import matplotlib as mpl
-mpl.use('Agg') # Fix non-TK dependency issue.
+mpl.use('Agg') # Fixes non-TK dependency issues on some platforms.
 import matplotlib.pyplot as plt
 import csv
 import numpy as np
@@ -16,15 +16,15 @@ def plot_performance(csvs_in, names, x_name, y_name, show=True, img_out=None,
     """
     Given CSVs containing the same x-axis and y-axis properties, and roduce
     curves with errorbars containing these information.
-    :param csvs_in: input CSVs, each must contain all information above in unique
-        columns.
-    :param names: list of strings giving legend of the lines plotted, must match
-        the length of csvs_in.
-    :param x_name: the name of the shared x-axis property.
-    :param y_name: the name of the shared y-axis property.
-    :param show: if True, show the plot through a GUI interface.
-    :param img_out: if set, output the plot to the path specified in this.
-    :param title: if set, display the title as specified in string.
+    :param list csvs_in: input CSVs, each must contain all information above in
+        unique columns.
+    :param str names: list of strings giving legend of the lines plotted, must
+        match the length of `csvs_in`.
+    :param str x_name: the name of the shared x-axis property.
+    :param str y_name: the name of the shared y-axis property.
+    :param bool show: if True, show the plot through a GUI interface.
+    :param str img_out: if set, output the plot to the path specified..
+    :param str title: if set, display the title as specified in string.
     :returns: True if plot successfully, False otherwise.
     """
 

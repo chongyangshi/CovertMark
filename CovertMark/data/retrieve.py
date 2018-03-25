@@ -12,11 +12,11 @@ class Retriever:
     def list(self, in_string=False, match_filters=None):
         """
         Return a list of all collections of traces currently stored in MongoDB.
-        :param in_string: Pre-format the output in string if True.
-        :param match_filters: a list of data.constants.IP_* filter types to
+        :param str in_string: pre-format the output in string if True.
+        :param list match_filters: a list of :mod:data.constants filter types to
             match with those of stored collections, returning only matched
             collections. If None, return all collections.
-        :returns: list of traces with {name, creation_time, description}.
+        :returns: list of traces with `{name, creation_time, description}`.
         """
 
         traces = self.__db.list_collections()
@@ -52,7 +52,7 @@ class Retriever:
         """
         Set the retriever to the collection as specified, returns False if
         specified collection does not exist or invalid.
-        :param: collection_name: the name of collection to be retrieved.
+        :param str collection_name: the name of collection to be retrieved.
         :returns: True if successfully selected, False otherwise.
         """
 
@@ -67,9 +67,9 @@ class Retriever:
 
     def get_input_filters(self):
         """
-        Retrieve and validate input filter information from the collection, if
-        all input filters present are valid, return the filters, otherwise,
-        return False.
+        Retrieve and validate input filter information from the collection.
+        :returns: if all input filters present are valid, returns the filters,
+            otherwise returns False.
         """
 
         collections = self.list(in_string=False)
@@ -104,8 +104,8 @@ class Retriever:
     def count(self, trace_filter={}):
         """
         Count the number of traces in the currently selected MongoDB collection,
-        :param trace_filter: dictionary containing a MongoDB query filter, can
-            be empty, in which case all traces counted.
+        :param dict trace_filter: a MongoDB query filter, which can be empty --
+            in which case all traces will be counted.
         :returns: the number of traces matching the filter in the currently
             selected collection.
         """
@@ -117,7 +117,7 @@ class Retriever:
         """
         Count the number of distinct fields in the currently selected MongoDB
         collection's specified column.
-        :param field: name of the column for counting distinct addresses.
+        :param str field: name of the column for counting distinct addresses.
         :returns: the number of traces matching the filter in the currently
             selected collection.
         """
@@ -129,9 +129,9 @@ class Retriever:
         """
         Retrieve traces from the currently selected MongoDB collection into
         memory, decoding base64-encoded payload and TLS data where possible.
-        :param trace_filter: a dictionary containing a MongoDB query filter, can
-            be empty, in which case all traces returned.
-        :param limit: a positive integer containing the maximum number of traces
+        :param dict trace_filter: a MongoDB query filter, can be empty -- in which
+            case all traces returned.
+        :param int limit: a positive integer containing the maximum number of traces
             to retrieve (normally in time-ascending order), or 0 for unlimited.
         :returns: List of traces as specified. Returns an empty list of traces
             if no collection is selected or filter invalid.
