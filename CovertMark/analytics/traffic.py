@@ -14,14 +14,14 @@ Record and analyse windowed and non-windowed packet flow statistics.
 def ordered_tcp_payload_length_frequency(traces, tls_only=False, bandwidth=3):
     """
     Utilises meanshift to cluster input tcp frames by their payload to within
-    a certain difference (bandwidth), and return descending ordered clusters.
+    a certain difference (bandwidth), and returns descending ordered clusters.
     This is useful if the PT sends a lot of unidirectional equal or similar
     length payloads, for which the traces should have been filtered by source or
     destination IP.
-    :param traces: a list of parsed packets, non-tcp packets will be ignored.
-    :param tls_only: boolean value that if True ignoring non-TLS frames,
-        including TCP frames not containing TLS headers but segmented TLS data.
-    :param bandwidth: the maximum distance within clusters, i.e. max difference
+    :param list traces: a list of parsed packets, non-tcp packets will be ignored.
+    :param bool tls_only: if True ignoring non-TLS frames, including TCP frames
+        not containing TLS headers but segmented TLS data.
+    :param int bandwidth: the maximum distance within clusters, i.e. max difference
         between payload lengths.
     :returns: a list of sets containing clustered values ordered from most
         frequent to least. Packets with TCP payload lengths close to a likely
@@ -65,11 +65,11 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
     This is useful if the PT sends a lot of unidirectional equal or similar UDP
     length payloads, for which the traces should have been filtered by source or
     destination IP.
-    :param traces: a list of parsed packets, non-udp packets will be ignored.
-    :param bandwidth: the maximum distance within clusters, i.e. max difference
+    :param list traces: a list of parsed packets, non-udp packets will be ignored.
+    :param int bandwidth: the maximum distance within clusters, i.e. max difference
         between payload lengths.
-    :returns: a list of sets containing clustered values ordered from most
-        frequent to least.
+    :returns: a list of sets containing clustered values ordered from the most
+        frequent to the least.
     """
 
     # Collect the lengths.
@@ -102,10 +102,11 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
 def window_traces_fixed_size(traces, window_size):
     """
     Segment traces into fixed-size windows, discarding any remainder.
-    :param traces: a list of parsed packets.
-    :param window_size: a positive integer defining the fixed frame-count of
-        each windowed segment, in chronological order.
+    :param list traces: a list of parsed packets.
+    :param int window_size: the constant frame-count of each windowed segment,
+        which will be segmented in chronological order.
     :returns: a 2-D list containing windowed traces.
+    :raises: ValueError if the fixed window size is invalid.
     """
 
     if not isinstance(window_size, int) or window_size < 1:
@@ -125,10 +126,10 @@ def window_traces_fixed_size(traces, window_size):
 def window_traces_time_series(traces, chronological_window, sort=True):
     """
     Segment traces into fixed chronologically-sized windows.
-    :param traces: a list of parsed packets.
-    :param window_size: a positive integer defining the number of **microseconds**
-        covered by each windowed segment, in chronological order.
-    :param sort: if True, traces will be sorted again into chronological order,
+    :param list traces: a list of parsed packets.
+    :param int window_size: the number of **microseconds** elapsed covered by
+        each windowed segment, in chronological order.
+    :param bool sort: if True, traces will be sorted again into chronological order,
         useful if packet times not guaranteed to be chronologically ascending.
         True by default.
     :returns: a 2-D list containing windowed traces.
@@ -165,13 +166,13 @@ def group_traces_by_ip_fixed_size(traces, clients, window_size):
     """
     Group traces into fixed-size segments that contain bidirectional traffic
     from and towards individual predefined clients, individual inputs should
-    normally come from time-windowing by self.window_traces_time_series (e.g. 60s)
+    normally come from time-windowing by :func:window_traces_time_series (e.g. 60s)
     to simulate realistic firewall operation conditions.
-    :param traces: a list of parsed packets, packets in the 1D list are assumed
-        to be chronologically ordered.
-    :param clients: a predefined list of Python subnets objects describing
+    :param list traces: a list of parsed packets. Packets in this 1D list are
+        assumed to be chronologically ordered.
+    :param list clients: a predefined list of Python subnets objects describing
         clients that are considered within the firewall's control.
-    :param window_size: threshold to start a new segment.
+    :param int window_size: threshold to start a new segment.
     :returns: a dictionary indexed by a tuple of individual client and target pair,
         containing one 2D list for each pair. Each 2D list contains segmented
         traces by fixed size, with remainders retained.
@@ -229,12 +230,12 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             'mean_tcp_len_up': mean upstream TCP payload length.
             'push_ratio_up': ratio of TCP ACKs with PSH flags set, indicating
                 reuse of TCP handshake for additional data;
-            (All attributes above, except for downstream and named '..._down');
+            *(All attributes above, except for downstream and named '..._down')*;
             'up_down_ratio': ratio of upstream to downstream packets.
-        }
-        :param windowed_traces: a segment of TCP traces, ASSUMED TO BE SORTED BY
-            TIME in ascending order.
-        :param client_ips: the IP addresses/subnets of the suspected PT clients.
+        }, with only relevant features calculated and returned, see below.
+        :param list windowed_traces: a segment of TCP traces, **assumed to have
+            been sorted by time in ascending order**.
+        :param list client_ips: the IP addresses/subnets of the suspected PT clients.
         :param feature_selection: chooses sets of features to check for and
             include in the output. If None, include all features. Options:
             USE_ENTROPY       : Entropy features
@@ -244,7 +245,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             USE_TCP_LEN_BINS  : Binned TCP lengths
             USE_PSH           : Ratio of PSH packets in ACK packets
         :returns: three-tuple: a dictionary containing the stats as described
-            above, a set of remote IP addresses seen in the window, and a list of
+            above, a set of remote IP addresses seen in the window, and a set of
             client ips seen in this window.
     """
 
@@ -260,7 +261,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     psh_on = True if all_features else constants.USE_PSH in feature_selection
 
     if not client_subnets:
-        return {}, set([]), [] # client_ip does not match the traces.
+        return {}, set([]), []
 
     stats = {}
     interval_ranges = [1000, 10000, 100000, 1000000]
@@ -508,12 +509,12 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 def synchronise_traces(traces, target_time, sort=False):
     """
     Synchronise the input traces by shifting the time of the first frame to align
-    with the target time provided.
-    :param traces: input traces to be time shifted, should be chronologically
-        ordered or set sort to True, otherwise results will be unexpected.
-    :param target_time: a float value that is a valid UNIX timestamp to 6 d.p.
-    :param sort: if True, the function will chronologically sort the input traces
-        first.
+    with the target time supplied.
+    :param list traces: input traces to be time shifted, should be chronologically
+        ordered or have sort set to True, otherwise results will be erroneous.
+    :param float target_time: a valid UNIX timestamp to at least 6 d.p.
+    :param bool sort: if True, the function will chronologically sort the input
+        traces first.
     :returns: time shifted input traces.
     """
 
