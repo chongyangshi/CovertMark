@@ -1,3 +1,7 @@
+"""
+This module stores constants used during the operations of the UI.
+"""
+
 # Application info.
 CM_NAME = "CovertMark"
 CM_VER = "0.1"

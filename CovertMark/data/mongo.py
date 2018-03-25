@@ -187,7 +187,7 @@ class MongoDBManager:
     def find_traces(self, collection_name, query_params, max_r=0):
         """
         Return matched packet traces in the named collection up to a max of max_r
-         traces.
+        traces.
 
         :param str collection_name: name of the queried collection.
         :param dict query_params: query written in MongoDB query object format.

@@ -1,3 +1,6 @@
+"""
+This module stores constants used in packet-level data processing for ease of maintenance.
+"""
 LOG_ERROR = True
 LOG_FILE = "parser_errors.log"
 TLS_TYPE = {20: "CHANGE_CIPHER_SPEC", 21: "ALERT", 22: "HANDSHAKE", 23: "APPLICATION_DATA"}

@@ -1,3 +1,6 @@
+"""
+The entry point of the CovertMark, launching the command line UI.
+"""
 import os, sys
 from importlib import import_module
 from tabulate import tabulate

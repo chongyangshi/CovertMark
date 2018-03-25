@@ -1,3 +1,6 @@
+"""
+This module stores fixed configurations used in traffic analysis for ease of maintenance.
+"""
 INITIAL_RANDOM_BLOCK_COUNT = 2048
 A_D_THRESHOLDS = [0.25, 0.1, 0.05, 0.025, 0.01]
 MOST_FREQUENT_COUNT = 5

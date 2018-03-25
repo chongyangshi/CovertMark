@@ -1,3 +1,7 @@
+"""
+This module stores fixed configurations and mappings used to organise and score
+strategies and their runs, as well as to support strategy map validations.
+"""
 from ..data import constants as data_constants
 
 TPR_BOUNDARY = 0.333 # Below which results in ineffective detection.

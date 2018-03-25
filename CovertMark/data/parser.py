@@ -80,17 +80,19 @@ class PCAPParser:
         """
         Load and return information of packet traces.
         Non-IP/IPv6 packets are ignored.
-        Format: [{type: v4/v6, dst: dst_ip, src: src_ip, len: packet_length,
-                    proto: protocol, time: time_stamp, ttl: TTL/hop_limit,
-                    tcp_info (None for non-TCP packets):
-                        {sport: src_port, dport: dst_port, flags: tcp_flags,
-                        opts: tcp_options, seq: tcp_seq, ack: tcp_ack,
-                        payload: b64encoded_payload},
-                    tls_info (None for non-TLS packets):
-                        {type: tls_type, ver: tls_version, len: tls_data_length,
-                        records: tls_num_records, data: [b64_encoded_tls_data],
-                        data_length = [b64_encoded_tls_data_length]}
-                }]
+        Format::
+            [{
+            type: v4/v6, dst: dst_ip, src: src_ip, len: packet_length,
+            proto: protocol, time: time_stamp, ttl: TTL/hop_limit,
+            tcp_info (None for non-TCP packets):
+                {sport: src_port, dport: dst_port, flags: tcp_flags,
+                opts: tcp_options, seq: tcp_seq, ack: tcp_ack,
+                payload: b64encoded_payload},
+            tls_info (None for non-TLS packets):
+                {type: tls_type, ver: tls_version, len: tls_data_length,
+                records: tls_num_records, data: [b64_encoded_tls_data],
+                data_length = [b64_encoded_tls_data_length]}
+            }]
 
         :returns: a list of packets parsed formatted as above.
         """

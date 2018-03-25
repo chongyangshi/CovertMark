@@ -226,15 +226,15 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     - 'mean_entropy_up': mean entropy of upstream TCP payloads;
     - 'mean_interval_up': upstream mean TCP ACK intervals;
     - 'bin_#_interval_up': the number of in-range intervals between TCP frames,
-        ranges divided between 0, 1000, 10000, 100000, 1000000 microseconds,
-        with value represented as the upper range of each interval. Only
-        the first of all frames bearing the unique sequence number is
-        counted;
+      ranges divided between 0, 1000, 10000, 100000, 1000000 microseconds,
+      with value represented as the upper range of each interval. Only
+      the first of all frames bearing the unique sequence number is
+      counted;
     - 'top1_tcp_len_up': the most common upstream TCP payload length;
     - 'top2_tcp_len_up': the second most common upstream TCP payload length;
     - 'mean_tcp_len_up': mean upstream TCP payload length.
     - 'push_ratio_up': ratio of TCP ACKs with PSH flags set, indicating
-        reuse of TCP handshake for additional data;
+      reuse of TCP handshake for additional data;
     - (All attributes above, except for downstream and named '..._down');
     - 'up_down_ratio': ratio of upstream to downstream packets.
 
@@ -246,12 +246,12 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     :param feature_selection: chooses sets of features to check for and
         include in the output. If None, include all features. Options:
 
-        - USE_ENTROPY       : Entropy features
-        - USE_INTERVAL      : Mean interval
-        - USE_INTERVAL_BINS : Binned intervals
-        - USE_TCP_LEN       : Top and mean TCP lengths
-        - USE_TCP_LEN_BINS  : Binned TCP lengths
-        - USE_PSH           : Ratio of PSH packets in ACK packets
+        - :const:`~constants.USE_ENTROPY`       : Entropy features
+        - :const:`~constants.USE_INTERVAL`      : Mean interval
+        - :const:`~constants.USE_INTERVAL_BINS` : Binned intervals
+        - :const:`~constants.USE_TCP_LEN`       : Top and mean TCP lengths
+        - :const:`~constants.USE_TCP_LEN_BINS`  : Binned TCP lengths
+        - :const:`~constants.USE_PSH`           : Ratio of PSH packets in ACK packets
 
     :returns: three-tuple: a dictionary containing the stats as described
         above, a set of remote IP addresses seen in the window, and a set of
