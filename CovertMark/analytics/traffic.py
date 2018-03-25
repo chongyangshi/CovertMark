@@ -77,6 +77,8 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
     for trace in traces:
         if trace['proto'] != "UDP":
             continue
+        elif len(trace['len']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD:
+            continue
         else:
             lengths.append(trace['len'])
 
