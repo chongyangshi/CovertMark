@@ -8,6 +8,7 @@ from dpkt import tcp
 def check_file_exists(file_path):
     """
     Check whether the file at file_path exists.
+
     :param str file_path: full path to the file checked.
     :returns: a boolean value indicating whether the file exists.
     """
@@ -22,6 +23,7 @@ def get_full_path(file_path):
     """
     Given the path to a file, returns the full path containing the file by
     expanding any user prefixes. This does not require the target file to exist.
+
     :param str file_path: full or user-prefix path to file.
     :returns: the path to the directory containing the specified file. None if
         the directory does not exist.
@@ -39,6 +41,7 @@ def get_full_path(file_path):
 def read_mongo_credentials():
     """
     Reads and returns mongo credentials stored in mongo-auth.json.
+
     :returns: a dict containing `'username'` and `'password'` specified if read
         was successful, as well as `'auth_source'` for the authentication databse.
         Returns None if the JSON file does not exist or is invalid.
@@ -65,6 +68,7 @@ def parse_ip(ip_bytes):
     """
     Convert an IPv4/IPv6 address in bytes to a valid IP address in string format,
         if it is indeed valid.
+
     :param bytes ip_bytes: bytes of IPv4/IPv6 address.
     :returns: IP address in string format, None if input invalid.
     """
@@ -80,6 +84,7 @@ def build_subnet(subnet_str):
     """
     Convert an IPv4/IPv6 subnet in string format (e.g. 192.168.1.0/24) into an
     :class:ipaddress.IPv4Network or :class:ipaddress.IPv6Network object.
+
     :param str subnet_str: subnet in string format.
     :returns: :class:ipaddress.IPv4Network or :class:ipaddress.IPv6Network object
         depends on input subnet address type, or None if input invalid.
@@ -99,6 +104,7 @@ def build_subnet(subnet_str):
 def parse_tcp_flags(flag_bits):
     """
     Parse flags of a TCP packet.
+
     :param bytes flag_bytes: a byte of bits containing TCP packet flag, only the
         first 8 bits are in use.
     :returns: a dict of TCP flags and their values.

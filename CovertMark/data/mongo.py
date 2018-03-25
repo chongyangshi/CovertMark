@@ -32,6 +32,7 @@ class MongoDBManager:
     def lookup_collection(self, collection_name):
         """
         Check whether a collection by the name exists in MongoDB.
+
         :param str collection_name: the name of collection checked.
         :returns: True if collection name exists, False otherwise.
         """
@@ -63,6 +64,7 @@ class MongoDBManager:
     def new_collection(self, description="", input_filters=[]):
         """
         Create a new trace collection with a name, store and return it.
+
         :param str description: a description of this trace collection, empty by
             default.
         :param list input_filters: list of tuples (string-format filters, direction)
@@ -101,6 +103,7 @@ class MongoDBManager:
     def delete_collection(self, collection_name):
         """
         Delete the index and the trace collection associated with collection_name.
+
         :param str collection_name: the name of the collection to be deleted.
         :returns: True if deleted where appropriate, False otherwise.
         """
@@ -117,6 +120,7 @@ class MongoDBManager:
     def modify_collection_description(self, collection_name, description):
         """
         Modify the description of a trace collection.
+
         :param str collection_name: the name of the collection to be modified.
         :param str description: the new description of the collection.
         :returns: True if modification successful, False otherwise.
@@ -136,6 +140,7 @@ class MongoDBManager:
     def list_collections(self):
         """
         Return all valid collections.
+
         :returns: a list of valid collections with attributes.
         """
 
@@ -153,7 +158,8 @@ class MongoDBManager:
         """
         Insert a list of fomatted packet traces. Should be used only by
         :meth:parser.PCAPParser.load_packet_info, as format checking is not done
-            here.
+        here.
+
         :param list traces: see docstring of that function for input format.
         :param str collection_name: The name of the collection to be inserted into,
             create a new collection with random name if unspecified.
@@ -182,6 +188,7 @@ class MongoDBManager:
         """
         Return matched packet traces in the named collection up to a max of max_r
          traces.
+
         :param str collection_name: name of the queried collection.
         :param dict query_params: query written in MongoDB query object format.
         :param int max_r: maximum number of returned traces, <= 0 means unlimited.
@@ -209,6 +216,7 @@ class MongoDBManager:
     def count_traces(self, collection_name, query_params={}):
         """
         Return the number of query-matched packet traces in the named collection.
+
         :param str collection_name: name of the queried collection.
         :param dict query_params: query written in MongoDB query object format.
         :returns: the number of traces found matching the query parameters.
@@ -226,6 +234,7 @@ class MongoDBManager:
     def distinct_traces(self, collection_name, field_name):
         """
         Return the number of distinct fields of a column in the named collection.
+
         :param str collection_name: name of the queried collection.
         :param str field_name: name of column to count distinct traces.
         :returns: the number of distinct fields found.
@@ -243,6 +252,7 @@ class MongoDBManager:
     def delete_traces(self, collection_name, query_params):
         """
         Delete matched packet traces in the named collection.
+
         :param str collection_name: name of the queried collection.
         :param str query_params: query written in MongoDB query object format.
         :returns: traces deleted matching the query parameters.
@@ -261,6 +271,7 @@ class MongoDBManager:
     def generate_name():
         """
         Generate a trace collection name in the format of 'traces(yyyymmdd)random-hex-string'.
+
         :returns: a random collection name.
         """
         today = date.today().strftime("%Y%m%d")

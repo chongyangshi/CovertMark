@@ -21,6 +21,7 @@ class PCAPParser:
     def get_ip_filter(self):
         """
         Return the current ip filter configuration.
+
         :returns: a list of acceptable IPv4/IPv6 subnets in ipaddress subnet objects.
         """
 
@@ -33,6 +34,7 @@ class PCAPParser:
         destination address belongs to an address or subnet as specified.
         Always process single addresses as lowest-level subnets for convenience.
         Calling this method overwrites the previous filter configuration.
+
         :param list subjects: a list of acceptable IPv4/IPv6 addresses or subnets in
             string format, and their direction. Format: [(NET, POSITION)], where
             NET represents the IPv4/IPv6 address or subnet to track, and POSITION
@@ -44,7 +46,7 @@ class PCAPParser:
             filters, it will be seen as matched. In the case of :const:constants.IP_EITHER,
             the filter will match either source or destination occurrences of that IP,
             superceding acceptance by :const:constants.IP_SRC/:const:constants.IP_DST
-             filters covering the same subnets.
+            filters covering the same subnets.
         :returns: the number of successfully added filters (filter with
             overlapping subnets represented and processed separately).
         """
@@ -78,7 +80,7 @@ class PCAPParser:
         """
         Load and return information of packet traces.
         Non-IP/IPv6 packets are ignored.
-        Format: ```[{type: v4/v6, dst: dst_ip, src: src_ip, len: packet_length,
+        Format: [{type: v4/v6, dst: dst_ip, src: src_ip, len: packet_length,
                     proto: protocol, time: time_stamp, ttl: TTL/hop_limit,
                     tcp_info (None for non-TCP packets):
                         {sport: src_port, dport: dst_port, flags: tcp_flags,
@@ -88,7 +90,8 @@ class PCAPParser:
                         {type: tls_type, ver: tls_version, len: tls_data_length,
                         records: tls_num_records, data: [b64_encoded_tls_data],
                         data_length = [b64_encoded_tls_data_length]}
-                }]```
+                }]
+
         :returns: a list of packets parsed formatted as above.
         """
 
@@ -201,6 +204,7 @@ class PCAPParser:
         """
         Load packet traces from pcap file, and insert into a new collection.
         Returned collection name **must** be verified to not be False.
+
         :param str description: description of the new collection, empty by default.
         :returns: name of the new collection, False if failed.
         """
@@ -225,6 +229,7 @@ class PCAPParser:
         """
         Load packet traces from pcap file, and insert into an existing collection.
         Returned collection name **must** be verified to not be False.
+
         :returns: True if insertion successful, False if failed.
         """
 
@@ -243,6 +248,7 @@ class PCAPParser:
         """
         Drop the collection and its index to clean up space, if the stored traces
         are temporary only.
+
         :param str collection: the name of the collection to be cleaned up.
         """
 
@@ -253,6 +259,7 @@ class PCAPParser:
     def log_invalid(error_content):
         """
         Utility function to log invalid packet information parsed.
+
         :returns: None
         """
         if constants.LOG_ERROR and isfile(constants.LOG_FILE):

@@ -16,6 +16,7 @@ def plot_performance(csvs_in, names, x_name, y_name, show=True, img_out=None,
     """
     Given CSVs containing the same x-axis and y-axis properties, and roduce
     curves with errorbars containing these information.
+
     :param list csvs_in: input CSVs, each must contain all information above in
         unique columns.
     :param str names: list of strings giving legend of the lines plotted, must
