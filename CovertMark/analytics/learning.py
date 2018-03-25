@@ -19,6 +19,8 @@ class Classifier(ABC):
 
     def train(self, training_features, training_labels):
         """
+        Train on training input feature rows.
+
         :param list training_features: input rows of features for training, without
          labels. These should be redrawn between training runs.
         :param list training_labels: corresponding labels for the input rows.
@@ -35,6 +37,7 @@ class Classifier(ABC):
         """
         Classify unseen inputs, can be used for both validation prediction and
          recall prediction.
+
         :param list validation_inputs: input rows of features for validation,
          should not have been seen during training.
         :returns: array of positive(1) / negative(0) labels predicted.

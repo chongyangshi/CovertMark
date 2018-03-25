@@ -18,6 +18,7 @@ def ordered_tcp_payload_length_frequency(traces, tls_only=False, bandwidth=3):
     This is useful if the PT sends a lot of unidirectional equal or similar
     length payloads, for which the traces should have been filtered by source or
     destination IP.
+
     :param list traces: a list of parsed packets, non-tcp packets will be ignored.
     :param bool tls_only: if True ignoring non-TLS frames, including TCP frames
         not containing TLS headers but segmented TLS data.
@@ -65,6 +66,7 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
     This is useful if the PT sends a lot of unidirectional equal or similar UDP
     length payloads, for which the traces should have been filtered by source or
     destination IP.
+
     :param list traces: a list of parsed packets, non-udp packets will be ignored.
     :param int bandwidth: the maximum distance within clusters, i.e. max difference
         between payload lengths.
@@ -102,6 +104,7 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
 def window_traces_fixed_size(traces, window_size):
     """
     Segment traces into fixed-size windows, discarding any remainder.
+
     :param list traces: a list of parsed packets.
     :param int window_size: the constant frame-count of each windowed segment,
         which will be segmented in chronological order.
@@ -126,6 +129,7 @@ def window_traces_fixed_size(traces, window_size):
 def window_traces_time_series(traces, chronological_window, sort=True):
     """
     Segment traces into fixed chronologically-sized windows.
+
     :param list traces: a list of parsed packets.
     :param int window_size: the number of **microseconds** elapsed covered by
         each windowed segment, in chronological order.
@@ -168,6 +172,7 @@ def group_traces_by_ip_fixed_size(traces, clients, window_size):
     from and towards individual predefined clients, individual inputs should
     normally come from time-windowing by :func:window_traces_time_series (e.g. 60s)
     to simulate realistic firewall operation conditions.
+
     :param list traces: a list of parsed packets. Packets in this 1D list are
         assumed to be chronologically ordered.
     :param list clients: a predefined list of Python subnets objects describing
@@ -217,36 +222,40 @@ def group_traces_by_ip_fixed_size(traces, clients, window_size):
 def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     """
     Calculate the following features for the windowed traces:
-        {
-            'mean_entropy_up': mean entropy of upstream TCP payloads;
-            'mean_interval_up': upstream mean TCP ACK intervals;
-            'bin_#_interval_up': the number of in-range intervals between TCP frames,
-                ranges divided between 0, 1000, 10000, 100000, 1000000 microseconds,
-                with value represented as the upper range of each interval. Only
-                the first of all frames bearing the unique sequence number is
-                 counted;
-            'top1_tcp_len_up': the most common upstream TCP payload length;
-            'top2_tcp_len_up': the second most common upstream TCP payload length;
-            'mean_tcp_len_up': mean upstream TCP payload length.
-            'push_ratio_up': ratio of TCP ACKs with PSH flags set, indicating
-                reuse of TCP handshake for additional data;
-            *(All attributes above, except for downstream and named '..._down')*;
-            'up_down_ratio': ratio of upstream to downstream packets.
-        }, with only relevant features calculated and returned, see below.
-        :param list windowed_traces: a segment of TCP traces, **assumed to have
-            been sorted by time in ascending order**.
-        :param list client_ips: the IP addresses/subnets of the suspected PT clients.
-        :param feature_selection: chooses sets of features to check for and
-            include in the output. If None, include all features. Options:
-            USE_ENTROPY       : Entropy features
-            USE_INTERVAL      : Mean interval
-            USE_INTERVAL_BINS : Binned intervals
-            USE_TCP_LEN       : Top and mean TCP lengths
-            USE_TCP_LEN_BINS  : Binned TCP lengths
-            USE_PSH           : Ratio of PSH packets in ACK packets
-        :returns: three-tuple: a dictionary containing the stats as described
-            above, a set of remote IP addresses seen in the window, and a set of
-            client ips seen in this window.
+
+    - 'mean_entropy_up': mean entropy of upstream TCP payloads;
+    - 'mean_interval_up': upstream mean TCP ACK intervals;
+    - 'bin_#_interval_up': the number of in-range intervals between TCP frames,
+        ranges divided between 0, 1000, 10000, 100000, 1000000 microseconds,
+        with value represented as the upper range of each interval. Only
+        the first of all frames bearing the unique sequence number is
+        counted;
+    - 'top1_tcp_len_up': the most common upstream TCP payload length;
+    - 'top2_tcp_len_up': the second most common upstream TCP payload length;
+    - 'mean_tcp_len_up': mean upstream TCP payload length.
+    - 'push_ratio_up': ratio of TCP ACKs with PSH flags set, indicating
+        reuse of TCP handshake for additional data;
+    - *(All attributes above, except for downstream and named '..._down')*;
+        'up_down_ratio': ratio of upstream to downstream packets.
+
+    } -- with only relevant features calculated and returned, see below.
+
+    :param list windowed_traces: a segment of TCP traces, **assumed to have
+        been sorted by time in ascending order**.
+    :param list client_ips: the IP addresses/subnets of the suspected PT clients.
+    :param feature_selection: chooses sets of features to check for and
+        include in the output. If None, include all features. Options:
+
+        - USE_ENTROPY       : Entropy features
+        - USE_INTERVAL      : Mean interval
+        - USE_INTERVAL_BINS : Binned intervals
+        - USE_TCP_LEN       : Top and mean TCP lengths
+        - USE_TCP_LEN_BINS  : Binned TCP lengths
+        - USE_PSH           : Ratio of PSH packets in ACK packets
+        
+    :returns: three-tuple: a dictionary containing the stats as described
+        above, a set of remote IP addresses seen in the window, and a set of
+        client ips seen in this window.
     """
 
     client_subnets = [data_utils.build_subnet(i) for i in client_ips]
@@ -510,6 +519,7 @@ def synchronise_traces(traces, target_time, sort=False):
     """
     Synchronise the input traces by shifting the time of the first frame to align
     with the target time supplied.
+
     :param list traces: input traces to be time shifted, should be chronologically
         ordered or have sort set to True, otherwise results will be erroneous.
     :param float target_time: a valid UNIX timestamp to at least 6 d.p.

@@ -15,6 +15,7 @@ class EntropyAnalyser:
     def __init__(self):
         self.random_bytes = sorted([numpy.random.bytes(constants.INITIAL_RANDOM_BLOCK_COUNT) for i in range(5)], key=EntropyAnalyser.byte_entropy)[-1]
 
+
     def request_random_bytes(self, request_size, block_size):
         """
         It is computationally expensive to generate fresh uniform distributions
@@ -22,6 +23,7 @@ class EntropyAnalyser:
         sample is kept, unless enlargement is required due to request size.
         Each regeneration is repeated five times with the highest entropy sample
         taken, to prevent accidental low entropy distribution from being used.
+
         :param int request_size: the size of requested uniformly distributed bytes.
         :param int block_size: the number of bytes in each block.
         :returns: list of blocks of uniformly distributed bytes of the size
@@ -50,6 +52,7 @@ class EntropyAnalyser:
     def byte_entropy(input_bytes):
         """
         Calculate the shannon entropy of the input bytes.
+
         :param bytes input_bytes: input in bytes.
         :returns: the base 2 shannon entropy of input_bytes.
         """
@@ -83,9 +86,10 @@ class EntropyAnalyser:
         Perform an Anderson-Darling distribution hypothesis test on whether the
         input_bytes was likely drawn from the same distribution as a random
         distribution, based on Shannon entropy of individual blocks of fixed size.
+
         :param bytes input_bytes: input in bytes to be tested.
         :param int block_size: the block size for each entropy-calculation block.
-        :returns: {min_threshold, p}, where min_threshold is
+        :returns: `{min_threshold, p}`, where min_threshold is
             the minimum threshold in float under which the null hypothesis can
             be rejected, between 0.25 and 0.01, 1 if non-rejectable (definitely
             from random distribution), and 0 if always rejectable (definitely
@@ -147,6 +151,7 @@ class EntropyAnalyser:
         Perform a Kolmogorov-Smirnov distribution hypothesis test on on whether the
         input_bytes was likely drawn from the same distribution as a random
         distribution, based on Shannon entropy of individual blocks of fixed size.
+
         :param bytes input_bytes: input in bytes to be tested.
         :param int block_size: an integer block size for entropy-calculation block.
         :returns: the p-value from the KS two-sample test, hypothesis rejectable
@@ -183,6 +188,7 @@ class EntropyAnalyser:
         """
         Perform a Kolmogorov-Smirnov distribution hypothesis test on on whether the
         input_bytes was likely uniformly distributed (not by entropy value).
+
         :param bytes input_bytes: input in bytes to be tested.
         :returns: the p-value from the KS two-sample test, hypothesis rejectable
             if p is very small (usually <0.1), meaning input likely not uniformly
