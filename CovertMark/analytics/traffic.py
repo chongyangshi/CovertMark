@@ -235,10 +235,10 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     - 'mean_tcp_len_up': mean upstream TCP payload length.
     - 'push_ratio_up': ratio of TCP ACKs with PSH flags set, indicating
         reuse of TCP handshake for additional data;
-    - *(All attributes above, except for downstream and named '..._down')*;
-        'up_down_ratio': ratio of upstream to downstream packets.
+    - (All attributes above, except for downstream and named '..._down');
+    - 'up_down_ratio': ratio of upstream to downstream packets.
 
-    } -- with only relevant features calculated and returned, see below.
+    Only relevant features will be calculated and returned, see below.
 
     :param list windowed_traces: a segment of TCP traces, **assumed to have
         been sorted by time in ascending order**.

@@ -46,8 +46,6 @@ extensions = [
     'sphinx.ext.intersphinx',
 ]
 
-autodoc_default_flags = ['members', 'private-members']
-
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -163,3 +161,4 @@ texinfo_documents = [
 
 
 # -- Extension configuration -------------------------------------------------
+html_theme = "sphinx_rtd_theme"
