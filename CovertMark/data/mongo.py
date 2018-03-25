@@ -1,4 +1,4 @@
-from . import constants, utils
+from . import constants, utils, parser
 
 from pymongo import MongoClient
 import hashlib
@@ -157,7 +157,7 @@ class MongoDBManager:
     def insert_traces(self, traces, collection_name=""):
         """
         Insert a list of fomatted packet traces. Should be used only by
-        :meth:parser.PCAPParser.load_packet_info, as format checking is not done
+        :meth:`parser.PCAPParser.load_packet_info`, as format checking is not done
         here.
 
         :param list traces: see docstring of that function for input format.

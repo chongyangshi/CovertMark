@@ -38,14 +38,14 @@ class PCAPParser:
         :param list subjects: a list of acceptable IPv4/IPv6 addresses or subnets in
             string format, and their direction. Format: [(NET, POSITION)], where
             NET represents the IPv4/IPv6 address or subnet to track, and POSITION
-            represents whether this is supposed to be :const:constants.IP_SRC,
-            :const:constants.IP_DST, or :const:constants.IP_EITHER.
+            represents whether this is supposed to be :const:`constants.IP_SRC`,
+            :const:`constants.IP_DST`, or :const:`constants.IP_EITHER`.
             Precedence: for each packet, if there is either no IP_SRC or no IP_DST
             specified, then it will be seen as matched; otherwise, as long as its
-            `src` or `dst` matches one of the :const:constants.IP_SRC/:const:constants.IP_DST
-            filters, it will be seen as matched. In the case of :const:constants.IP_EITHER,
+            `src` or `dst` matches one of the :const:`constants.IP_SRC`/:const:`constants.IP_DST`
+            filters, it will be seen as matched. In the case of :const:`constants.IP_EITHER`,
             the filter will match either source or destination occurrences of that IP,
-            superceding acceptance by :const:constants.IP_SRC/:const:constants.IP_DST
+            superceding acceptance by :const:`constants.IP_SRC`/:const:`constants.IP_DST`
             filters covering the same subnets.
         :returns: the number of successfully added filters (filter with
             overlapping subnets represented and processed separately).

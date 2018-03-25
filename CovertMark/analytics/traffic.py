@@ -170,7 +170,7 @@ def group_traces_by_ip_fixed_size(traces, clients, window_size):
     """
     Group traces into fixed-size segments that contain bidirectional traffic
     from and towards individual predefined clients, individual inputs should
-    normally come from time-windowing by :func:window_traces_time_series (e.g. 60s)
+    normally come from time-windowing by :func:`window_traces_time_series` (e.g. 60s)
     to simulate realistic firewall operation conditions.
 
     :param list traces: a list of parsed packets. Packets in this 1D list are
@@ -252,7 +252,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         - USE_TCP_LEN       : Top and mean TCP lengths
         - USE_TCP_LEN_BINS  : Binned TCP lengths
         - USE_PSH           : Ratio of PSH packets in ACK packets
-        
+
     :returns: three-tuple: a dictionary containing the stats as described
         above, a set of remote IP addresses seen in the window, and a set of
         client ips seen in this window.

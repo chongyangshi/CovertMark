@@ -83,11 +83,11 @@ def parse_ip(ip_bytes):
 def build_subnet(subnet_str):
     """
     Convert an IPv4/IPv6 subnet in string format (e.g. 192.168.1.0/24) into an
-    :class:ipaddress.IPv4Network or :class:ipaddress.IPv6Network object.
+    :class:`ipaddress.IPv4Network` or :class:`ipaddress.IPv6Network` object.
 
     :param str subnet_str: subnet in string format.
-    :returns: :class:ipaddress.IPv4Network or :class:ipaddress.IPv6Network object
-        depends on input subnet address type, or None if input invalid.
+    :returns: :class:`ipaddress.IPv4Network` or :class:`ipaddress.IPv6Network`
+        object depends on input subnet address type, or None if input invalid.
     """
 
     try:

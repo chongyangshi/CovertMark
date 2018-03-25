@@ -189,9 +189,9 @@ class LengthClusteringStrategy(DetectionStrategy):
 
     def run_strategy(self, **kwargs):
         """
-        PT clients and servers in the input PCAP should be specified via :const:data.constants.IP_SRC
-        and :const:data.constants.IP_DST respectively, while negative clients should be specified via
-        :const:data.constants.IP_SRC.
+        PT clients and servers in the input PCAP should be specified via :const:`data.constants.IP_SRC`
+        and :const:`data.constants.IP_DST` respectively, while negative clients should be specified via
+        :const:`data.constants.IP_SRC`.
 
         :param str tls_mode: Optionally set tls_mode between "all", "only", or "none"
             to test all packets, TLS packets only, or non-TLS packets only. Set

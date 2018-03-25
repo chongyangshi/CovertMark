@@ -106,7 +106,7 @@ class EntropyStrategy(DetectionStrategy):
         high entropy payloads that are likely results of proxy encryptions.
 
         :param int block_size: the size of blocks of payload bytes tested in KS and
-            AD. Default is set in :const:BLOCK_SIZE.
+            AD. Default is set in :const:`BLOCK_SIZE`.
         :param float p_threshold: the p-value threshold at which uniform random
             hypothesis can be rejected, defaulted at 0.1.
         :param int criterion: the number of rejected hypothesis among all tests
@@ -152,7 +152,7 @@ class EntropyStrategy(DetectionStrategy):
         Test an identical configuration on negative traces. Reporting falsely blocked IPs.
 
         :param int block_size: the size of blocks of payload bytes tested in KS and
-            AD. Default is set in :const:BLOCK_SIZE.
+            AD. Default is set in :const:`BLOCK_SIZE`.
         :param float p_threshold: the p-value threshold at which uniform random
             hypothesis can be rejected, defaulted at 0.1.
         :param int criterion: the number of rejected hypothesis among all tests
@@ -231,9 +231,9 @@ class EntropyStrategy(DetectionStrategy):
 
     def run_strategy(self, **kwargs):
         """
-        PT input filters should be given as :const:data.constants.IP_SRC and :const:data.constants.IP_DST,
+        PT input filters should be given as :const:`data.constants.IP_SRC` and :const:`data.constants.IP_DST`,
         and changed around if testing for downstream rather than upstream direction.
-        Negative input filters specifying innocent clients should be given as an :const:data.constants.IP_SRC.
+        Negative input filters specifying innocent clients should be given as an :const:`data.constants.IP_SRC`.
 
         :param int protocol_min_length: Optionally set the minimum handshake TCP
             payload length of packets in that direction, allowing disregard of

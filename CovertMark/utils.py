@@ -477,7 +477,7 @@ def list_traces(traces):
     """
     Fetch stored traces in MongoDB for user selection.
 
-    :param list traces: a list of (un)filtered traces from :meth:data.retrieve.Retriever.list.
+    :param list traces: a list of (un)filtered traces from :meth:`~CovertMark.data.retrieve.Retriever.list`.
     :returns: tuple of a pretty-printable tabulate containing information of traces,
         and a dictionary mapping displayed IDs to the internal collection name.
     """

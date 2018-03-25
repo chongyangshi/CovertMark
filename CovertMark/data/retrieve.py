@@ -14,7 +14,7 @@ class Retriever:
         Return a list of all collections of traces currently stored in MongoDB.
 
         :param str in_string: pre-format the output in string if True.
-        :param list match_filters: a list of :mod:data.constants filter types to
+        :param list match_filters: a list of :mod:`CovertMark.data.constants` filter types to
             match with those of stored collections, returning only matched
             collections. If None, return all collections.
         :returns: list of traces with `{name, creation_time, description}`.

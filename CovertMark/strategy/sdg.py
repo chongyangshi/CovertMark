@@ -204,7 +204,7 @@ class SDGStrategy(DetectionStrategy):
 
     def negative_run(self):
         """
-        Not used at this time, as FPR combined into :meth:positive_run.
+        Not used at this time, as FPR combined into :meth:`positive_run`.
         """
 
         return None
