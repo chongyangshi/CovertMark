@@ -6,6 +6,7 @@ from operator import itemgetter
 from collections import Counter
 from tabulate import tabulate
 from datetime import date
+from copy import deepcopy
 import hashlib
 
 from . import data, strategy
@@ -214,11 +215,7 @@ def save_procedure(export_path, procedure, strategy_map, overwrite=False):
 
     if not check_write_permission(os.path.dirname(export_path)):
         return False
-
-    for run in procedure:
-        if run["pt_collection"] != "" or run["neg_collection"] != "":
-            print("Note: some or all of your strategy runs configured in this procedure import existing collections from MongoDB, this saved procedure will thus not be portable between systems.")
-
+    
     try:
         with open(export_path, 'w') as export_file:
             dump(procedure, export_file)
@@ -271,6 +268,8 @@ def execute_procedure(procedure, strategy_map, db_sub=False):
         Returns empty list if execution fails. If `db_sub` is set, the updated
         procedure will also be returned as the second element of a tuple.
     """
+
+    procedure = deepcopy(procedure) # Prevent overwrite of original structure.
 
     val, _ = validate_procedure(procedure, strategy_map)
     if not val:
