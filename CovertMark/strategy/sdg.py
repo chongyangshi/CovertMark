@@ -280,7 +280,7 @@ class SDGStrategy(DetectionStrategy):
         window_size = 50 if 'window_size' not in kwargs else kwargs['window_size']
         if not isinstance(window_size, int) or window_size < 10:
             raise ValueError("Invalid window_size.")
-        self._window_size = window_size;
+        self._window_size = window_size
         self.debug_print("Setting window size at {}.".format(self._window_size))
 
         # Threshold at which to decide to block IP in validation, dynamic

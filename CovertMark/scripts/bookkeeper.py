@@ -1,4 +1,4 @@
-from data import retrieve
+from ..data import retrieve
 
 # Delete dormant entries in MongoDB and list the current stored traces.
 

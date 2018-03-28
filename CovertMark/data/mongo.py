@@ -2,7 +2,7 @@ from . import constants, utils, parser
 
 from pymongo import MongoClient
 import hashlib
-from os import urandom
+from os import urandom, path
 from datetime import date, datetime
 
 class MongoDBManager:
@@ -284,6 +284,6 @@ class MongoDBManager:
         """
         Utility function to log database errors.
         """
-        if constants.LOG_ERROR and isfile(constants.LOG_FILE):
+        if constants.LOG_ERROR and path.isfile(constants.LOG_FILE):
             with open(constants.LOG_FILE, "a") as log_file:
                 log_file.write(error_content)

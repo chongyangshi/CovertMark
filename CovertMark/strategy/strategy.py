@@ -70,6 +70,7 @@ class DetectionStrategy(ABC):
         self._negative_unique_ips = 0
         self._negative_blocked_ips = set([])
         self._recall_rate = None
+        self._test_recall = False
 
         # For debug outputs, overwrite if required.
         self.DEBUG = debug
@@ -597,6 +598,7 @@ class DetectionStrategy(ABC):
                 raise RuntimeError("! Failure to parse negative PCAP file.")
 
         if test_recall:
+            self._test_recall = True
             self.debug_print("This run will test the positive recall of the best classifier.")
             if self.__reader.select(recall_collection):
                 self._recall_collection = recall_collection
@@ -734,7 +736,7 @@ class DetectionStrategy(ABC):
             self.debug_print("Reported false positive rate: {}".format(self._false_positive_rate))
             self.debug_print("False positive IPs blocked rate: {}".format(self._false_positive_blocked_rate))
 
-        if test_recall:
+        if self._test_recall:
             self.debug_print("- Validating best strategy on positive recall traces...")
             self._recall_rate = self.run_on_recall()
             self.debug_print("Reported positive recall rate: {}".format(self._recall_rate))

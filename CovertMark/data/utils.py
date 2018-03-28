@@ -72,8 +72,7 @@ def parse_ip(ip_bytes):
     :param bytes ip_bytes: bytes of IPv4/IPv6 address.
     :returns: IP address in string format, None if input invalid.
     """
-
-    return_ip = None
+    
     try:
         return str(ipaddress.ip_address(ip_bytes))
     except ValueError:

@@ -153,7 +153,7 @@ class Retriever:
         try:
             traces = self.__db.find_traces(self._collection, trace_filter, max_r)
         except MemoryError:
-            self.debug_print("Warning: cannot allocate sufficient memory for traces, perhaps you are using Windows?")
+            print("Warning: cannot allocate sufficient memory for traces, perhaps you are using Windows?")
             return []
         except:
             return []
