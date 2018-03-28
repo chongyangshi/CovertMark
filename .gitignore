@@ -329,3 +329,4 @@ venv.bak/
 # =============================
 # Goddamn it, macOS.
 .DS_Store
+.vscode
