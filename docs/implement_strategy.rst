@@ -17,7 +17,7 @@ to provide some general guidance on how they should be designed to
 minimise re-implementation effort when integrating within CovertMark.
 
 The :class:`~CovertMark.strategy.strategy.DetectionStrategy` Class
--------------------------------
+------------------------------------------------------------------------
 
 The densely documented :class:`~CovertMark.strategy.strategy.DetectionStrategy` class performs most
 housekeeping tasks to allow you to focus on implementing your detection
@@ -224,7 +224,7 @@ You need the following entries in the dictionary:
 |                     |                         | example, to observe |
 |                     |                         | client-to-server    |
 |                     |                         | packets, use        |
-|                     |                         | ``["IP_SRC", "IP_DS |
+|                     |                         | ``["IP_SRC", "IP_DS\|
 |                     |                         | T"]``.              |
 |                     |                         | Each represents an  |
 |                     |                         | arbitrary number of |
@@ -234,9 +234,9 @@ You need the following entries in the dictionary:
 |                     |                         | type. For matching  |
 |                     |                         | precedence between  |
 |                     |                         | these types, see    |
-|                     |                         | ``CovertMark.data.p |
-|                     |                         | arser.set_ip_filter |
-|                     |                         | ``.                 |
+|                     |                         | :meth:`CovertMark.d\|
+|                     |                         | ata.parser.PCAPPars\|
+|                     |                         | er.set_ip_filter`.  |
 +---------------------+-------------------------+---------------------+
 | negative_filters    | list                    | Same as above, but  |
 |                     |                         | for negative        |
@@ -294,7 +294,7 @@ Each run of a strategy in its ``runs`` require the following entries:
 |                     |                         | server-to-client    |
 |                     |                         | packets.            |
 +---------------------+-------------------------+---------------------+
-| negative_filters_re | bool                    | Same as above, but  |
+| negative_filters_re\| bool                    | Same as above, but  |
 | verse               |                         | for reversing the   |
 |                     |                         | user’s              |
 |                     |                         | client/server       |
