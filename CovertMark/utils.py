@@ -215,7 +215,7 @@ def save_procedure(export_path, procedure, strategy_map, overwrite=False):
 
     if not check_write_permission(os.path.dirname(export_path)):
         return False
-    
+
     try:
         with open(export_path, 'w') as export_file:
             dump(procedure, export_file)
@@ -348,6 +348,11 @@ def execute_procedure(procedure, strategy_map, db_sub=False):
             neg_params = [None, [], None]
 
         user_params = {i[0]: i[1] for i in run["user_params"]}
+
+        # Append strategy-fixed parameters to the runtime parameters, which take
+        # precedence over user parameters if there is a clash.
+        for param, value in strat["fixed_params"]:
+            user_params[param] = value
 
         try:
             strategy_instance = strategy_object(pt_params[0], neg_params[0])
