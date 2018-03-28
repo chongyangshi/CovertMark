@@ -5,7 +5,7 @@ CovertMark
 
 As an integrated offline traffic analysis solution, CovertMark is implemented entirely with Python, and beyond supplying standard tcpdump [PCAP](http://www.tcpdump.org/) files containing proxy traffic and clean traffic (for false positive evaluation), no pre- or post-processing in tools such as Wireshark or Bro are required. In addition to a summary report of covertness benchmarks (and a *CovertMark Score*), full CSV results and simple graph plotting are also available from CovertMark.
 
-CovertMark comprises of generalised strategies (`CovertMark/strategy`) observing different features of traffic, with varying effects on different proxy protocols. You can easily implement new strategies into CovertMark by extending `CovertMark.strategy.strategy.DetectionStrategy`. For more detailed descriptions on how strategies can be implemented, please see the strategy implementation page [here](./implement_strategy.html).
+CovertMark comprises of generalised strategies (`CovertMark/strategy`) observing different features of traffic, with varying effects on different proxy protocols. You can easily implement new strategies into CovertMark by extending `CovertMark.strategy.strategy.DetectionStrategy`. For more detailed descriptions on how strategies can be implemented, please see the strategy implementation page [here](https://covertmark.com/implement_strategy.html).
 
 Installation
 ==================
