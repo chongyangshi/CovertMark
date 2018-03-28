@@ -3,7 +3,12 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. include:: ../README.md
+.. include:: ../README.rst
+
+Implementing a new detection strategy
+======================================
+.. toctree::
+   implement_strategy.rst
 
 Library Documentation
 ======================================

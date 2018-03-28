@@ -5,10 +5,10 @@ CovertMark
 
 As an integrated offline traffic analysis solution, CovertMark is implemented entirely with Python, and beyond supplying standard tcpdump [PCAP](http://www.tcpdump.org/) files containing proxy traffic and clean traffic (for false positive evaluation), no pre- or post-processing in tools such as Wireshark or Bro are required. In addition to a summary report of covertness benchmarks (and a *CovertMark Score*), full CSV results and simple graph plotting are also available from CovertMark.
 
-CovertMark comprises of generalised strategies (`CovertMark/strategy`) observing different features of traffic, with varying effects on different proxy protocols. You can easily implement new strategies into CovertMark by extending `CovertMark.strategy.strategy.DetectionStrategy`. For more detailed descriptions on how strategies can be implemented, please see the strategy implementation page [here](https:///).
+CovertMark comprises of generalised strategies (`CovertMark/strategy`) observing different features of traffic, with varying effects on different proxy protocols. You can easily implement new strategies into CovertMark by extending `CovertMark.strategy.strategy.DetectionStrategy`. For more detailed descriptions on how strategies can be implemented, please see the strategy implementation page [here](./implement_strategy.html).
 
 Installation
-======
+==================
 CovertMark requires Python 3.5 or newer, which can be obtained from [python.org](https://www.python.org/downloads/) should your system came with an older version. For easy setup of dependencies, `setuptools` and `pip` are recommended, as well as `virtualenv`. These are normally available from your system's package management system, such as apt on Debian and Ubuntu, and brew on Mac OS X. They can otherwise be installed by downloading releases and installing manually with Python.
 
 CovertMark uses a local MongoDB (3.2+) database to store parsed traffic traces for fast access, which can be installed by following the tutorial [here](https://docs.mongodb.com/manual/administration/install-community/). MongoDB authentication is supported locally (see the relevant section below).
@@ -46,12 +46,12 @@ In the command line interface, all possible commands (with parameters collected 
     CovertMark >>> help
 
 Operations and Usage
-======
+==================
 
 While the command line interface should be sufficiently intuitive, it is necessary to first explain how the covertness benchmarking works in CovertMark.
 
 A Game of Filters
-------
+------------------
 
 Filters nearly always become the most irritating part of any network traffic analysis system, as it is necessary to avoid processing wrong types of packets. CovertMark uses two types of filters, only one of which need to be manipulated by the user (the other by strategy designers only).
 
@@ -64,12 +64,12 @@ Once the PCAP files are parsed into MongoDB, these information will be carried w
 The other type of filters  (relevant only to strategy designers) are *strategic filters*, which specify the inclusion of only certain types of packets for examination (e.g. TCP packets with payload but no TLS record), and are strategy-specific. Packets not matching the strategic filter will remain in MongoDB (to enable shared use between strategies to save disk space) but not loaded by the strategy who does not need it (to improve performance).
 
 A Clash of Strategies
-------
+------------------
 
 In order to streamline the benchmarking process to reduce manual configuration efforts, *procedures* are used to represent a series of strategy executions (*runs*) on the same or different inputs from PCAP files or MongoDB-stored traces. A strategy can have multiple runs to, for example, perform identical computations separately on both client-to-server and server-to-client packets.
 
 A Storm of Procedures
-------
+------------------
 
 To set up a procedure in the command line interface:
 
@@ -97,13 +97,17 @@ Assuming all runs of strategies in your procedure are on traces from the same pr
 
 You can export full results of strategy runs by entering `csv`, which will export CSV records of all current results into a directory specified. Simple plotting between strategy configuration parameters and performance metrics can be done in `plot`, which will prompt the specific parameter(s) and metric(s) you wish to plot in pairs. More complex plots can be done separately from the CSVs exported.
 
+An example CovertMark report:
+
+![An example CovertMark report.](https://images.ebornet.com/uploads/big/5969d27a2fd15cdbf5c929d256ba834e.png)
+
 Publication(s)
-======
+==================
 
 This project is the resulting product of my MPhil thesis *Covertness benchmarking of Tor pluggable transports* at the Computer Laboratory of the University of Cambridge, which will likely become a technical report and/or (hopefully) a conference paper. Citations to the relevant publication(s) will be available here once progresses have been made in publication.
 
 Problems and Feedback
-======
+==================
 
 Despite extensive efforts made to engineer CovertMark as a user-facing product, it is likely to malfunction if not used in the intended ways. (For example, exceptions when supplied with PCAP files not matching the input filter, which are *very* difficult to check without consuming long execution times to read the PCAP first). If you do get strange or unexpected results after execution, it is worth checking whether the input filters have been entered correctly and match those in the PCAP files.
 

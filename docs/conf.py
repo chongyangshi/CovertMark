@@ -166,4 +166,4 @@ texinfo_documents = [
 
 # -- Extension configuration -------------------------------------------------
 html_theme = "sphinx_rtd_theme"
-exclude_patterns = ['_build', 'api/CovertMark.rst', 'api/covertmark.rst']
+exclude_patterns = ['_build', 'api/CovertMark.rst', 'api/CovertMark.covertmark.rst']
