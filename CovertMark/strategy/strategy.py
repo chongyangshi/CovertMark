@@ -372,9 +372,13 @@ class DetectionStrategy(ABC):
         if (isinstance(config, list) or isinstance(config, tuple)):
             assert(len(config) == len(self.RUN_CONFIG_DESCRIPTION))
 
+        # Clear the falsely block set.
+        self._negative_blocked_ips = set()
+
         fpr = self.negative_run(**kwargs)
         self._false_positive_rate = fpr
-        self.register_performance_stats(config, FPR=fpr)
+        self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
+        self.register_performance_stats(config, FPR=fpr, ip_block_rate=self._false_positive_blocked_rate)
 
         return self._false_positive_rate
 
@@ -721,12 +725,12 @@ class DetectionStrategy(ABC):
         """
 
         self.debug_print("- Running detection strategy on positive test traces...")
-        self._true_positive_rate = self.run_on_positive()
+        self._true_positive_rate = self.run_on_positive(())
         self.debug_print("Reported true positive rate: {}".format(self._true_positive_rate))
 
         if self._neg_collection is not None:
             self.debug_print("- Validating detection strategy on negative test traces...")
-            self._false_positive_rate = self.run_on_negative()
+            self._false_positive_rate = self.run_on_negative(())
             self.debug_print("Reported false positive rate: {}".format(self._false_positive_rate))
             self.debug_print("False positive IPs blocked rate: {}".format(self._false_positive_blocked_rate))
 
@@ -734,6 +738,9 @@ class DetectionStrategy(ABC):
             self.debug_print("- Validating best strategy on positive recall traces...")
             self._recall_rate = self.run_on_recall()
             self.debug_print("Reported positive recall rate: {}".format(self._recall_rate))
+
+        self.register_performance_stats((), TPR=self._true_positive_rate,
+         FPR=self._false_positive_rate, ip_block_rate=self._false_positive_blocked_rate)
 
         return (self._true_positive_rate, self._false_positive_rate)
 
@@ -781,7 +788,8 @@ class DetectionStrategy(ABC):
         """
         Perform PT detection strategy on positive test traces.
         Available data:
-        - The number of positive traces in the collection under input filter:
+        - The number of positive traces in the collection under input filter (but
+        regardless of the strategic filter):
         --- :attr:`_pt_collection_total`
         - All positive test traces under strategic filter:
         --- :attr:`_pt_traces`
@@ -803,7 +811,8 @@ class DetectionStrategy(ABC):
         Perform PT detection strategy on negative test traces to test for False
         Positive rate.
         Available data:
-        - The number of negative traces in the collection under input filter:
+        - The number of negative traces in the collection under input filter (but
+        regardless of the strategic filter):
         --- :attr:`_neg_collection_total`
         - All negative test traces under strategic filter:
         --- :attr:`_neg_traces`
