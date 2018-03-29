@@ -1,6 +1,6 @@
 from . import utils, constants, mongo
 
-from os.path import isfile
+from os.path import isfile, abspath, expanduser
 from base64 import b64encode, b64decode
 import ipaddress
 import dpkt
@@ -10,6 +10,7 @@ class PCAPParser:
 
     def __init__(self, pcap_file):
 
+        pcap_file = abspath(expanduser(pcap_file)) # Expand user and relative paths.
         if not utils.check_file_exists(pcap_file):
             raise FileNotFoundError("PCAP file not found: " + pcap_file)
 
