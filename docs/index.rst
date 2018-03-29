@@ -10,6 +10,11 @@ Implementing a new detection strategy
 .. toctree::
    implement_strategy.rst
 
+Available proxy and unobfuscated traces
+=======================================
+.. toctree::
+   data.rst
+
 Library Documentation
 ======================================
 

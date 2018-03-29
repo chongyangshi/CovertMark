@@ -85,8 +85,8 @@ You can move your proxy PCAP files and regular (negative) traffic PCAP
 files into ``/CovertMark/examples/local``, or leave it elsewhere on the
 system to specify an explicit path later. If you wish to use the
 *cantab* negative traces or any other example traces supplied by the
-project, please download them separately from `the data page
-here <https:///>`__.
+project, please download them separately from the data page
+`here <./data.html>`__.
 
 To run CovertMark’s command line user interface, simply run
 ``/CovertMark`` in module mode:

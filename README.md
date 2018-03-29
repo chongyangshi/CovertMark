@@ -35,7 +35,7 @@ To set up CovertMark itself:
 
 If your local MongoDB requires authentication, copy `/CovertMark/data/mongo-auth-example.json` into `/CovertMark/data/mongo-auth.json`, and edit the username, password, and authentication database required.
 
-You can move your proxy PCAP files and regular (negative) traffic PCAP files into `/CovertMark/examples/local`, or leave it elsewhere on the system to specify an explicit path later. If you wish to use the *cantab* negative traces or any other example traces supplied by the project, please download them separately from [the data page here](https:///).
+You can move your proxy PCAP files and regular (negative) traffic PCAP files into `/CovertMark/examples/local`, or leave it elsewhere on the system to specify an explicit path later. If you wish to use the *cantab* negative traces or any other example traces supplied by the project, please download them separately from the data page [here](https://covertmark.com/data.html).
 
 To run CovertMark's command line user interface, simply run `/CovertMark` in module mode:
 
