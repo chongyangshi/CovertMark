@@ -63,6 +63,22 @@ class CommandHandler:
 
         return True
 
+    
+    def set_procedure(self, procedure):
+        """
+        Replace the current procedure. Used for parameterised execution.
+        
+        :param procedure: a valid CovertMark procedure.
+        :returns: True if procedure set successfully, False otherwise.
+        """
+
+        valid_procedure, _ = utils.validate_procedure(procedure, self._strategy_map)
+        if not valid_procedure:
+            return False
+        else:
+            self._current_procedure = procedure
+            return True
+
 
     @Commands.register("Exit this program.")
     def exit(self):
@@ -393,7 +409,8 @@ class CommandHandler:
     @Commands.register("Execute the current procedure.")
     def execute(self):
 
-        if len(self._current_procedure) == 0 or not utils.validate_procedure(self._current_procedure, self._strategy_map):
+        valid_procedure, _ = utils.validate_procedure(self._current_procedure, self._strategy_map)
+        if len(self._current_procedure) == 0 or not valid_procedure:
             print("There is no valid procedure loaded, enter `new` to create a new procedure.")
             return
 
@@ -427,7 +444,8 @@ class CommandHandler:
     @Commands.register("Save the current procedure to file.")
     def save(self):
 
-        if len(self._current_procedure) == 0 or not utils.validate_procedure(self._current_procedure, self._strategy_map):
+        valid_procedure, _ = utils.validate_procedure(self._current_procedure, self._strategy_map)
+        if len(self._current_procedure) == 0 or not valid_procedure:
             print("There is no valid procedure loaded, enter `new` to create a new procedure.")
             return
 

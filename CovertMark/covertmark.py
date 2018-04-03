@@ -35,6 +35,7 @@ print("A full screen width terminal is recommended.")
 print(c.DIVIDER)
 
 available_runs, run_indices = utils.get_strategy_runs(strategy_map)
+command_handler = handler.CommandHandler(strategy_map)
 
 load_existing = False
 if args.import_saved != "_":
@@ -47,14 +48,14 @@ if load_existing:
         print(args.import_saved + " cannot be validated during import.")
         sys.exit(1)
     print("Executing imported procedure...\n")
-    current_results, _ = utils.execute_procedure(procedure, strategy_map, db_sub=True)
+    command_handler.set_procedure(procedure)
+    command_handler.dispatch("execute")
 
 else:
     # Collect runs of all strategies for the user to choose.
     print("The following runs of strategies are implemented and available: ")
     print(available_runs)
 
-command_handler = handler.CommandHandler(strategy_map)
 print("\nCommands available:")
 command_handler.dispatch("help")
 while True:
