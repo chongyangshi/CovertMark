@@ -3,7 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. include:: ../README.rst
+User's Guide to CovertMark
+======================================
+.. toctree:: 
+    user_guide.rst
 
 Implementing a new detection strategy
 ======================================

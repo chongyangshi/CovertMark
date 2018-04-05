@@ -1,11 +1,13 @@
 CovertMark
 ==================
 
-**CovertMark** is a deep packet inspection (DPI) framework for evaluating and benchmarking the *covertness* of protocol-obfuscation proxies. Working from the perspective of a state censor with extensive computational resources, CovertMark performs automated passive analysis on captured proxy traffic to determine the likelihood and practicality of accurate protocol classification, which in turn allows the state censor to block such traffic. All TCP-based proxy protocols are applicable, including currently deployed [Tor pluggable transports](https://www.torproject.org/docs/pluggable-transports.html.en) and tunnelling proxies such as [shadowsocks](https://github.com/shadowsocks/shadowsocks/tree/master).
+**CovertMark** is a deep packet inspection (DPI) framework for evaluating and benchmarking the *covertness* of protocol-obfuscation proxies. Working from the perspective of a state censor with extensive computational resources, CovertMark performs automated passive analysis on captured proxy traffic to determine the likelihood and practicality of accurate protocol classification, which would in turn allow the state censor to block such traffic. All TCP-based proxy protocols are applicable, including currently deployed [Tor pluggable transports](https://www.torproject.org/docs/pluggable-transports.html.en) and tunnelling proxies such as [shadowsocks](https://github.com/shadowsocks/shadowsocks/tree/master).
 
-As an integrated offline traffic analysis solution, CovertMark is implemented entirely with Python, and beyond supplying standard tcpdump [PCAP](http://www.tcpdump.org/) files containing proxy traffic and clean traffic (for false positive evaluation), no pre- or post-processing in tools such as Wireshark or Bro are required. In addition to a summary report of covertness benchmarks (and a *CovertMark Score*), full CSV results and simple graph plotting are also available from CovertMark.
+CovertMark is extremely easy to use. You only need the downloaded code, a Python 3.5+ installation, and a PCAP file of your proxy traffic captured with [WireShark](https://www.wireshark.org/) (or with *tcpdump* on UNIX-like systems). You can download publicly available Tor pluggable transport and negative network traffic traces from [here](https://covertmark.com/api/data.html).
 
-CovertMark comprises of generalised strategies (`CovertMark/strategy`) observing different features of traffic, with varying effects on different proxy protocols. You can easily implement new strategies into CovertMark by extending `CovertMark.strategy.strategy.DetectionStrategy`. For more detailed descriptions on how strategies can be implemented, please see the strategy implementation page [here](https://covertmark.com/implement_strategy.html).
+As an integrated offline traffic analysis solution, CovertMark is implemented entirely with Python, and no pre- or post-processing of captured traffic in other traffic analysis tools such as Bro are required. In addition to a summary report of covertness benchmarks (and a *CovertMark Score*), full CSV results and simple graph plotting are also available from CovertMark.
+
+CovertMark comprises of generalised strategies (`CovertMark/strategy`) observing different features of traffic, with varying effects on different proxy protocols. You can easily implement new strategies into CovertMark by extending `CovertMark.strategy.strategy.DetectionStrategy`. For more detailed descriptions on how strategies can be implemented, please see the strategy implementation page [here](https://covertmark.com/api/implement_strategy.html).
 
 Installation
 ==================
@@ -35,7 +37,7 @@ To set up CovertMark itself:
 
 If your local MongoDB requires authentication, copy `/CovertMark/data/mongo-auth-example.json` into `/CovertMark/data/mongo-auth.json`, and edit the username, password, and authentication database required.
 
-You can move your proxy PCAP files and regular (negative) traffic PCAP files into `/CovertMark/examples/local`, or leave it elsewhere on the system to specify an explicit path later. If you wish to use the *cantab* negative traces or any other example traces supplied by the project, please download them separately from the data page [here](https://covertmark.com/data.html).
+You can move your proxy PCAP files and regular (negative) traffic PCAP files into `/CovertMark/examples/local`, or leave it elsewhere on the system to specify an explicit path later. If you wish to use the *cantab* negative traces or any other example traces supplied by the project, please download them separately from the data page [here](https://covertmark.com/api/data.html).
 
 To run CovertMark's command line user interface, simply run `/CovertMark` in module mode:
 
