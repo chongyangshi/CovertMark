@@ -37,6 +37,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         self._strategic_states['top_clusters'] = {}
         self._strategic_states['blocked'] = {}
         self._tls_mode = self.TLS_MODES[0]
+        self._best_config = None # For wireshark reporting.
 
 
     def set_strategic_filter(self):
@@ -178,7 +179,7 @@ class LengthClusteringStrategy(DetectionStrategy):
             if i < len(self._negative_blocked_ips) - 1:
                 wireshark_output += "|| "
         wireshark_output += ") && ("
-        for i, l in enumerate(list(self._strategic_states['top_clusters'])):
+        for i, l in enumerate(list(self._strategic_states['top_clusters'][self._best_config])):
             wireshark_output += "tcp.len == " + str(l)
             if i < len(self._strategic_states['top_clusters']) - 1:
                 wireshark_output += " || "
@@ -267,6 +268,7 @@ class LengthClusteringStrategy(DetectionStrategy):
             self.debug_print("No bandwidth and cluster size achieved the minimum true positive rate required ({}), giving up.".format(self.MINIMUM_TPR))
             return (None, None)
 
+        self._best_config = best_config
         self._true_positive_rate = tps[best_config]
         self._false_positive_rate = fps[best_config]
 
