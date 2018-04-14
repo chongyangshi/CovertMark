@@ -12,17 +12,17 @@ import numpy as np
 from sklearn import preprocessing, model_selection, linear_model
 import sklearn.utils as sklearn_utils
 
-class SDGStrategy(DetectionStrategy):
+class SGDStrategy(DetectionStrategy):
     """
-    A generic SDG-based strategy for observing patterns of traffic in both
+    A generic SGD-based strategy for observing patterns of traffic in both
     directions of stream. Not designed for identifying any particular
     existing PT, should allow a general use case based on traffic patterns.
     It should achieve better unseen recall performance than Logistic Regression.
     """
 
-    NAME = "SDG Classifier Strategy"
+    NAME = "SGD Classifier Strategy"
     DESCRIPTION = "Generic binary classification strategy."
-    _DEBUG_PREFIX = "sdg"
+    _DEBUG_PREFIX = "sgd"
     RUN_CONFIG_DESCRIPTION = ("Occurrence Threshold (%ile)", "Run #")
 
     LOSS_FUNC = "hinge"
@@ -51,7 +51,7 @@ class SDGStrategy(DetectionStrategy):
 
     def interpret_config(self, config_set):
         """
-        Threshold percentile and run # are used to distinguish SDG runs.
+        Threshold percentile and run # are used to distinguish SGD runs.
         """
 
         if config_set is not None:
@@ -123,7 +123,7 @@ class SDGStrategy(DetectionStrategy):
 
     def positive_run(self, **kwargs):
         """
-        Perform SDG learning on the training/testing dataset, and validate
+        Perform SGD learning on the training/testing dataset, and validate
         overfitting on validation dataset.
 
         :param int threshold_pct: the occurrence threshold %ile used to tolerate
@@ -136,12 +136,12 @@ class SDGStrategy(DetectionStrategy):
         if not isinstance(run_num, int) or run_num < 0:
             raise ValueError("Incorrect run number.")
 
-        self.debug_print("- SDG training {} with L1 penalisation and {} loss...".format(run_num+1, self.LOSS_FUNC))
-        SDG = analytics.learning.SDG(loss=self.LOSS_FUNC, multithreaded=True)
-        SDG.train(self._pt_test_traces, self._pt_test_labels)
+        self.debug_print("- SGD training {} with L1 penalisation and {} loss...".format(run_num+1, self.LOSS_FUNC))
+        SGD = analytics.learning.SGD(loss=self.LOSS_FUNC, multithreaded=True)
+        SGD.train(self._pt_test_traces, self._pt_test_labels)
 
-        self.debug_print("- SDG validation...")
-        prediction = SDG.predict(self._pt_validation_traces)
+        self.debug_print("- SGD validation...")
+        prediction = SGD.predict(self._pt_validation_traces)
 
         total_positives = 0
         true_positives = 0
@@ -189,7 +189,7 @@ class SDGStrategy(DetectionStrategy):
         self._strategic_states[run_num]["false_positive_blocked_rate"] = \
          float(len(self._strategic_states[run_num]["negative_blocked_ips"])) / \
          self._strategic_states['negative_unique_ips']
-        self._strategic_states[run_num]["classifier"] = SDG
+        self._strategic_states[run_num]["classifier"] = SGD
 
         # Manual update of performance stats due to combined runs.
         # self.run_on_positive will set TPR to the same value again, but it is
@@ -461,7 +461,7 @@ if __name__ == "__main__":
     pt_path = os.path.join(parent_path, 'examples', 'local', argv[1])
     neg_path = os.path.join(parent_path, 'examples', 'local', argv[4])
     recall_path = os.path.join(parent_path, 'examples', 'local', argv[7])
-    detector = SDGStrategy(pt_path, neg_path, recall_pcap=recall_path, debug=True)
+    detector = SGDStrategy(pt_path, neg_path, recall_pcap=recall_path, debug=True)
     detector.setup(pt_ip_filters=[(i, data.constants.IP_EITHER) for i in argv[2].split(",")],
      negative_ip_filters=[(i, data.constants.IP_EITHER) for i in argv[5].split(",")],
      pt_collection=argv[3], negative_collection=argv[6], test_recall=True,

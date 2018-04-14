@@ -63,7 +63,7 @@ class LogisticRegression(Classifier):
         super().__init__(self.__classifier)
 
 
-class SDG(Classifier):
+class SGD(Classifier):
     """
     Stochastic gradient descent linear classification, as a less memory-intensive
     and incremental learning-compatible alternative to linear SVM (LinearSVC).

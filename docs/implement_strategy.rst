@@ -7,8 +7,8 @@ built-in strategies look at the uniformity and entropy distributions of
 bytes in TCP payloads (:mod:`CovertMark.strategy.entropy_dist` from [1]);
 unusual densely-distributed TCP payload lengths that are either all TLS
 or all non-TLS (:mod:`CovertMark.strategy.length_clustering`); and a
-generalised traffic shaping approach training a SDG classifier that does
-not rely on observing handshakes (:mod:`CovertMark.strategy.sdg`, improving
+generalised traffic shaping approach training a SGD classifier that does
+not rely on observing handshakes (:mod:`CovertMark.strategy.sgd`, improving
 on the machine learning method in [1]).
 
 While modules of existing strategies listed above serve as a very good
@@ -330,7 +330,7 @@ are properly scaled.
 Caveats
 -------
 
-It was discovered during the development of the SDG classifier strategy
+It was discovered during the development of the SGD classifier strategy
 that sometimes it may be necessary to perform the strategy run in a way
 unanticipated by the designed separation of :meth:`~CovertMark.strategy.strategy.DetectionStrategy.positive_run` and
 :meth:`~CovertMark.strategy.strategy.DetectionStrategy.negative_run` in the abstract class. If both positive and negative
@@ -346,7 +346,7 @@ packets from the same positive and negative PCAPs as the training
 packets, you also use ``test_recall`` and relevant parameters in
 ``__init__`` and ``setup``, as well as ``recall_run`` to perform the
 same validation on a separately-recorded PCAP of the same protocol’s
-traffic as well (see :mod:`CovertMark.strategy.sdg`). This is due to the
+traffic as well (see :mod:`CovertMark.strategy.sgd`). This is due to the
 fact that unsuitable selections of traffic features can cause severe
 overfitting and low unseen recall performance on classifying the same
 proxy protocol carrying different types of traffic or under different

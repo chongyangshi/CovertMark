@@ -45,9 +45,9 @@
       }
     ]
   },
-  "SDG": {
-    "module": "sdg",
-    "object": "SDGStrategy",
+  "SGD": {
+    "module": "sgd",
+    "object": "SGDStrategy",
     "fixed_params": [["test_recall", false]],
     "pt_filters": ["IP_EITHER"],
     "negative_filters": ["IP_EITHER"],
