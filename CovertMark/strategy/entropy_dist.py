@@ -40,7 +40,7 @@ class EntropyStrategy(DetectionStrategy):
 
         # To store results from different block sizes and test sizes, as
         # well as different criteria, rates are indexed with a three-tuple
-        # (block_size, p_threshold, criterion).
+        # (block_size, test_size, criterion).
         self._strategic_states['TPR'] = {}
         self._strategic_states['FPR'] = {}
         self._strategic_states['blocked_ips'] = {}
@@ -122,7 +122,7 @@ class EntropyStrategy(DetectionStrategy):
         """
 
         block_size = self.BLOCK_SIZE if 'block_size' not in kwargs else kwargs['block_size']
-        test_size = max(self.TEST_SIZES) if 'p_threshold' not in kwargs else kwargs['p_threshold']
+        test_size = max(self.TEST_SIZES) if 'test_size' not in kwargs else kwargs['test_size']
         criterion = self.MAX_CRITERION if 'criterion' not in kwargs else kwargs['criterion']
 
        
@@ -174,7 +174,7 @@ class EntropyStrategy(DetectionStrategy):
         """
 
         block_size = self.BLOCK_SIZE if 'block_size' not in kwargs else kwargs['block_size']
-        test_size = max(self.TEST_SIZES) if 'p_threshold' not in kwargs else kwargs['p_threshold']
+        test_size = max(self.TEST_SIZES) if 'test_size' not in kwargs else kwargs['test_size']
         criterion = self.MAX_CRITERION if 'criterion' not in kwargs else kwargs['criterion']
         config = (block_size, test_size, criterion)
         subconfig = (block_size, test_size)
