@@ -155,7 +155,7 @@ class EntropyStrategy(DetectionStrategy):
         identified = sum([1 if i >= criterion else 0 for i in agreements]) 
 
         # Store result in the state space and register it.
-        self._strategic_states['TPR'][config] = float(identified) / examined_traces
+        self._strategic_states['TPR'][config] = float(identified) / len(agreements)
         self.register_performance_stats(config, TPR=self._strategic_states['TPR'][config])
 
         return self._strategic_states['TPR'][config]
