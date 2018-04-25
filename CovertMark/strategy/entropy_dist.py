@@ -182,6 +182,8 @@ class EntropyStrategy(DetectionStrategy):
         if subconfig in self._agreements_cache_negative:
             agreements = self._agreements_cache_negative[subconfig]
             blocked_ips = self._blocked_cache_negative[subconfig]
+            # Overwrite positive execution time with that of the positive run originally calculating.
+            self.register_performance_stats(config, time=self._time_statistics[config]['time'])
         else:
             agreements = []
             blocked_ips = set([])
