@@ -18,6 +18,14 @@ if tls_mode not in ["only", "all"]:
     print("Invalid TLS mode, exiting.")
     exit(1)
 
+mtu_avoidance = input("Exclude packets with close-to-MTU payload sizes? [y/n]: ").strip()
+if mtu_avoidance.lower() == "y":
+    print("Will exclude packets with close-to-MTU payload sizes.")
+    mtu_avoidance = True
+else:
+    print("Not excluding them.")
+    mtu_avoidance = False
+
 print("Reading packets from selected collection...")
 packets = retriever.retrieve()
 lengths = []
@@ -35,7 +43,7 @@ for packet in packets:
     if tls_mode == "only" and packet["tls_info"] is None:
         continue
 
-    if len(packet["tcp_info"]["payload"]) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD:
+    if mtu_avoidance and len(packet["tcp_info"]["payload"]) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD:
         continue
 
     lengths.append(len(packet["tcp_info"]["payload"]))
