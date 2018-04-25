@@ -18,14 +18,16 @@ class EntropyStrategy(DetectionStrategy):
     NAME = "Entropy Distribution Strategy"
     DESCRIPTION = "Detecting high-entropy PTs based on payload byte-uniformity and entropy-distribution."
     _DEBUG_PREFIX = "Entropy"
-    RUN_CONFIG_DESCRIPTION = ["Block Size", "p-value Threshold", "Criterion"]
+    RUN_CONFIG_DESCRIPTION = ["Block Size", "Test Size", "Criterion"]
 
-    # Three criteria possible: [conservative, majority voting, and sensitive].
-    # Corresponding to [all, majority, any] when deciding whether to flag
+    # Three criteria possible: [majority voting, and sensitive].
+    # Corresponding to [majority, any] when deciding whether to flag
     # a packet as likely high-entropy encrypted PT traffic.
-    CRITERIA = [3, 2, 1]
-    CRITERIA_DESCRIPTIONS = {3: "conservative", 2: "majority voting", 1: "sensitive"}
-    P_THRESHOLDS = [0.1, 0.2]
+    CRITERIA = [2, 1]
+    CRITERIA_DESCRIPTIONS = {2: "majority voting", 1: "sensitive"}
+    MAX_CRITERION = 3
+    P_THRESHOLD = 0.1
+    TEST_SIZES = [256, 512, 1024, 2048]
     BLOCK_SIZE = 8 # Default.
     BLOCK_SIZES = [16, 32, 64, 128]
     FALSE_POSITIVE_SCORE_WEIGHT = 0.5
@@ -36,7 +38,7 @@ class EntropyStrategy(DetectionStrategy):
         super().__init__(pt_pcap, negative_pcap, debug=debug)
         self._analyser = analytics.entropy.EntropyAnalyser()
 
-        # To store results from different block sizes and p-value thresholds, as
+        # To store results from different block sizes and test sizes, as
         # well as different criteria, rates are indexed with a three-tuple
         # (block_size, p_threshold, criterion).
         self._strategic_states['TPR'] = {}
@@ -46,6 +48,11 @@ class EntropyStrategy(DetectionStrategy):
         # Record disregards.
         self._disregard_tls = False
         self._disregard_http = False
+
+        # Caching to not repeat entropy distribution tests between different criteria.
+        self._agreements_cache_positive = {}
+        self._agreements_cache_negative = {}
+        self._blocked_cache_negative = {}
 
 
     def set_strategic_filter(self):
@@ -68,16 +75,16 @@ class EntropyStrategy(DetectionStrategy):
         """
 
         if config_set is not None:
-            return "Entropy distribution test with byte block size {} and p-value threshold {}, subject to {} test voting criterion.".format(config_set[0], config_set[1], self.CRITERIA_DESCRIPTIONS[config_set[2]])
+            return "Entropy distribution test with byte block size {} and max tested payload size {}, subject to {} test voting criterion.".format(config_set[0], config_set[1], self.CRITERIA_DESCRIPTIONS[config_set[2]])
         else:
             return ""
 
 
     def config_specific_penalisation(self, config_set):
         """
-        Byte block sizes for entropy uniformity and distribution tests will have
-        already inversely proportionally affected the positive execution time.
-        Therefore the only additional penalty is based on the number of
+        Byte block sizes and max test sizes for entropy uniformity and distribution
+        tests will have already inversely proportionally affected the positive 
+        execution time. Therefore the only additional penalty is based on the number of
         statistical run needed as determined by the number of agreements required,
         with 10% penalty for each additional statistical tests beyond the minimum.
         """
@@ -101,50 +108,57 @@ class EntropyStrategy(DetectionStrategy):
     def positive_run(self, **kwargs):
         """
         Three different criteria of combining results from KS byte-uniformity and
-        Entropy Distribution, and Anderson_Darling tests together, with variable p-value
-        thresholds and test block sizes. Results from these tests detect uniformly
-        high entropy payloads that are likely results of proxy encryptions.
+        Entropy Distribution, and Anderson_Darling tests together, with variable max
+        tested payload sizes and test block sizes. Results from these tests detect 
+        uniformly high entropy payloads that are likely results of pseudo-random
+        encryptions.
 
         :param int block_size: the size of blocks of payload bytes tested in KS and
             AD. Default is set in :const:`BLOCK_SIZE`.
-        :param float p_threshold: the p-value threshold at which uniform random
-            hypothesis can be rejected, defaulted at 0.1.
+        :param int test_size: the maximum number of bytes tested in each payload,
+            with default set in :const:`TEST_SIZES`.
         :param int criterion: the number of rejected hypothesis among all tests
             needed to reach a positive conclusion.
         """
 
         block_size = self.BLOCK_SIZE if 'block_size' not in kwargs else kwargs['block_size']
-        p_threshold = 0.1 if 'p_threshold' not in kwargs else kwargs['p_threshold']
-        criterion = max(self.CRITERIA) if 'criterion' not in kwargs else kwargs['criterion']
-        if criterion not in self.CRITERIA:
-            criterion = max(self.CRITERIA)
+        test_size = max(self.TEST_SIZES) if 'p_threshold' not in kwargs else kwargs['p_threshold']
+        criterion = self.MAX_CRITERION if 'criterion' not in kwargs else kwargs['criterion']
 
-        identified = 0
-        examined_traces = 0
+       
+        config = (block_size, test_size, criterion)
+        subconfig = (block_size, test_size)
 
-        for t in self._pt_traces:
-            payload = t['tcp_info']['payload']
+        if config in self._agreements_cache_positive:
+            agreements = self._agreements_cache_positive[subconfig]
+        else:
+            agreements = []
+            examined_traces = 0
+            for t in self._pt_traces:
+                payload = t['tcp_info']['payload']
 
-            if len(payload) >= max(self._protocol_min_length, block_size):
-                examined_traces += 1
-                p1 = self._analyser.kolmogorov_smirnov_uniform_test(payload[:2048])
-                p2 = self._analyser.kolmogorov_smirnov_dist_test(payload[:2048], block_size)
-                p3 = self._analyser.anderson_darling_dist_test(payload[:2048], block_size)
-                agreement = len(list(filter(lambda x: x >= p_threshold, [p1, p2, p3['min_threshold']])))
+                if len(payload) >= max(self._protocol_min_length, block_size):
+                    examined_traces += 1
+                    p1 = self._analyser.kolmogorov_smirnov_uniform_test(payload[:test_size])
+                    p2 = self._analyser.kolmogorov_smirnov_dist_test(payload[:test_size], block_size)
+                    p3 = self._analyser.anderson_darling_dist_test(payload[:test_size], block_size)
+                    agreement = len(list(filter(lambda x: x >= self.P_THRESHOLD, [p1, p2, p3['min_threshold']])))
+                    agreements.append(agreement)
 
-                if agreement >= criterion:
-                    identified += 1
-
-        if examined_traces == 0:
-            self.debug_print("Warning: no traces examined, TCP payload length threshold or input filters may be incorrect.")
-            return 0
+            if examined_traces == 0:
+                self.debug_print("Warning: no traces examined, TCP payload length threshold or input filters may be incorrect.")
+                return 0
+            
+            self._agreements_cache_positive[subconfig] = agreements
+            
+        # Calculate the number of positive identifications under the criterion.
+        identified = sum([1 if i >= criterion else 0 for i in agreements]) 
 
         # Store result in the state space and register it.
-        config = (block_size, p_threshold, criterion)
         self._strategic_states['TPR'][config] = float(identified) / examined_traces
         self.register_performance_stats(config, TPR=self._strategic_states['TPR'][config])
 
-        return self._strategic_states['TPR'][(block_size, p_threshold, criterion)]
+        return self._strategic_states['TPR'][config]
 
 
     def negative_run(self, **kwargs):
@@ -153,40 +167,48 @@ class EntropyStrategy(DetectionStrategy):
 
         :param int block_size: the size of blocks of payload bytes tested in KS and
             AD. Default is set in :const:`BLOCK_SIZE`.
-        :param float p_threshold: the p-value threshold at which uniform random
-            hypothesis can be rejected, defaulted at 0.1.
+        :param int test_size: the maximum number of bytes tested in each payload,
+            with default set in :const:`TEST_SIZES`.
         :param int criterion: the number of rejected hypothesis among all tests
             needed to reach a positive conclusion.
         """
 
         block_size = self.BLOCK_SIZE if 'block_size' not in kwargs else kwargs['block_size']
-        p_threshold = 0.1 if 'p_threshold' not in kwargs else kwargs['p_threshold']
-        criterion = max(self.CRITERIA) if 'criterion' not in kwargs else kwargs['criterion']
-        if criterion not in self.CRITERIA:
-            criterion = max(self.CRITERIA)
+        test_size = max(self.TEST_SIZES) if 'p_threshold' not in kwargs else kwargs['p_threshold']
+        criterion = self.MAX_CRITERION if 'criterion' not in kwargs else kwargs['criterion']
+        config = (block_size, test_size, criterion)
+        subconfig = (block_size, test_size)
 
-        identified = 0
-        blocked_ips = set([])
+        if config in self._agreements_cache_negative:
+            agreements = self._agreements_cache_negative[subconfig]
+            blocked_ips = self._blocked_cache_negative[subconfig]
+        else:
+            agreements = []
+            blocked_ips = set([])
+            for t in self._neg_traces:
+                payload = t['tcp_info']['payload']
 
-        for t in self._neg_traces:
-            payload = t['tcp_info']['payload']
+                if len(payload) >= max(self._protocol_min_length, block_size):
+                    p1 = self._analyser.kolmogorov_smirnov_uniform_test(payload[:test_size])
+                    p2 = self._analyser.kolmogorov_smirnov_dist_test(payload[:test_size], block_size)
+                    p3 = self._analyser.anderson_darling_dist_test(payload[:test_size], block_size)
+                    agreement = len(list(filter(lambda x: x >= self.P_THRESHOLD, [p1, p2, p3['min_threshold']])))
+                    agreements.append(agreement)
 
-            if len(payload) >= max(self._protocol_min_length, block_size):
-                p1 = self._analyser.kolmogorov_smirnov_uniform_test(payload[:2048])
-                p2 = self._analyser.kolmogorov_smirnov_dist_test(payload[:2048], block_size)
-                p3 = self._analyser.anderson_darling_dist_test(payload[:2048], block_size)
-                agreement = len(list(filter(lambda x: x >= p_threshold, [p1, p2, p3['min_threshold']])))
-
-                if agreement >= criterion:
-                    blocked_ips.add(t['dst'])
-                    identified += 1
+                    if agreement >= criterion:
+                        blocked_ips.add(t['dst'])
+            
+            self._agreements_cache_negative[subconfig] = agreements
+            self._blocked_cache_negative[subconfig] = blocked_ips
 
         self._negative_blocked_ips = blocked_ips
+
+        # Calculate the number of positive identifications under the criterion.
+        identified = sum([1 if i >= criterion else 0 for i in agreements])
 
         # Unlike the positive case, we consider the false positive rate to be
         # over all traces, rather than just the ones were are interested in.
         # Store all results in the state space.
-        config = (block_size, p_threshold, criterion)
         self._strategic_states['FPR'][config] = float(identified) / self._neg_collection_total
         self._strategic_states['blocked_ips'][config] = blocked_ips
         self._false_positive_blocked_rate = float(len(blocked_ips)) / self._negative_unique_ips
@@ -278,19 +300,19 @@ class EntropyStrategy(DetectionStrategy):
 
         self.debug_print("- Running iterations of detection strategy on positive and negative test traces...")
 
-        for p in self.P_THRESHOLDS:
+        for s in self.TEST_SIZES:
             for b in self.BLOCK_SIZES:
                 for c in self.CRITERIA:
                     self.debug_print("Using {} criterion, requiring {}/{} statistical tests to reject hypothesis.".format(\
-                     self.CRITERIA_DESCRIPTIONS[c], c, len(self.CRITERIA)))
+                     self.CRITERIA_DESCRIPTIONS[c], c, self.MAX_CRITERION))
 
-                    self.debug_print("- Testing p={}, {} byte block on positive traces...".format(p, b))
-                    tp = self.run_on_positive((b, p, c), block_size=b, p_threshold=p, criterion=c)
-                    self.debug_print("p={}, {} byte block gives true positive rate {}.".format(p, b, tp))
+                    self.debug_print("- Testing max {} bytes, {} byte block on positive traces...".format(s, b))
+                    tp = self.run_on_positive((b, s, c), block_size=b, test_size=s, criterion=c)
+                    self.debug_print("max {} bytes, {} byte block gives true positive rate {}.".format(s, b, tp))
 
-                    self.debug_print("- Testing p={}, {} byte block on negative traces...".format(p, b))
-                    fp = self.run_on_negative((b, p, c), block_size=b, p_threshold=p, criterion=c)
-                    self.debug_print("p={}, {} byte block gives false positive rate {}.".format(p, b, fp))
+                    self.debug_print("- Testing max {} bytes, {} byte block on negative traces...".format(s, b))
+                    fp = self.run_on_negative((b, s, c), block_size=b, test_size=s, criterion=c)
+                    self.debug_print("max {} bytes, {} byte block gives false positive rate {}.".format(s, b, fp))
 
         # Find the best true positive and false positive performance.
         tps = self._strategic_states['TPR']
@@ -314,7 +336,7 @@ class EntropyStrategy(DetectionStrategy):
         self._false_positive_rate = fps[best_config]
         self._negative_blocked_ips = self._strategic_states["blocked_ips"]
         self.debug_print("Best classification performance:")
-        self.debug_print("block size: {}, p-value threshold: {}, agreement criteria: {}.".format(best_config[0], best_config[1], self.CRITERIA_DESCRIPTIONS[best_config[2]]))
+        self.debug_print("block size: {}, max test size: {}, agreement criteria: {}.".format(best_config[0], best_config[1], self.CRITERIA_DESCRIPTIONS[best_config[2]]))
         self.debug_print("True positive rate: {}; False positive rate: {}".format(self._true_positive_rate, self._false_positive_rate))
 
         self._negative_blocked_ips = self._strategic_states['blocked_ips'][best_config]
