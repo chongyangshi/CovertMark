@@ -27,9 +27,9 @@ class EntropyStrategy(DetectionStrategy):
     CRITERIA_DESCRIPTIONS = {2: "majority voting", 1: "sensitive"}
     MAX_CRITERION = 3
     P_THRESHOLD = 0.1
-    TEST_SIZES = [256, 512, 1024, 2048]
+    TEST_SIZES = [256, 512, 1024, 1536]
     BLOCK_SIZE = 8 # Default.
-    BLOCK_SIZES = [16, 32, 64, 128]
+    BLOCK_SIZES = [8, 16, 32, 64]
     FALSE_POSITIVE_SCORE_WEIGHT = 0.5
     TLS_HTTP_INCLUSION_THRESHOLD = 0.1
 
@@ -129,7 +129,7 @@ class EntropyStrategy(DetectionStrategy):
         config = (block_size, test_size, criterion)
         subconfig = (block_size, test_size)
 
-        if config in self._agreements_cache_positive:
+        if subconfig in self._agreements_cache_positive:
             agreements = self._agreements_cache_positive[subconfig]
         else:
             agreements = []
@@ -179,7 +179,7 @@ class EntropyStrategy(DetectionStrategy):
         config = (block_size, test_size, criterion)
         subconfig = (block_size, test_size)
 
-        if config in self._agreements_cache_negative:
+        if subconfig in self._agreements_cache_negative:
             agreements = self._agreements_cache_negative[subconfig]
             blocked_ips = self._blocked_cache_negative[subconfig]
         else:
