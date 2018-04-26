@@ -53,6 +53,7 @@ class EntropyStrategy(DetectionStrategy):
         self._agreements_cache_positive = {}
         self._agreements_cache_negative = {}
         self._blocked_cache_negative = {}
+        self._execution_time_cache = {}
 
 
     def set_strategic_filter(self):
@@ -183,7 +184,7 @@ class EntropyStrategy(DetectionStrategy):
             agreements = self._agreements_cache_negative[subconfig]
             blocked_ips = self._blocked_cache_negative[subconfig]
             # Overwrite positive execution time with that of the positive run originally calculating.
-            self.register_performance_stats(config, time=self._time_statistics[config]['time'])
+            self.register_performance_stats(config, time=self._execution_time_cache[subconfig])
         else:
             agreements = []
             blocked_ips = set([])
@@ -202,6 +203,7 @@ class EntropyStrategy(DetectionStrategy):
             
             self._agreements_cache_negative[subconfig] = agreements
             self._blocked_cache_negative[subconfig] = blocked_ips
+            self._execution_time_cache[subconfig] = self._time_statistics[config]['time']
 
         self._negative_blocked_ips = blocked_ips
 
