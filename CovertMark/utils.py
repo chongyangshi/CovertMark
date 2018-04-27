@@ -47,8 +47,6 @@ def read_strategy_map():
             if strat["object"] not in dir(import_module(strategy.__name__ + '.' + strat["module"])):
                 return False, "The strategy class specified by strategy " + name + " is missing."
 
-        pt_filters_len = len(strat["pt_filters"])
-        neg_filters_len = len(strat["negative_filters"])
 
         # These are the parameters always applied to the strategy.run(..) call.
         for i in strat["fixed_params"]:
@@ -524,7 +522,6 @@ def printable_results(results, strategy_map):
     headers = ("ID", "Strategy", "Run Description", "IPs", "Records")
     lines = []
     for c, result in results.items():
-        strat = strategy_map[result[0]]
         instance = result[2]
         strategy_name = width(instance.NAME, 15)
         run_name = width(result[3], 20)
@@ -636,7 +633,9 @@ def save_csvs(results, out_path):
 
     writes = {}
     for _, result in results.items():
-        path = os.path.join(out_path, random_file_name(result[0] + "_" + str(result[1]), "csv"))
+        custom_name = valid_filename(result[3])
+        path = os.path.join(out_path, random_file_name(custom_name +\
+         "_" + result[0] + "_" + str(result[1]), "csv"))
         writes[path] = result[2].make_csv()
 
     successful_paths = []
@@ -645,3 +644,17 @@ def save_csvs(results, out_path):
             successful_paths.append(i)
 
     return successful_paths
+
+
+def valid_filename(proposed_file_name):
+    """
+    Convert a proposed file name into a valid and readable UNIX filename.
+
+    :param str proposed_file_name: a proposed file name in string, supports
+        unicode in Python 3.
+    :return: a valid file name in string.
+    """
+
+    valid_chars = list("abcdefghijklmnopqrstuvwxyz0123456789")
+
+    return "".join([i if i.lower() in valid_chars else "_" for i in proposed_file_name])
