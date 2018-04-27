@@ -69,17 +69,16 @@ The longer, multi-client ``cantab_anon.pcap`` was captured on machines
 with TCP segmentation offloading due to technical limitations, which
 means that longer-than-MTU payloads will appear unsegmented. This does
 not however affect CovertMark’s default detection strategies. The
-shorter, single-client (albeit with multiple addresses at different
-times) ``single_anon.pcap`` is unaffected with all longer-than-MTU
+shorter, single-client ``lso_anon.pcap`` is unaffected with all longer-than-MTU
 payloads properly segmented.
 
 +-----------------+-----------------+-----------------+-----------------+
 | File Name       | Packets         | Concurrent      | Client          |
 |                 |                 | Users           | IP’s/Subnets    |
 +=================+=================+=================+=================+
-| `single_anon <h | 495354          | 1               | 130.0.168.186,  |
-| ttps://goo.gl/2 |                 |                 | 130.0.169.122,  |
-| 6zZbJ>`__       |                 |                 | 130.0.171.221   |
+| `lso_anon <http | 200405          | 1               | 130.0.169.136/3\|
+| s://goo.gl/ZZnE |                 |                 | 2               |
+| Zz>`__          |                 |                 |                 |
 +-----------------+-----------------+-----------------+-----------------+
 | `cantab_anon <h | 1566737         | 5               | 171.69.236.0/24 |
 | ttps://goo.gl/8 |                 |                 |                 |

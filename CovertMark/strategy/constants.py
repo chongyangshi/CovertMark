@@ -7,7 +7,7 @@ from ..data import constants as data_constants
 TPR_BOUNDARY = 0.333 # Below which results in ineffective detection.
 FPR_BOUNDARY = 0.050 # Above which results in unacceptable false positives.
 FPR_TARGET = 0.0025 # As FPR is of greater interest to censors, a hard rather than relative target will be used in scoring.
-PENALTY_WEIGHTS = (0.2, 0.35, 0.25, 0.2) # Penalisation weight between TPR, FPR, positive run time, and ip false block rate.
+PENALTY_WEIGHTS = (0.1, 0.4, 0.25, 0.25) # Penalisation weight between TPR, FPR, positive run time, and ip false block rate.
 assert(sum(PENALTY_WEIGHTS) == 1)
 
 TIME_STATS_DESCRIPTIONS = {
