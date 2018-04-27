@@ -489,7 +489,7 @@ class DetectionStrategy(ABC):
         for i, score in enumerate(scores):
             # Clip the penalty proportion to between 0 and 1.
             strategy_penalty = sorted([0, self.config_specific_penalisation(acceptable_configs[i]), 1])[1]
-            strategy_penalised_scores.append(scores[i] * (1-strategy_penalty))
+            strategy_penalised_scores.append(score * (1-strategy_penalty))
 
         best_score = max(strategy_penalised_scores)
         best_config = acceptable_configs[strategy_penalised_scores.index(max(strategy_penalised_scores))]
