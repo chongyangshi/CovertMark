@@ -20,11 +20,11 @@ class EntropyStrategy(DetectionStrategy):
     _DEBUG_PREFIX = "Entropy"
     RUN_CONFIG_DESCRIPTION = ["Block Size", "Test Size", "Criterion"]
 
-    # Three criteria possible: [majority voting, and sensitive].
-    # Corresponding to [majority, any] when deciding whether to flag
+    # Three criteria possible: [conservative, majority voting, and sensitive].
+    # Corresponding to [all, majority, any] when deciding whether to flag
     # a packet as likely high-entropy encrypted PT traffic.
-    CRITERIA = [2, 1]
-    CRITERIA_DESCRIPTIONS = {2: "majority voting", 1: "sensitive"}
+    CRITERIA = [3, 2, 1]
+    CRITERIA_DESCRIPTIONS = {3: "conservative", 2: "majority voting", 1: "sensitive"}
     MAX_CRITERION = 3
     P_THRESHOLD = 0.1
     TEST_SIZES = [256, 512, 1024, 1536]
