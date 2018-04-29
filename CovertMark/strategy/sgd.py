@@ -31,7 +31,7 @@ class SGDStrategy(DetectionStrategy):
     FEATURE_SET = [analytics.constants.USE_ENTROPY, analytics.constants.USE_PSH,
                    analytics.constants.USE_INTERVAL_BINS,
                    analytics.constants.USE_TCP_LEN_BINS]
-    DYNAMIC_THRESHOLD_PERCENTILES = [0, 50, 75, 80, 85, 90]
+    DYNAMIC_THRESHOLD_PERCENTILES = [0, 25, 50, 75, 90]
     DYNAMIC_ADJUSTMENT_STOPPING_CRITERIA = (0.75, 0.001)
     PT_SPLIT_RATIO = 0.5
     # Stop when TPR drops below first value or FPR drops below second value.
@@ -233,18 +233,21 @@ class SGDStrategy(DetectionStrategy):
 
         # Test them on the best classifiers.
         total_recalls = len(recall_features)
-        recall_accuracies = []
-        for n, classifier in enumerate(self._trained_classifiers):
-            self.debug_print("- Testing classifier #{} recall on {} feature rows...".format(n+1, total_recalls))
+        for pct in self._trained_classifiers:
+            recall_accuracies = []
+            for n, classifier in enumerate(self._trained_classifiers[pct]):
+                self.debug_print("- Testing classifier {}pct-#{} recall on {} feature rows...".format(pct, n+1, total_recalls))
 
-            correct_recalls = 0
-            recall_predictions = classifier.predict(recall_features)
-            for prediction in recall_predictions:
-                if prediction == 1:
-                    correct_recalls += 1
+                correct_recalls = 0
+                recall_predictions = classifier.predict(recall_features)
+                for prediction in recall_predictions:
+                    if prediction == 1:
+                        correct_recalls += 1
 
-            recall_accuracies.append(float(correct_recalls)/total_recalls)
-            self.debug_print("Classifier #{} recall accuracy: {:0.2f}%".format(n+1, float(correct_recalls)/total_recalls*100))
+                recall_accuracies.append(float(correct_recalls)/total_recalls)
+                self.debug_print("Classifier #{} recall accuracy: {:0.2f}%".format(n+1, float(correct_recalls)/total_recalls*100))
+            
+            self.debug_print("Mean recall accuracy: {:0.2f}%".format(sum(recall_accuracies) / float(len(recall_accuracies)) * 100))
 
         return max(recall_accuracies)
 
@@ -426,9 +429,9 @@ class SGDStrategy(DetectionStrategy):
             self.debug_print("IPs classified as PT (block at >{} occurrences):".format(self._decision_threshold))
             self.debug_print(', '.join([str(i) for i in sorted(list(self._strategic_states[median_fpr_run]["ip_occurrences"].items()), key=itemgetter(1), reverse=True)]))
 
-            # Currently record first tier classifiers only.
-            if threshold_pct == self.DYNAMIC_THRESHOLD_PERCENTILES[0]:
-                self._trained_classifiers = [self._strategic_states[i]["classifier"] for i in range(self.NUM_RUNS)]
+            # Record classifiers for recall tests.
+            if test_recall:
+                self._trained_classifiers[threshold_pct] = [self._strategic_states[i]["classifier"] for i in range(self.NUM_RUNS)]
 
             if not dynamic_adjustment:
                 break
