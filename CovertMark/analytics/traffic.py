@@ -223,6 +223,8 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     """
     Calculate the following features for the windowed traces:
 
+    - 'max_entropy_up': max entropy of upstream TCP payloads;
+    - 'min_entropy_up': min entropy of upstream TCP payloads;
     - 'mean_entropy_up': mean entropy of upstream TCP payloads;
     - 'mean_interval_up': upstream mean TCP ACK intervals;
     - 'bin_#_interval_up': the number of in-range intervals between TCP frames,
