@@ -233,6 +233,8 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     - 'top1_tcp_len_up': the most common upstream TCP payload length;
     - 'top2_tcp_len_up': the second most common upstream TCP payload length;
     - 'mean_tcp_len_up': mean upstream TCP payload length.
+    - 'bin_#_len_up': binned TCP payload lengths in each direction of flow,
+      divided between 100, 200, 500, 1000, 1500 bytes. 
     - 'push_ratio_up': ratio of TCP ACKs with PSH flags set, indicating
       reuse of TCP handshake for additional data;
     - (All attributes above, except for downstream and named '..._down');
@@ -274,7 +276,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 
     stats = {}
     interval_ranges = [1000, 10000, 100000, 1000000]
-    tcp_len_ranges = [100, 200, 500, 1000]
+    tcp_len_ranges = [100, 200, 500, 1000, 1500]
     # TCP length segmented into low/empty payload, moderate payloads, and
     # high/close-to-MTU payload. Most systems have a default MTU at nearly 1500
     # bytes.
@@ -376,7 +378,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if tcp_len_bins_on:
             payload_lengths_up_bins = sorted(payload_lengths_up_bins.items(), key=itemgetter(0))
             for length_bin in payload_lengths_up_bins:
-                stats['bin_' + str(length_bin[0]) + '_interval_up'] = length_bin[1]
+                stats['bin_' + str(length_bin[0]) + '_len_up'] = length_bin[1]
 
         if psh_on:
             if ack_up > 0:
@@ -403,7 +405,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             stats['mean_tcp_len_up'] = 0
         if tcp_len_bins_on:
             for length_bin in payload_lengths_up_bins:
-                stats['bin_' + str(length_bin) + '_interval_up'] = 0
+                stats['bin_' + str(length_bin) + '_len_up'] = 0
 
         if psh_on:
             stats['push_ratio_up'] = 0
@@ -479,7 +481,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if tcp_len_bins_on:
             payload_lengths_down_bins = sorted(payload_lengths_down_bins.items(), key=itemgetter(0))
             for length_bin in payload_lengths_down_bins:
-                stats['bin_' + str(length_bin[0]) + '_interval_down'] = length_bin[1]
+                stats['bin_' + str(length_bin[0]) + '_len_down'] = length_bin[1]
 
         if psh_on:
             if ack_down > 0:
@@ -506,7 +508,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             stats['mean_tcp_len_down'] = 0
         if tcp_len_bins_on:
             for length_bin in payload_lengths_down_bins:
-                stats['bin_' + str(length_bin) + '_interval_down'] = 0
+                stats['bin_' + str(length_bin) + '_len_down'] = 0
 
         if psh_on:
             stats['push_ratio_down'] = 0
