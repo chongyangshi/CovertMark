@@ -245,9 +245,9 @@ class SGDStrategy(DetectionStrategy):
                         correct_recalls += 1
 
                 recall_accuracies.append(float(correct_recalls)/total_recalls)
-                self.debug_print("Classifier #{} recall accuracy: {:0.2f}%".format(n+1, float(correct_recalls)/total_recalls*100))
+                self.debug_print("Classifier #{} recall accuracy: {:0.4f}%".format(n+1, float(correct_recalls)/total_recalls*100))
             
-            self.debug_print("Mean recall accuracy: {:0.2f}%".format(sum(recall_accuracies) / float(len(recall_accuracies)) * 100))
+            self.debug_print("Mean recall accuracy: {:0.4f}%".format(sum(recall_accuracies) / float(len(recall_accuracies)) * 100))
 
         return max(recall_accuracies)
 
