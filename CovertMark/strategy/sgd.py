@@ -39,6 +39,7 @@ class SGDStrategy(DetectionStrategy):
     def __init__(self, pt_pcap, negative_pcap, recall_pcap=None, debug=True):
         super().__init__(pt_pcap, negative_pcap, recall_pcap, debug=debug)
         self._trained_classifiers = {}
+        self._recall_thresholds = {}
 
 
     def set_strategic_filter(self):
@@ -143,10 +144,8 @@ class SGDStrategy(DetectionStrategy):
         self.debug_print("- SGD validation...")
         prediction = SGD.predict(self._pt_validation_traces)
 
-        total_positives = 0
         true_positives = 0
         false_positives = 0
-        total_negatives = 0
         true_negatives = 0
         false_negatives = 0
         self._strategic_states[run_num]["negative_blocked_ips"] = set([])
@@ -221,6 +220,7 @@ class SGDStrategy(DetectionStrategy):
 
         # Process the all-positive recall windows.
         recall_features = []
+        recall_ips = []
         for time_window in time_windows:
             traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._recall_subnets, self._window_size)
 
@@ -230,19 +230,24 @@ class SGDStrategy(DetectionStrategy):
                     if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                         continue
                     recall_features.append([i[1] for i in sorted(feature_dict.items(), key=itemgetter(0))])
+                    recall_ips.append(client_target[1])
 
         # Test them on the best classifiers.
         total_recalls = len(recall_features)
         for pct in self._trained_classifiers:
             recall_accuracies = []
+            recall_threshold = self._recall_thresholds[pct]
+            recall_ip_hits = {i: 0 for i in set(recall_ips)}
             for n, classifier in enumerate(self._trained_classifiers[pct]):
                 self.debug_print("- Testing classifier {}pct-#{} recall on {} feature rows...".format(pct, n+1, total_recalls))
 
                 correct_recalls = 0
                 recall_predictions = classifier.predict(recall_features)
-                for prediction in recall_predictions:
+                for i, prediction in enumerate(recall_predictions):
                     if prediction == 1:
-                        correct_recalls += 1
+                        recall_ip_hits[recall_ips[i]] += 1
+                        if recall_ip_hits[recall_ips[i]] > recall_threshold:
+                            correct_recalls += 1
 
                 recall_accuracies.append(float(correct_recalls)/total_recalls)
                 self.debug_print("Classifier #{} recall accuracy: {:0.4f}%".format(n+1, float(correct_recalls)/total_recalls*100))
@@ -432,7 +437,8 @@ class SGDStrategy(DetectionStrategy):
             # Record classifiers for recall tests.
             if test_recall:
                 self._trained_classifiers[threshold_pct] = [self._strategic_states[i]["classifier"] for i in range(self.NUM_RUNS)]
-
+                self._recall_thresholds[threshold_pct] = self._decision_threshold
+            
             if not dynamic_adjustment:
                 break
 
