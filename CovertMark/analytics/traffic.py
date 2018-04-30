@@ -277,8 +277,9 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         return {}, set([]), []
 
     stats = {}
-    interval_ranges = [1000, 10000, 100000, 1000000]
-    tcp_len_ranges = [100, 200, 500, 1000, 1500]
+    interval_ranges = [0, 1000, 10000, 100000, 1000000]
+    tcp_len_ranges = [i*100 for i in range(0, 16)]
+    max_tcp_len = max(tcp_len_ranges)
     # TCP length segmented into low/empty payload, moderate payloads, and
     # high/close-to-MTU payload. Most systems have a default MTU at nearly 1500
     # bytes.
@@ -288,9 +289,9 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     seqs_seen_up = set([])
     entropies_up = []
     intervals_up = []
-    intervals_up_bins = {i: 0 for i in interval_ranges}
+    intervals_up_bins = {(interval_ranges[i-1], interval_ranges[i]): 0 for i in range(1, len(interval_ranges))}
     payload_lengths_up = []
-    payload_lengths_up_bins = {i: 0 for i in tcp_len_ranges}
+    payload_lengths_up_bins = {(tcp_len_ranges[i-1], tcp_len_ranges[i]): 0 for i in range(1, len(tcp_len_ranges))}
     psh_up = 0
     ack_up = 0
     traces_up = list(filter(lambda x: any([i.overlaps(data_utils.build_subnet(x['src'])) for i in client_subnets]), windowed_traces))
@@ -298,9 +299,9 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     seqs_seen_down = set([])
     entropies_down = []
     intervals_down = []
-    intervals_down_bins = {i: 0 for i in interval_ranges}
+    intervals_down_bins = {(interval_ranges[i-1], interval_ranges[i]): 0 for i in range(1, len(interval_ranges))}
     payload_lengths_down = []
-    payload_lengths_down_bins = {i: 0 for i in tcp_len_ranges}
+    payload_lengths_down_bins = {(tcp_len_ranges[i-1], tcp_len_ranges[i]): 0 for i in range(1, len(tcp_len_ranges))}
     psh_down = 0
     ack_down = 0
     traces_down = list(filter(lambda x: any([i.overlaps(data_utils.build_subnet(x['dst'])) for i in client_subnets]), windowed_traces))
@@ -336,18 +337,24 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
                     interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
                     intervals_up.append(interval)
                     # If the interval is above 1 second, ignore its bin membership.
-                    for k in interval_ranges:
-                        if interval < k:
+                    for k in intervals_up_bins:
+                        if k[0] <= interval < k[1]:
                             intervals_up_bins[k] += 1
+                            break
                     prev_time = float(trace['time']) * 1000000
 
             # Payload length tally.
+            up_len = len(trace_tcp['payload'])
             if tcp_len_on:
-                payload_lengths_up.append(len(trace_tcp['payload']))
+                payload_lengths_up.append(up_len)
             if tcp_len_bins_on:
-                for k in tcp_len_ranges:
-                    if len(trace_tcp['payload']) < k:
+                if up_len > max_tcp_len: # Deal with LSO.
+                    payload_lengths_up_bins[(max_tcp_len-100, max_tcp_len)] += up_len // max_tcp_len
+                    up_len = up_len % max_tcp_len
+                for k in payload_lengths_up_bins:
+                    if k[0] <= up_len < k[1]:
                         payload_lengths_up_bins[k] += 1
+                        break
 
             # ACK/PSH information.
             if psh_on:
@@ -438,19 +445,26 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
                     interval = abs(float(trace['time']) * 1000000 - prev_time)
                     intervals_down.append(interval)
                     # If the interval is above 1 second, ignore its bin membership.
-                    for k in interval_ranges:
-                        if interval < k:
+                    for k in intervals_down_bins:
+                        if k[0] <= interval < k[1]:
                             intervals_down_bins[k] += 1
+                            break
                     prev_time = float(trace['time']) * 1000000
 
 
             # Payload length tally.
+            down_len = len(trace_tcp['payload'])
             if tcp_len_on:
-                payload_lengths_down.append(len(trace_tcp['payload']))
+                payload_lengths_down.append(down_len)
             if tcp_len_bins_on:
-                for k in tcp_len_ranges:
-                    if len(trace_tcp['payload']) < k:
+                if down_len > max_tcp_len: # Deal with LSO.
+                    payload_lengths_down_bins[(max_tcp_len-100, max_tcp_len)] += down_len // max_tcp_len
+                    down_len = down_len % max_tcp_len
+                for k in payload_lengths_down_bins:
+                    if k[0] <= down_len < k[1]:
                         payload_lengths_down_bins[k] += 1
+                        break
+                    
 
             # ACK/PSH information.
             if psh_on:
