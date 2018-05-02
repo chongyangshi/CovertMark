@@ -37,7 +37,7 @@ def ordered_tcp_payload_length_frequency(traces, tls_only=False, bandwidth=3):
             continue
         elif tls_only and trace['tls_info'] is None:
             continue
-        elif len(trace['tcp_info']['payload']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD:
+        elif len(trace['tcp_info']['payload']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD_CLUSTERING:
             continue
         else:
             lengths.append(len(trace['tcp_info']['payload']))
@@ -79,7 +79,7 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
     for trace in traces:
         if trace['proto'] != "UDP":
             continue
-        elif len(trace['len']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD:
+        elif len(trace['len']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD_CLUSTERING:
             continue
         else:
             lengths.append(trace['len'])
@@ -376,7 +376,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if interval_bins_on:
             intervals_up_bins = sorted(intervals_up_bins.items(), key=itemgetter(0))
             for interval_bin in intervals_up_bins:
-                stats['bin_' + str(interval_bin[0]) + '_interval_up'] = interval_bin[1]
+                stats['bin_' + str(interval_bin[0]) + '_interval_up'] = float(interval_bin[1]) / len(traces_up)
 
         if tcp_len_on:
             up_counts = Counter(payload_lengths_up).items()
@@ -387,7 +387,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if tcp_len_bins_on:
             payload_lengths_up_bins = sorted(payload_lengths_up_bins.items(), key=itemgetter(0))
             for length_bin in payload_lengths_up_bins:
-                stats['bin_' + str(length_bin[0]) + '_len_up'] = length_bin[1]
+                stats['bin_' + str(length_bin[0]) + '_len_up'] = float(length_bin[1]) / len(traces_up)
 
         if psh_on:
             if ack_up > 0:
@@ -486,7 +486,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if interval_bins_on:
             intervals_down_bins = sorted(intervals_down_bins.items(), key=itemgetter(0))
             for interval_bin in intervals_down_bins:
-                stats['bin_' + str(interval_bin[0]) + '_interval_down'] = interval_bin[1]
+                stats['bin_' + str(interval_bin[0]) + '_interval_down'] = float(interval_bin[1]) / len(traces_down)
 
         if tcp_len_on:
             down_counts = Counter(payload_lengths_down).items()
@@ -497,7 +497,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if tcp_len_bins_on:
             payload_lengths_down_bins = sorted(payload_lengths_down_bins.items(), key=itemgetter(0))
             for length_bin in payload_lengths_down_bins:
-                stats['bin_' + str(length_bin[0]) + '_len_down'] = length_bin[1]
+                stats['bin_' + str(length_bin[0]) + '_len_down'] = float(length_bin[1]) / len(traces_down)
 
         if psh_on:
             if ack_down > 0:
