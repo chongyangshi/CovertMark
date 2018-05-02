@@ -91,19 +91,13 @@ class SGDStrategy(DetectionStrategy):
         # significant overfitting in practice.
         positive_len = len(self._strategic_states['positive_features'])
         negative_len = len(self._strategic_states['negative_features'])
-        if positive_len >= negative_len:
-            self.debug_print("More positive than negative cases provided, drawing {} positive cases, {} negative cases.".format(positive_len, negative_len))
-            negative_features, negative_ips = self._strategic_states['negative_features'], self._strategic_states['negative_ips']
-        else:
-            self.debug_print("More negative than positive cases provided, drawing {} positive cases, {} negative cases.".format(positive_len, positive_len))
-            negative_features, negative_ips = sklearn_utils.resample(self._strategic_states['negative_features'], self._strategic_states['negative_ips'], replace=False, n_samples=positive_len)
-            negative_len = positive_len
 
         # Reassemble the inputs.
-        all_features = np.concatenate((self._strategic_states['positive_features'], negative_features), axis=0)
-        all_ips = self._strategic_states['positive_ips'] + negative_ips
+        all_features = np.concatenate((self._strategic_states['positive_features'],
+         self._strategic_states['negative_features']), axis=0)
+        all_ips = self._strategic_states['positive_ips'] + self._strategic_states['negative_ips']
         all_labels = [1 for i in range(positive_len)] + [0 for i in range(negative_len)]
-        self._strategic_states['negative_unique_ips'] = len(set(negative_ips))
+        self._strategic_states['negative_unique_ips'] = len(set(self._strategic_states['negative_ips']))
         for ip in all_ips:
             self._target_ip_occurrences[ip] += 1
 

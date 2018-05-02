@@ -74,5 +74,5 @@ class SGD(Classifier):
         n_jobs = -1 if multithreaded else 1
         self.__classifier = linear_model.SGDClassifier(penalty='l1',
          loss=loss, max_iter=5000, n_jobs=n_jobs, learning_rate='optimal',
-         warm_start=False)
+         warm_start=False, class_weight="balanced")
         super().__init__(self.__classifier)
