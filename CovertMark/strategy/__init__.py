@@ -1,1 +1,1 @@
-from . import constants, entropy_dist, length_clustering, sgd, strategy
+from . import constants, entropy_dist, length_clustering, entropy_est, sgd, strategy

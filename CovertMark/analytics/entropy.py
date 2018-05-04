@@ -2,7 +2,7 @@ from . import constants
 
 import scipy.stats
 import numpy.random
-from math import log
+from math import log, floor
 from os import urandom
 
 class EntropyAnalyser:
@@ -206,3 +206,41 @@ class EntropyAnalyser:
         statistic, p = scipy.stats.ks_2samp(input_dist, uniform_dist)
 
         return p
+
+    
+    def entropy_estimation(self, input_bytes, window_size):
+        """
+        Estimate the level of entropy of input bytes by running a sliding window 
+        through the payload bytes and counting the number of distinct values in each
+        window. A fast, low-leading constant O(n) operation.
+
+        :param bytes input_bytes: input in bytes to be tested.
+        :param int window_size: the size of the sliding window.
+        :returns: the proportion of windows tested with distinct values above the
+            threshold.
+        :raises TypeError: if the input were not supplied as bytes.
+        """
+
+        if not isinstance(input_bytes, bytes):
+            raise TypeError("input_bytes must be in bytes.")
+        
+        # We cannot find any if the window is over-sized.
+        if window_size > len(input_bytes):
+            return 0
+
+        total_windows = len(input_bytes) - window_size + 1
+        qualifying_windows = 0
+        l = 0
+        r = window_size
+        for _ in range(total_windows):
+            current_bytes = input_bytes[l:r]
+            if len(set(current_bytes)) >= floor(window_size * constants.ENTROPY_ESTIMATION_THRESHOLD_FACTOR):
+                qualifying_windows += 1
+            l += 1
+            r += 1
+        
+        return float(qualifying_windows) / total_windows
+            
+        
+
+        
