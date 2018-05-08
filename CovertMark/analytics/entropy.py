@@ -228,12 +228,14 @@ class EntropyAnalyser:
             return 0
 
         total_windows = len(input_bytes) - window_size + 1
-        window_proportions = []
+        current_unique = set(input_bytes[:window_size])
+        window_proportions = [len(current_unique) / float(window_size)]
         l = 0
         r = window_size
-        for _ in range(total_windows):
-            current_bytes = input_bytes[l:r]
-            window_proportions.append(len(set(current_bytes)) / float(window_size))
+        for _ in range(total_windows - 1):
+            current_unique.remove(input_bytes[l])
+            current_unique.add(input_bytes[r])
+            window_proportions.append(len(current_unique) / float(window_size))
             l += 1
             r += 1
         
