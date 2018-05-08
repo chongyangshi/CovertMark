@@ -4,6 +4,7 @@ import scipy.stats
 import numpy as np
 from math import log, floor
 from os import urandom
+from collections import defaultdict
 
 class EntropyAnalyser:
     """
@@ -228,14 +229,18 @@ class EntropyAnalyser:
             return 0
 
         total_windows = len(input_bytes) - window_size + 1
-        current_unique = set(input_bytes[:window_size])
-        window_proportions = [len(current_unique) / float(window_size)]
+        counter = defaultdict(int)
+        for i in range(window_size):
+            counter[input_bytes[i]] += 1
+        window_proportions = [len(counter) / float(window_size)]
         l = 0
         r = window_size
         for _ in range(total_windows - 1):
-            current_unique.remove(input_bytes[l])
-            current_unique.add(input_bytes[r])
-            window_proportions.append(len(current_unique) / float(window_size))
+            counter[input_bytes[l]] -= 1
+            if counter[input_bytes[l]] == 0:
+                counter.pop(input_bytes[l])
+            counter[input_bytes[r]] += 1
+            window_proportions.append(len(counter) / float(window_size))
             l += 1
             r += 1
         
