@@ -5,6 +5,7 @@ CovertMark strategies exploit specific packet features to distinguish
 protocol-obfuscation proxy traffic from standard traffic. Current
 built-in strategies look at the uniformity and entropy distributions of
 bytes in TCP payloads (:mod:`CovertMark.strategy.entropy_dist` from [1]);
+and the estimations thereof (:mod:`CovertMark.strategy.entropy_est`); and
 unusual densely-distributed TCP payload lengths that are either all TLS
 or all non-TLS (:mod:`CovertMark.strategy.length_clustering`); and a
 generalised traffic shaping approach training a SGD classifier that does
