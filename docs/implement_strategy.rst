@@ -460,6 +460,24 @@ and ``_neg_traces`` lists.
 |                                   | matching the payloads in          |
 |                                   | ``tls_info.data``.                |
 +-----------------------------------+-----------------------------------+
+| http_info                         | A dictionary containing           |
+|                                   | additional information for HTTP   |
+|                                   | request packets on the            |
+|                                   | application layer, which are      |
+|                                   | detailed blow. Value is None if   |
+|                                   | the TCP packet is not a HTTP      |
+|                                   | request packet.                   |
++-----------------------------------+-----------------------------------+
+| http_info.headers                 | A dictionary storing HTTP request |
+|                                   | headers such as ``user-agent``.   |
++-----------------------------------+-----------------------------------+
+| http_info.uri                     | A string storing the HTTP request\|
+|                                   | 's uniform resource identifier (U\|
+|                                   | RI).                              |
++-----------------------------------+-----------------------------------+
+| http_info.version                 | The version of HTTP protocol used\|
+|                                   | .                                 |
++-----------------------------------+-----------------------------------+
 
 References
 ----------
