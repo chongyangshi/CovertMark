@@ -79,7 +79,7 @@ class PCAPParser:
 
     def load_packet_info(self):
         """
-        Load and return information of packet traces.
+        Load and return information of raw packets.
         Non-IP/IPv6 packets are ignored.
         Format::
             [{
@@ -205,22 +205,22 @@ class PCAPParser:
 
     def load_and_insert_new(self, description=""):
         """
-        Load packet traces from pcap file, and insert into a new collection.
+        Load raw packet from pcap file, and insert into a new collection.
         Returned collection name **must** be verified to not be False.
 
         :param str description: description of the new collection, empty by default.
         :returns: name of the new collection, False if failed.
         """
 
-        traces = self.load_packet_info()
-        if len(traces) == 0: # No packet loaded (likely incorrect ip filter.)
+        packets = self.load_packet_info()
+        if len(packets) == 0: # No packet loaded (likely incorrect ip filter.)
             return False
 
         new_collection = self.__db.new_collection(description=description, input_filters=self.__filter)
         if not new_collection:
             return False
 
-        insertion_result = self.__db.insert_traces(traces, collection_name=new_collection)
+        insertion_result = self.__db.insert_packets(packets, collection_name=new_collection)
 
         if len(insertion_result["inserted"].inserted_ids) > 0:
             return new_collection
@@ -230,16 +230,16 @@ class PCAPParser:
 
     def load_and_insert_existing(self, collection_name):
         """
-        Load packet traces from pcap file, and insert into an existing collection.
+        Load raw packets from pcap file, and insert into an existing collection.
         Returned collection name **must** be verified to not be False.
 
         :returns: True if insertion successful, False if failed.
         """
 
-        traces = self.load_packet_info()
-        if len(traces) == 0: # No packet loaded (likely incorrect ip filter.)
+        packets = self.load_packet_info()
+        if len(packets) == 0: # No packet loaded (likely incorrect ip filter.)
             return False
-        insertion_result = self.__db.insert_traces(traces, collection_name=collection_name)
+        insertion_result = self.__db.insert_packets(packets, collection_name=collection_name)
 
         if len(insertion_result["inserted"].inserted_ids) > 0:
             return True
@@ -249,8 +249,8 @@ class PCAPParser:
 
     def clean_up(self, collection):
         """
-        Drop the collection and its index to clean up space, if the stored traces
-        are temporary only.
+        Drop the collection and its index to clean up space, if the stored trace
+        is temporary only.
 
         :param str collection: the name of the collection to be cleaned up.
         """

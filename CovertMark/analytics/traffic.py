@@ -11,15 +11,15 @@ from collections import Counter, defaultdict
 Record and analyse windowed and non-windowed packet flow statistics.
 """
 
-def ordered_tcp_payload_length_frequency(traces, tls_only=False, bandwidth=3):
+def ordered_tcp_payload_length_frequency(packets, tls_only=False, bandwidth=3):
     """
     Utilises meanshift to cluster input tcp frames by their payload to within
     a certain difference (bandwidth), and returns descending ordered clusters.
     This is useful if the PT sends a lot of unidirectional equal or similar
-    length payloads, for which the traces should have been filtered by source or
+    length payloads, for which the packets should have been filtered by source or
     destination IP.
 
-    :param list traces: a list of parsed packets, non-tcp packets will be ignored.
+    :param list packets: a list of parsed packets, non-tcp packets will be ignored.
     :param bool tls_only: if True ignoring non-TLS frames, including TCP frames
         not containing TLS headers but segmented TLS data.
     :param int bandwidth: the maximum distance within clusters, i.e. max difference
@@ -32,15 +32,15 @@ def ordered_tcp_payload_length_frequency(traces, tls_only=False, bandwidth=3):
 
     # Collect the lengths.
     lengths = []
-    for trace in traces:
-        if trace['tcp_info'] is None:
+    for packet in packets:
+        if packet['tcp_info'] is None:
             continue
-        elif tls_only and trace['tls_info'] is None:
+        elif tls_only and packet['tls_info'] is None:
             continue
-        elif len(trace['tcp_info']['payload']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD_CLUSTERING:
+        elif len(packet['tcp_info']['payload']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD_CLUSTERING:
             continue
         else:
-            lengths.append(len(trace['tcp_info']['payload']))
+            lengths.append(len(packet['tcp_info']['payload']))
 
     # Cluster the lengths.
     lengths = np.array(list(zip(lengths, np.zeros(len(lengths)))), dtype=np.int)
@@ -59,15 +59,15 @@ def ordered_tcp_payload_length_frequency(traces, tls_only=False, bandwidth=3):
     return clusters
 
 
-def ordered_udp_payload_length_frequency(traces, bandwidth=3):
+def ordered_udp_payload_length_frequency(packets, bandwidth=3):
     """
     Utilises meanshift to cluster input udp frames by their packet length to within
     a certain difference (bandwidth), and return descending ordered clusters.
     This is useful if the PT sends a lot of unidirectional equal or similar UDP
-    length payloads, for which the traces should have been filtered by source or
+    length payloads, for which the packets should have been filtered by source or
     destination IP.
 
-    :param list traces: a list of parsed packets, non-udp packets will be ignored.
+    :param list packets: a list of parsed packets, non-udp packets will be ignored.
     :param int bandwidth: the maximum distance within clusters, i.e. max difference
         between payload lengths.
     :returns: a list of sets containing clustered values ordered from the most
@@ -76,13 +76,13 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
 
     # Collect the lengths.
     lengths = []
-    for trace in traces:
-        if trace['proto'] != "UDP":
+    for packet in packets:
+        if packet['proto'] != "UDP":
             continue
-        elif len(trace['len']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD_CLUSTERING:
+        elif len(packet['len']) > constants.MTU_FRAME_AVOIDANCE_THRESHOLD_CLUSTERING:
             continue
         else:
-            lengths.append(trace['len'])
+            lengths.append(packet['len'])
 
     # Cluster the lengths.
     lengths = np.array(list(zip(lengths, np.zeros(len(lengths)))), dtype=np.int)
@@ -101,24 +101,24 @@ def ordered_udp_payload_length_frequency(traces, bandwidth=3):
     return clusters
 
 
-def window_traces_fixed_size(traces, window_size):
+def window_packets_fixed_size(packets, window_size):
     """
-    Segment traces into fixed-size windows, discarding any remainder.
+    Segment packets into fixed-size windows, discarding any remainder.
 
-    :param list traces: a list of parsed packets.
+    :param list packets: a list of parsed packets.
     :param int window_size: the constant frame-count of each windowed segment,
         which will be segmented in chronological order.
-    :returns: a 2-D list containing windowed traces.
+    :returns: a 2-D list containing windowed packets.
     :raises: ValueError if the fixed window size is invalid.
     """
 
     if not isinstance(window_size, int) or window_size < 1:
         raise ValueError("Invalid window size.")
 
-    if len(traces) < window_size:
+    if len(packets) < window_size:
         return [] # Empty list if insufficient size of input.
 
-    segments = [traces[i:i+window_size] for i in range(0, len(traces), window_size)]
+    segments = [packets[i:i+window_size] for i in range(0, len(packets), window_size)]
 
     if len(segments[-1]) != window_size:
         segments = segments[:-1]
@@ -126,102 +126,102 @@ def window_traces_fixed_size(traces, window_size):
     return segments
 
 
-def window_traces_time_series(traces, chronological_window, sort=True):
+def window_packets_time_series(packets, chronological_window, sort=True):
     """
-    Segment traces into fixed chronologically-sized windows.
+    Segment packets into fixed chronologically-sized windows.
 
-    :param list traces: a list of parsed packets.
+    :param list packets: a list of parsed packets.
     :param int window_size: the number of **microseconds** elapsed covered by
         each windowed segment, in chronological order.
-    :param bool sort: if True, traces will be sorted again into chronological order,
+    :param bool sort: if True, packets will be sorted again into chronological order,
         useful if packet times not guaranteed to be chronologically ascending.
         True by default.
-    :returns: a 2-D list containing windowed traces.
+    :returns: a 2-D list containing windowed packets.
     """
 
     # Sorted by time if required.
     if sort:
-        traces = sorted(traces, key=itemgetter('time'))
+        packets = sorted(packets, key=itemgetter('time'))
 
     # Convert to microseconds then integer timestamps, and move to zero
     # for performance.
-    min_time = int(float(min(traces, key=itemgetter('time'))['time']) * 1000000)
-    max_time = int(float(max(traces, key=itemgetter('time'))['time']) * 1000000)
+    min_time = int(float(min(packets, key=itemgetter('time'))['time']) * 1000000)
+    max_time = int(float(max(packets, key=itemgetter('time'))['time']) * 1000000)
     start_time = 0
     end_time = max_time - min_time
     if (max_time - min_time) < chronological_window:
-        return [] # Empty list if trace duration too small.
+        return [] # Empty list if packet duration too small.
 
     ts = [(t, t+chronological_window) for t in range(start_time, end_time, chronological_window)]
     segments = [[] for i in ts]
     c_segment = 0
     c_segment_max = len(ts) - 1
 
-    for trace in traces:
-        trace_t = float(trace['time']) * 1000000 - min_time # Same movement as done above.
-        while (not ts[c_segment][0] <= trace_t < ts[c_segment][1]) and (c_segment < c_segment_max):
+    for packet in packets:
+        packet_t = float(packet['time']) * 1000000 - min_time # Same movement as done above.
+        while (not ts[c_segment][0] <= packet_t < ts[c_segment][1]) and (c_segment < c_segment_max):
             c_segment += 1
-        segments[c_segment].append(trace)
+        segments[c_segment].append(packet)
 
     return segments
 
 
-def group_traces_by_ip_fixed_size(traces, clients, window_size):
+def group_packets_by_ip_fixed_size(packets, clients, window_size):
     """
-    Group traces into fixed-size segments that contain bidirectional traffic
+    Group packets into fixed-size segments that contain bidirectional traffic
     from and towards individual predefined clients, individual inputs should
-    normally come from time-windowing by :func:`window_traces_time_series` (e.g. 60s)
+    normally come from time-windowing by :func:`window_packets_time_series` (e.g. 60s)
     to simulate realistic firewall operation conditions.
 
-    :param list traces: a list of parsed packets. Packets in this 1D list are
+    :param list packets: a list of parsed packets. Packets in this 1D list are
         assumed to be chronologically ordered.
     :param list clients: a predefined list of Python subnets objects describing
         clients that are considered within the firewall's control.
     :param int window_size: threshold to start a new segment.
     :returns: a dictionary indexed by a tuple of individual client and target pair,
         containing one 2D list for each pair. Each 2D list contains segmented
-        traces by fixed size, with remainders retained.
+        packets by fixed size, with remainders retained.
     """
 
     if len(clients) < 1:
         return []
 
-    client_traces = defaultdict(list)
-    for trace in traces:
+    client_packets = defaultdict(list)
+    for packet in packets:
 
-        trace_srcnet = data_utils.build_subnet(trace['src'])
-        trace_dstnet = data_utils.build_subnet(trace['dst'])
-        trace_client = None
+        packet_srcnet = data_utils.build_subnet(packet['src'])
+        packet_dstnet = data_utils.build_subnet(packet['dst'])
+        packet_client = None
 
         for client in clients:
-            if client.overlaps(trace_srcnet):
-                trace_client = trace_srcnet
-                target = trace['dst']
+            if client.overlaps(packet_srcnet):
+                packet_client = packet_srcnet
+                target = packet['dst']
                 break
 
-            elif client.overlaps(trace_dstnet):
-                trace_client = trace_dstnet
-                target = trace['src']
+            elif client.overlaps(packet_dstnet):
+                packet_client = packet_dstnet
+                target = packet['src']
                 break
 
-        if not trace_client:
-            continue # Irrelevant trace.
+        if not packet_client:
+            continue # Irrelevant packet.
 
         # Append here first.
-        client_traces[(str(trace_client), target)].append(trace)
+        client_packets[(str(packet_client), target)].append(packet)
 
     # Now segment for each client/target pair by fixed size.
-    for c in client_traces:
-        client_traces[c] = [client_traces[c][i:i+window_size] for i in range(0, len(client_traces[c]), window_size)]
-        if len(client_traces[c][-1]) < window_size: # Discard remainder.
-            client_traces[c] = client_traces[c][:-1]
+    for c in client_packets:
+        client_packets[c] = [client_packets[c][i:i+window_size] for i in range(0, len(client_packets[c]), window_size)]
+        if len(client_packets[c][-1]) < window_size: # Discard remainder.
+            client_packets[c] = client_packets[c][:-1]
 
-    return client_traces
+    return client_packets
 
 
-def get_window_stats(windowed_traces, client_ips, feature_selection=None):
+def get_window_stats(windowed_packets, client_ips, feature_selection=None):
     """
-    Calculate the following features for the windowed traces:
+    Calculate the following features for the windowed packets:
 
     - 'max_entropy_up': max entropy of upstream TCP payloads;
     - 'min_entropy_up': min entropy of upstream TCP payloads;
@@ -244,7 +244,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 
     Only relevant features will be calculated and returned, see below.
 
-    :param list windowed_traces: a segment of TCP traces, **assumed to have
+    :param list windowed_packets: a segment of TCP packets, **assumed to have
         been sorted by time in ascending order**.
     :param list client_ips: the IP addresses/subnets of the suspected PT clients.
     :param feature_selection: chooses sets of features to check for and
@@ -294,7 +294,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     payload_lengths_up_bins = {(tcp_len_ranges[i-1], tcp_len_ranges[i]): 0 for i in range(1, len(tcp_len_ranges))}
     psh_up = 0
     ack_up = 0
-    traces_up = list(filter(lambda x: any([i.overlaps(data_utils.build_subnet(x['src'])) for i in client_subnets]), windowed_traces))
+    packets_up = list(filter(lambda x: any([i.overlaps(data_utils.build_subnet(x['src'])) for i in client_subnets]), windowed_packets))
 
     seqs_seen_down = set([])
     entropies_down = []
@@ -304,47 +304,47 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     payload_lengths_down_bins = {(tcp_len_ranges[i-1], tcp_len_ranges[i]): 0 for i in range(1, len(tcp_len_ranges))}
     psh_down = 0
     ack_down = 0
-    traces_down = list(filter(lambda x: any([i.overlaps(data_utils.build_subnet(x['dst'])) for i in client_subnets]), windowed_traces))
+    packets_down = list(filter(lambda x: any([i.overlaps(data_utils.build_subnet(x['dst'])) for i in client_subnets]), windowed_packets))
 
-    if len(traces_up) > 0 and len(traces_down) > 0:
-        stats['up_down_ratio'] = float(len(traces_up)) / len(traces_down)
+    if len(packets_up) > 0 and len(packets_down) > 0:
+        stats['up_down_ratio'] = float(len(packets_up)) / len(packets_down)
     else:
         stats['up_down_ratio'] = 0
 
     # Now tally upstream frames.
-    if len(traces_up) > 1:
+    if len(packets_up) > 1:
         prev_time = None
-        for trace in traces_up:
+        for packet in packets_up:
 
             # Ignore non-TCP packets.
-            if trace['tcp_info'] == None:
+            if packet['tcp_info'] == None:
                 continue
-            ips.add(trace['dst'])
-            client_ips_seen.add(trace['src'])
+            ips.add(packet['dst'])
+            client_ips_seen.add(packet['src'])
 
             # Entropy tally.
             if entropy_on:
-                trace_tcp = trace['tcp_info']
-                entropies_up.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
+                packet_tcp = packet['tcp_info']
+                entropies_up.append(entropy.EntropyAnalyser.byte_entropy(packet_tcp['payload']))
 
             # Interval information.
-            if trace_tcp['seq'] not in seqs_seen_up:
-                seqs_seen_up.add(trace_tcp['seq'])
+            if packet_tcp['seq'] not in seqs_seen_up:
+                seqs_seen_up.add(packet_tcp['seq'])
 
                 if prev_time is None:
-                    prev_time = float(trace['time']) * 1000000
+                    prev_time = float(packet['time']) * 1000000
                 else:
-                    interval = abs(float(trace['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
+                    interval = abs(float(packet['time']) * 1000000 - prev_time) # Just in case not sorted, even though that would be incorrect.
                     intervals_up.append(interval)
                     # If the interval is above 1 second, ignore its bin membership.
                     for k in intervals_up_bins:
                         if k[0] <= interval < k[1]:
                             intervals_up_bins[k] += 1
                             break
-                    prev_time = float(trace['time']) * 1000000
+                    prev_time = float(packet['time']) * 1000000
 
             # Payload length tally.
-            up_len = len(trace_tcp['payload'])
+            up_len = len(packet_tcp['payload'])
             if tcp_len_on:
                 payload_lengths_up.append(up_len)
             if tcp_len_bins_on:
@@ -358,9 +358,9 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 
             # ACK/PSH information.
             if psh_on:
-                if trace_tcp['flags']['ACK'] == True:
+                if packet_tcp['flags']['ACK'] == True:
                     ack_up += 1
-                    if trace_tcp['flags']['PSH'] == True:
+                    if packet_tcp['flags']['PSH'] == True:
                         psh_up += 1
 
         if entropy_on:
@@ -376,7 +376,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if interval_bins_on:
             intervals_up_bins = sorted(intervals_up_bins.items(), key=itemgetter(0))
             for interval_bin in intervals_up_bins:
-                stats['bin_' + str(interval_bin[0]) + '_interval_up'] = float(interval_bin[1]) / len(traces_up)
+                stats['bin_' + str(interval_bin[0]) + '_interval_up'] = float(interval_bin[1]) / len(packets_up)
 
         if tcp_len_on:
             up_counts = Counter(payload_lengths_up).items()
@@ -387,7 +387,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if tcp_len_bins_on:
             payload_lengths_up_bins = sorted(payload_lengths_up_bins.items(), key=itemgetter(0))
             for length_bin in payload_lengths_up_bins:
-                stats['bin_' + str(length_bin[0]) + '_len_up'] = float(length_bin[1]) / len(traces_up)
+                stats['bin_' + str(length_bin[0]) + '_len_up'] = float(length_bin[1]) / len(packets_up)
 
         if psh_on:
             if ack_up > 0:
@@ -420,40 +420,40 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
             stats['push_ratio_up'] = 0
 
     # Now tally downstream frames.
-    if len(traces_down) > 0:
+    if len(packets_down) > 0:
         prev_time = None
-        for trace in traces_down:
+        for packet in packets_down:
 
             # Ignore non-TCP packets.
-            if trace['tcp_info'] == None:
+            if packet['tcp_info'] == None:
                 continue
-            ips.add(trace['src'])
-            client_ips_seen.add(trace['dst'])
+            ips.add(packet['src'])
+            client_ips_seen.add(packet['dst'])
 
             # Entropy tally.
             if entropy_on:
-                trace_tcp = trace['tcp_info']
-                entropies_down.append(entropy.EntropyAnalyser.byte_entropy(trace_tcp['payload']))
+                packet_tcp = packet['tcp_info']
+                entropies_down.append(entropy.EntropyAnalyser.byte_entropy(packet_tcp['payload']))
 
             # Interval information.
-            if trace_tcp['seq'] not in seqs_seen_down:
-                seqs_seen_down.add(trace_tcp['seq'])
+            if packet_tcp['seq'] not in seqs_seen_down:
+                seqs_seen_down.add(packet_tcp['seq'])
 
                 if prev_time is None:
-                    prev_time = float(trace['time']) * 1000000
+                    prev_time = float(packet['time']) * 1000000
                 else:
-                    interval = abs(float(trace['time']) * 1000000 - prev_time)
+                    interval = abs(float(packet['time']) * 1000000 - prev_time)
                     intervals_down.append(interval)
                     # If the interval is above 1 second, ignore its bin membership.
                     for k in intervals_down_bins:
                         if k[0] <= interval < k[1]:
                             intervals_down_bins[k] += 1
                             break
-                    prev_time = float(trace['time']) * 1000000
+                    prev_time = float(packet['time']) * 1000000
 
 
             # Payload length tally.
-            down_len = len(trace_tcp['payload'])
+            down_len = len(packet_tcp['payload'])
             if tcp_len_on:
                 payload_lengths_down.append(down_len)
             if tcp_len_bins_on:
@@ -468,9 +468,9 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
 
             # ACK/PSH information.
             if psh_on:
-                if trace_tcp['flags']['ACK'] == True:
+                if packet_tcp['flags']['ACK'] == True:
                     ack_down += 1
-                    if trace_tcp['flags']['PSH'] == True:
+                    if packet_tcp['flags']['PSH'] == True:
                         psh_down += 1
 
         if entropy_on:
@@ -486,7 +486,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if interval_bins_on:
             intervals_down_bins = sorted(intervals_down_bins.items(), key=itemgetter(0))
             for interval_bin in intervals_down_bins:
-                stats['bin_' + str(interval_bin[0]) + '_interval_down'] = float(interval_bin[1]) / len(traces_down)
+                stats['bin_' + str(interval_bin[0]) + '_interval_down'] = float(interval_bin[1]) / len(packets_down)
 
         if tcp_len_on:
             down_counts = Counter(payload_lengths_down).items()
@@ -497,7 +497,7 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
         if tcp_len_bins_on:
             payload_lengths_down_bins = sorted(payload_lengths_down_bins.items(), key=itemgetter(0))
             for length_bin in payload_lengths_down_bins:
-                stats['bin_' + str(length_bin[0]) + '_len_down'] = float(length_bin[1]) / len(traces_down)
+                stats['bin_' + str(length_bin[0]) + '_len_down'] = float(length_bin[1]) / len(packets_down)
 
         if psh_on:
             if ack_down > 0:
@@ -533,32 +533,32 @@ def get_window_stats(windowed_traces, client_ips, feature_selection=None):
     return stats, ips, client_ips_seen
 
 
-def synchronise_traces(traces, target_time, sort=False):
+def synchronise_packets(packets, target_time, sort=False):
     """
-    Synchronise the input traces by shifting the time of the first frame to align
-    with the target time supplied.
+    Synchronise the input packets with another trace by shifting the time of
+    the first frame to align with the target time supplied.
 
-    :param list traces: input traces to be time shifted, should be chronologically
+    :param list packets: input packets to be time shifted, should be chronologically
         ordered or have sort set to True, otherwise results will be erroneous.
     :param float target_time: a valid UNIX timestamp to at least 6 d.p.
     :param bool sort: if True, the function will chronologically sort the input
-        traces first.
-    :returns: time shifted input traces.
+        packets first.
+    :returns: time shifted input packets.
     """
 
     if not isinstance(target_time, float):
         raise ValueError("Invalid target time.")
 
-    if len(traces) == 0:
+    if len(packets) == 0:
         return []
 
     if sort:
-        traces = sorted(traces, key=itemgetter('time'))
+        packets = sorted(packets, key=itemgetter('time'))
 
-    traces_start_time = float(traces[0]['time'])
-    diff = target_time - traces_start_time
+    packets_start_time = float(packets[0]['time'])
+    diff = target_time - packets_start_time
 
-    for trace in traces:
-        trace['time'] = float(trace['time']) + diff
+    for packet in packets:
+        packet['time'] = float(packet['time']) + diff
 
-    return traces
+    return packets

@@ -11,7 +11,7 @@ class Retriever:
 
     def list(self, in_string=False, match_filters=None):
         """
-        Return a list of all collections of traces currently stored in MongoDB.
+        Return a list of all collections of packets currently stored in MongoDB.
 
         :param str in_string: pre-format the output in string if True.
         :param list match_filters: a list of :mod:`CovertMark.data.constants` filter types to
@@ -31,7 +31,7 @@ class Retriever:
             traces = qualified_traces
 
         for trace in traces:
-            trace["count"] = self.__db.count_traces(trace["name"])
+            trace["count"] = self.__db.count_packets(trace["name"])
 
         if not in_string:
             return traces
@@ -100,7 +100,7 @@ class Retriever:
         """
         Get the current collection selected.
 
-        :returns: the current collection of traces selected. None if none selected.
+        :returns: the current collection of packets selected. None if none selected.
         """
 
         return self._collection
@@ -108,15 +108,15 @@ class Retriever:
 
     def count(self, trace_filter={}):
         """
-        Count the number of traces in the currently selected MongoDB collection,
+        Count the number of packets in the currently selected MongoDB collection,
 
         :param dict trace_filter: a MongoDB query filter, which can be empty --
-            in which case all traces will be counted.
-        :returns: the number of traces matching the filter in the currently
+            in which case all packets will be counted.
+        :returns: the number of packets matching the filter in the currently
             selected collection.
         """
 
-        return self.__db.count_traces(self._collection, trace_filter)
+        return self.__db.count_packets(self._collection, trace_filter)
 
 
     def distinct(self, column):
@@ -125,23 +125,23 @@ class Retriever:
         collection's specified column.
 
         :param str field: name of the column for counting distinct addresses.
-        :returns: the number of traces matching the filter in the currently
+        :returns: the number of packets matching the filter in the currently
             selected collection.
         """
 
-        return self.__db.distinct_traces(self._collection, column)
+        return self.__db.distinct_packets(self._collection, column)
 
 
     def retrieve(self, trace_filter={}, limit=0):
         """
-        Retrieve traces from the currently selected MongoDB collection into
+        Retrieve packets from the currently selected MongoDB collection into
         memory, decoding base64-encoded payload and TLS data where possible.
 
         :param dict trace_filter: a MongoDB query filter, can be empty -- in which
-            case all traces returned.
-        :param int limit: a positive integer containing the maximum number of traces
+            case all packets returned.
+        :param int limit: a positive integer containing the maximum number of packets
             to retrieve (normally in time-ascending order), or 0 for unlimited.
-        :returns: List of traces as specified. Returns an empty list of traces
+        :returns: List of packets as specified. Returns an empty list of packets
             if no collection is selected or filter invalid.
         """
 
@@ -151,28 +151,28 @@ class Retriever:
             max_r = 0
 
         try:
-            traces = self.__db.find_traces(self._collection, trace_filter, max_r)
+            packets = self.__db.find_packets(self._collection, trace_filter, max_r)
         except MemoryError:
-            print("Warning: cannot allocate sufficient memory for traces, perhaps you are using Windows?")
+            print("Warning: cannot allocate sufficient memory for packets, perhaps you are using Windows?")
             return []
         except:
             return []
 
         # Attempt to decode base64 payloads.
-        for trace in traces:
-            if trace["tcp_info"] is not None:
-                if isinstance(trace["tcp_info"]["payload"], bytes):
+        for packet in packets:
+            if packet["tcp_info"] is not None:
+                if isinstance(packet["tcp_info"]["payload"], bytes):
                     try:
-                        trace["tcp_info"]["payload"] = b64decode(trace["tcp_info"]["payload"])
+                        packet["tcp_info"]["payload"] = b64decode(packet["tcp_info"]["payload"])
                     except:
                         continue
 
-            if trace["tls_info"] is not None:
-                for i, data in enumerate(trace["tls_info"]["data"]):
+            if packet["tls_info"] is not None:
+                for i, data in enumerate(packet["tls_info"]["data"]):
                     if isinstance(data, bytes):
                         try:
-                            trace["tls_info"]["data"][i] = b64decode(data)
+                            packet["tls_info"]["data"][i] = b64decode(data)
                         except:
                             continue
 
-        return traces
+        return packets

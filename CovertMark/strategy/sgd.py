@@ -75,7 +75,7 @@ class SGDStrategy(DetectionStrategy):
 
     def test_validation_split(self, split_ratio):
         """
-        Split the inputs into test and validation traces through random sampling
+        Split the inputs into test and validation packets through random sampling
         over all feature rows.
         We refer to testing data used in training as test, and data used in negative
         run unseen during training as validaton. It is important to balance the
@@ -133,10 +133,10 @@ class SGDStrategy(DetectionStrategy):
 
         self.debug_print("- SGD training {} with L1 penalisation and {} loss...".format(run_num+1, self.LOSS_FUNC))
         SGD = analytics.learning.SGD(loss=self.LOSS_FUNC, multithreaded=True)
-        SGD.train(self._pt_test_traces, self._pt_test_labels)
+        SGD.train(self._pt_test_packets, self._pt_test_labels)
 
         self.debug_print("- SGD validation...")
-        prediction = SGD.predict(self._pt_validation_traces)
+        prediction = SGD.predict(self._pt_validation_packets)
 
         true_positives = 0
         false_positives = 0
@@ -206,20 +206,20 @@ class SGDStrategy(DetectionStrategy):
     def recall_run(self, **kwargs):
         """
         Run the classifier with lowest FPR at each occurrence threshold on
-        unseen recall traces.
+        unseen recall packets.
         """
 
-        self.debug_print("- Recall test started, extracting features from recall traces...")
-        time_windows = analytics.traffic.window_traces_time_series(self._recall_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
+        self.debug_print("- Recall test started, extracting features from recall packets...")
+        time_windows = analytics.traffic.window_packets_time_series(self._recall_packets, self.TIME_SEGMENT_SIZE*1000000, sort=False)
 
         # Process the all-positive recall windows.
         recall_features = []
         recall_ips = []
         for time_window in time_windows:
-            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._recall_subnets, self._window_size)
+            packets_by_client = analytics.traffic.group_packets_by_ip_fixed_size(time_window, self._recall_subnets, self._window_size)
 
-            for client_target in traces_by_client:
-                for window in traces_by_client[client_target]:
+            for client_target in packets_by_client:
+                for window in packets_by_client[client_target]:
                     feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]], self.FEATURE_SET)
                     if any([(feature_dict[i] is None) or isnan(feature_dict[i]) for i in feature_dict]):
                         continue
@@ -273,7 +273,7 @@ class SGDStrategy(DetectionStrategy):
         Sacrificing some false negatives for low false positive rate, under
         dynamic occurrence thresholding.
 
-        :param int window_size: the number of traces in each segment of single
+        :param int window_size: the number of packets in each segment of single
             client-remote TCP sessions.
         :param int decision_threshold: leave as None for automatic decision threshold
             search, otherwise the number of IP occurrences before positive flagging.
@@ -295,26 +295,26 @@ class SGDStrategy(DetectionStrategy):
             dynamic_adjustment = False
 
         test_recall = False if 'test_recall' not in kwargs else kwargs['test_recall']
-        self.debug_print("Loaded {} positive traces, {} negative traces.".format(len(self._pt_traces), len(self._neg_traces)))
+        self.debug_print("Loaded {} positive packets, {} negative packets.".format(len(self._pt_packets), len(self._neg_packets)))
         if test_recall:
-            self.debug_print("Loaded {} positive recall traces".format(len(self._recall_traces)))
+            self.debug_print("Loaded {} positive recall packets".format(len(self._recall_packets)))
 
-        if len(self._pt_traces) < 1 or len(self._neg_traces) < 1:
-            raise ValueError("Loaded nothing for at least one set of traces, did you set the input filter correctly?")
+        if len(self._pt_packets) < 1 or len(self._neg_packets) < 1:
+            raise ValueError("Loaded nothing for at least one trace, did you set the input filter correctly?")
 
         # Synhronise times, moving the shorter one to reduce memory footprint.
-        if len(self._pt_traces) > len(self._neg_traces):
-            target_time = float(self._pt_traces[0]['time'])
-            self._neg_traces = analytics.traffic.synchronise_traces(self._neg_traces, target_time, sort=False)
+        if len(self._pt_packets) > len(self._neg_packets):
+            target_time = float(self._pt_packets[0]['time'])
+            self._neg_packets = analytics.traffic.synchronise_packets(self._neg_packets, target_time, sort=False)
         else:
-            target_time = float(self._neg_traces[0]['time'])
-            self._pt_traces = analytics.traffic.synchronise_traces(self._pt_traces, target_time, sort=False)
+            target_time = float(self._neg_packets[0]['time'])
+            self._pt_packets = analytics.traffic.synchronise_packets(self._pt_packets, target_time, sort=False)
 
-        self.debug_print("- Segmenting traces into {} second windows...".format(self.TIME_SEGMENT_SIZE))
-        time_windows_positive = analytics.traffic.window_traces_time_series(self._pt_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
-        time_windows_negative = analytics.traffic.window_traces_time_series(self._neg_traces, self.TIME_SEGMENT_SIZE*1000000, sort=False)
-        self._pt_traces = None # Releases memory when processing large files.
-        self._neg_traces = None
+        self.debug_print("- Segmenting packets into {} second windows...".format(self.TIME_SEGMENT_SIZE))
+        time_windows_positive = analytics.traffic.window_packets_time_series(self._pt_packets, self.TIME_SEGMENT_SIZE*1000000, sort=False)
+        time_windows_negative = analytics.traffic.window_packets_time_series(self._neg_packets, self.TIME_SEGMENT_SIZE*1000000, sort=False)
+        self._pt_packets = None # Releases memory when processing large files.
+        self._neg_packets = None
         self.debug_print("In total we have {} time segments.".format(len(time_windows_positive) + len(time_windows_negative)))
 
         self.debug_print("- Extracting feature rows from windows in time segments...")
@@ -324,13 +324,13 @@ class SGDStrategy(DetectionStrategy):
         negative_ips = []
 
         for time_window in time_windows_positive:
-            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._positive_subnets, self._window_size)
+            packets_by_client = analytics.traffic.group_packets_by_ip_fixed_size(time_window, self._positive_subnets, self._window_size)
 
-            for client_target in traces_by_client:
+            for client_target in packets_by_client:
 
                 # Mark the shared target.
                 window_ip = client_target[1]
-                for window in traces_by_client[client_target]:
+                for window in packets_by_client[client_target]:
                     # Extract features, IP information not needed as each window will
                     # contain one individual client's traffic with a single target only.
                     feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]], self.FEATURE_SET)
@@ -342,13 +342,13 @@ class SGDStrategy(DetectionStrategy):
                     positive_ips.append(window_ip)
 
         for time_window in time_windows_negative:
-            traces_by_client = analytics.traffic.group_traces_by_ip_fixed_size(time_window, self._negative_subnets, self._window_size)
+            packets_by_client = analytics.traffic.group_packets_by_ip_fixed_size(time_window, self._negative_subnets, self._window_size)
 
-            for client_target in traces_by_client:
+            for client_target in packets_by_client:
 
                 # Mark the shared target.
                 window_ip = client_target[1]
-                for window in traces_by_client[client_target]:
+                for window in packets_by_client[client_target]:
                     # Extract features, IP information not needed as each window will
                     # contain one individual client's traffic with a single target only.
                     feature_dict, _, _ = analytics.traffic.get_window_stats(window, [client_target[0]], self.FEATURE_SET)
@@ -361,9 +361,9 @@ class SGDStrategy(DetectionStrategy):
 
         time_windows_positive = []
         time_windows_negative = []
-        traces_by_client = []
+        packets_by_client = []
 
-        self.debug_print("Extracted {} rows representing windows containing PT traces, {} rows representing negative traces.".format(len(positive_features), len(negative_features)))
+        self.debug_print("Extracted {} rows representing windows containing PT packets, {} rows representing negative packets.".format(len(positive_features), len(negative_features)))
         if len(positive_features) < 1 or len(negative_features) < 1:
             raise ValueError("No feature rows to work with, did you misconfigure the input filters?")
 

@@ -27,7 +27,7 @@ class LengthClusteringStrategy(DetectionStrategy):
     # be maintained to ensure fitness.
 
     TLS_MODES = ["all", "only", "none"]
-    # Decide whether to use all traces, only TLS traces, or only non-TLS traces.
+    # Decide whether to use all packets, only TLS packets, or only non-TLS packets.
 
 
     def __init__(self, pt_pcap, negative_pcap=None, debug=True):
@@ -44,7 +44,7 @@ class LengthClusteringStrategy(DetectionStrategy):
         """
         When detecting meek, it would be trivial to simply ignore all non-TLS
         packets. However for a generalised strategy use/disregard of TLS packets
-        should be determined by inspecting the positive traces instead. Therefore
+        should be determined by inspecting the positive packets instead. Therefore
         it is only necessary to filter out TCP packets with no payload.
         """
 
@@ -93,7 +93,7 @@ class LengthClusteringStrategy(DetectionStrategy):
     def positive_run(self, **kwargs):
         """
         Because this simple strategy is based on common global TCP payload lengths,
-        the identified trace ratio is not very useful here and will be fairly low (33-80%).
+        the identified packet ratio is not very useful here and will be fairly low (33-80%).
 
         :param int bandwidth: the bandwidth used for meanshift clustering payload lengths.
         :param int clusters: the number of top length clusters to use in classification.
@@ -103,23 +103,23 @@ class LengthClusteringStrategy(DetectionStrategy):
         clusters = 1 if 'clusters' not in kwargs else kwargs['clusters']
 
         if self._tls_mode == "only":
-            most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, True, bandwidth)
+            most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_packets, True, bandwidth)
         else:
-            most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_traces, False, bandwidth)
+            most_frequent = analytics.traffic.ordered_tcp_payload_length_frequency(self._pt_packets, False, bandwidth)
 
         top_clusters = most_frequent[0]
         for i in range(1, clusters):
             top_clusters = top_clusters.union(most_frequent[i])
 
         identified = 0
-        for trace in self._pt_traces:
-            if len(trace['tcp_info']['payload']) in top_clusters:
+        for packet in self._pt_packets:
+            if len(packet['tcp_info']['payload']) in top_clusters:
                 identified += 1
 
         # Pass the cluster to the negative run.
         self._strategic_states['top_clusters'][(bandwidth, clusters)] = top_clusters
 
-        self._strategic_states['TPR'][(bandwidth, clusters)] = identified / len(self._pt_traces)
+        self._strategic_states['TPR'][(bandwidth, clusters)] = identified / len(self._pt_packets)
         self.debug_print("TCP payload lengths in the {} cluster(s): {}.".format(clusters, ', '.join([str(i) for i in list(top_clusters)])))
         self.register_performance_stats((bandwidth, clusters),
          TPR=self._strategic_states['TPR'][(bandwidth, clusters)])
@@ -129,7 +129,7 @@ class LengthClusteringStrategy(DetectionStrategy):
 
     def negative_run(self, **kwargs):
         """
-        Now we check the identified lengths against negative traces. Because
+        Now we check the identified lengths against negative packets. Because
         TLS packets with TCP payload lengths as small as meek's are actually very
         rare, this simple strategy becomes very effective.
 
@@ -143,13 +143,13 @@ class LengthClusteringStrategy(DetectionStrategy):
         top_cluster = self._strategic_states['top_clusters'][(bandwidth, clusters)]
         falsely_identified = 0
         self._strategic_states['blocked'][(bandwidth, clusters)] = set([])
-        for trace in self._neg_traces:
-            if len(trace['tcp_info']['payload']) in top_cluster:
+        for packet in self._neg_packets:
+            if len(packet['tcp_info']['payload']) in top_cluster:
                 falsely_identified += 1
-                self._strategic_states['blocked'][(bandwidth, clusters)].add(trace['dst'])
+                self._strategic_states['blocked'][(bandwidth, clusters)].add(packet['dst'])
 
         # Unlike the positive case, we consider the false positive rate to be
-        # over all traces, rather than just the ones were are interested in.
+        # over all packets, rather than just the ones were are interested in.
         self._strategic_states['FPR'][(bandwidth, clusters)] = float(falsely_identified) / self._neg_collection_total
         self._negative_blocked_ips = self._strategic_states['blocked'][(bandwidth, clusters)]
         self._false_positive_blocked_rate = float(len(self._negative_blocked_ips)) / self._negative_unique_ips
@@ -163,7 +163,7 @@ class LengthClusteringStrategy(DetectionStrategy):
     def report_blocked_ips(self):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
-        traces in Wireshark. Useful for studying false positives.
+        packets in Wireshark. Useful for studying false positives.
 
         :returns: a Wireshark-compatible filter expression string.
         """
@@ -205,14 +205,14 @@ class LengthClusteringStrategy(DetectionStrategy):
             tls_mode = 'guess'
 
         if tls_mode == 'guess':
-            self.debug_print("Studying PT traces to figure out about TLS packets")
-            tls_traces = 0
-            for t in self._pt_traces:
+            self.debug_print("Studying PT packets to figure out about TLS packets")
+            tls_packets = 0
+            for t in self._pt_packets:
                 if 'tls_info' in t and t['tls_info'] is not None:
-                    tls_traces += 1
-            if float(tls_traces) / len(self._pt_traces) > 0.95:
+                    tls_packets += 1
+            if float(tls_packets) / len(self._pt_packets) > 0.95:
                 self._tls_mode = "only"
-            elif float(tls_traces) / len(self._pt_traces) < 0.05:
+            elif float(tls_packets) / len(self._pt_packets) < 0.05:
                 self._tls_mode = "none"
             else:
                 self._tls_mode = "all"
@@ -221,12 +221,12 @@ class LengthClusteringStrategy(DetectionStrategy):
 
         if tls_mode == 'only':
             self.debug_print("Strategy TLS mode: examining TLS packets only.")
-            self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is not None]
-            self._neg_traces = [i for i in self._neg_traces if i["tls_info"] is not None]
+            self._pt_packets = [i for i in self._pt_packets if i["tls_info"] is not None]
+            self._neg_packets = [i for i in self._neg_packets if i["tls_info"] is not None]
         elif tls_mode == 'none':
             self.debug_print("Strategy TLS mode: examining non-TLS packets only.")
-            self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is None]
-            self._neg_traces = [i for i in self._neg_traces if i["tls_info"] is None]
+            self._pt_packets = [i for i in self._pt_packets if i["tls_info"] is None]
+            self._neg_packets = [i for i in self._neg_packets if i["tls_info"] is None]
         else:
             self.debug_print("Strategy TLS mode: examining all packets regardless of TLS status.")
 

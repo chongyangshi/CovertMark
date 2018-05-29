@@ -154,13 +154,13 @@ class MongoDBManager:
         return valid_collections
 
 
-    def insert_traces(self, traces, collection_name=""):
+    def insert_packets(self, packets, collection_name=""):
         """
-        Insert a list of fomatted packet traces. Should be used only by
+        Insert a list of fomatted packets. Should be used only by
         :meth:`parser.PCAPParser.load_packet_info`, as format checking is not done
         here.
 
-        :param list traces: see docstring of that function for input format.
+        :param list packets: see docstring of that function for input format.
         :param str collection_name: The name of the collection to be inserted into,
             create a new collection with random name if unspecified.
         :returns: dict containing collection name and inserted count if insertion
@@ -177,22 +177,22 @@ class MongoDBManager:
 
         # Conduct the insertion.
         collection = self.__db[collection_name]
-        inserted = collection.insert_many(traces)
+        inserted = collection.insert_many(packets)
 
         result = {"collection_name": collection_name, "inserted": inserted}
 
         return result
 
 
-    def find_traces(self, collection_name, query_params, max_r=0):
+    def find_packets(self, collection_name, query_params, max_r=0):
         """
-        Return matched packet traces in the named collection up to a max of max_r
-        traces.
+        Return matched packets in the named collection up to a max of max_r
+        packets.
 
         :param str collection_name: name of the queried collection.
         :param dict query_params: query written in MongoDB query object format.
-        :param int max_r: maximum number of returned traces, <= 0 means unlimited.
-        :returns: traces found matching the query parameters.
+        :param int max_r: maximum number of returned packets, <= 0 means unlimited.
+        :returns: packets found matching the query parameters.
         """
 
         if not self.lookup_collection(collection_name):
@@ -213,13 +213,13 @@ class MongoDBManager:
         return result
 
 
-    def count_traces(self, collection_name, query_params={}):
+    def count_packets(self, collection_name, query_params={}):
         """
-        Return the number of query-matched packet traces in the named collection.
+        Return the number of query-matched packets in the named collection.
 
         :param str collection_name: name of the queried collection.
         :param dict query_params: query written in MongoDB query object format.
-        :returns: the number of traces found matching the query parameters.
+        :returns: the number of packets found matching the query parameters.
         """
 
         if not self.lookup_collection(collection_name):
@@ -231,12 +231,12 @@ class MongoDBManager:
         return query_count
 
 
-    def distinct_traces(self, collection_name, field_name):
+    def distinct_packets(self, collection_name, field_name):
         """
         Return the number of distinct fields of a column in the named collection.
 
         :param str collection_name: name of the queried collection.
-        :param str field_name: name of column to count distinct traces.
+        :param str field_name: name of column to count distinct packets.
         :returns: the number of distinct fields found.
         """
 
@@ -249,13 +249,13 @@ class MongoDBManager:
         return distinct_count
 
 
-    def delete_traces(self, collection_name, query_params):
+    def delete_packets(self, collection_name, query_params):
         """
-        Delete matched packet traces in the named collection.
+        Delete matched packets in the named collection.
 
         :param str collection_name: name of the queried collection.
         :param str query_params: query written in MongoDB query object format.
-        :returns: traces deleted matching the query parameters.
+        :returns: packets deleted matching the query parameters.
         """
 
         if not self.lookup_collection(collection_name):
@@ -270,7 +270,7 @@ class MongoDBManager:
     @staticmethod
     def generate_name():
         """
-        Generate a trace collection name in the format of 'traces(yyyymmdd)random-hex-string'.
+        Generate a packet collection name in the format of 'traces(yyyymmdd)random-hex-string'.
 
         :returns: a random collection name.
         """

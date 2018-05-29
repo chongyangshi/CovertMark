@@ -47,19 +47,19 @@ class DetectionStrategy(ABC):
         self._recall_collection_total = 0
 
         # Lists of traces to be loaded.
-        self._traces_parsed = False
-        self._traces_loaded = False
-        self._pt_traces = []
-        self._pt_test_traces = []
-        self._pt_validation_traces = []
+        self._packets_parsed = False
+        self._packets_loaded = False
+        self._pt_packets = []
+        self._pt_test_packets = []
+        self._pt_validation_packets = []
         self._pt_split = False
-        self._neg_traces = []
-        self._recall_traces = []
+        self._neg_packets = []
+        self._recall_packets = []
         self._positive_subnets = []
         self._negative_subnets = []
         self._recall_subnets = []
 
-        # The strategic filter to examine a subset of loaded traces.
+        # The strategic filter to examine a subset of loaded packets.
         self._strategic_packet_filter = {}
 
         # The strategy's internal states.
@@ -91,10 +91,10 @@ class DetectionStrategy(ABC):
 
     def _parse_PT_packets(self, pt_filters):
         """
-        Parse positive test traces stored in the PCAP file.
+        Parse positive test packets stored in the PCAP file.
 
         N.B. Filters at this stage are intended to be used to remove unrelated
-        traces accidentally captured in the process, so that they do not affect
+        packets accidentally captured in the process, so that they do not affect
         testing/training of positive case analysis. If the analysis strategy
         only examines a subset of all PT traffic (e.g. packets with TLS payloads),
         its filters should be set separately in :meth:`set_strategic_filter`.
@@ -109,7 +109,7 @@ class DetectionStrategy(ABC):
             ('13.32.68.100', data.constants.IP_DST)]
             For filter matching rules, see :meth:`~CovertMark.data.parser.PCAPParser.set_ip_filter`.
             For an empty (allow-all) filter, use `{}`.
-        :returns: True if a non-zero amount of traces were parsed, False otherwise.
+        :returns: True if a non-zero amount of packets were parsed, False otherwise.
         """
 
         assert(all([i.isalnum() or i in [".", "_", "-", " "] for i in self.NAME]))
@@ -117,7 +117,7 @@ class DetectionStrategy(ABC):
         self.__pt_parser = data.parser.PCAPParser(self.__pt_pcap)
         self.__pt_parser.set_ip_filter(pt_filters)
         self.set_case_membership(pt_filters, None)
-        desp = self.NAME + " positive traces from " + os.path.basename(self.__pt_pcap)
+        desp = self.NAME + " positive packets from " + os.path.basename(self.__pt_pcap)
         self._pt_collection = self.__pt_parser.load_and_insert_new(description=desp)
 
         if self._pt_collection:
@@ -128,11 +128,11 @@ class DetectionStrategy(ABC):
 
     def _parse_negative_packets(self, negative_filters):
         """
-        Parse negative test traces stored in the PCAP file.
+        Parse negative test packets stored in the PCAP file.
 
         :param list negative_filters: same format as in :meth:`_parse_PT_packets`.
             Allow-all by default.
-        :returns: True if a non-zero amount of traces were parsed, False otherwise.
+        :returns: True if a non-zero amount of packets were parsed, False otherwise.
         """
 
         assert(all([i.isalnum() or i in [".", "_", "-", " "] for i in self.NAME]))
@@ -140,7 +140,7 @@ class DetectionStrategy(ABC):
         self.__neg_parser = data.parser.PCAPParser(self.__negative_pcap)
         self.__neg_parser.set_ip_filter(negative_filters)
         self.set_case_membership(None, negative_filters)
-        desp = self.NAME + " negative traces from " + os.path.basename(self.__negative_pcap)
+        desp = self.NAME + " negative packets from " + os.path.basename(self.__negative_pcap)
         self._neg_collection = self.__neg_parser.load_and_insert_new(description=desp)
 
         if self._neg_collection:
@@ -151,18 +151,18 @@ class DetectionStrategy(ABC):
 
     def _parse_recall_packets(self, recall_filters):
         """
-        Parse positive recall test traces stored in the PCAP file.
+        Parse positive recall test packets stored in the PCAP file.
 
         :param list recall_filters: same format as in :meth:`_parse_PT_packets`.
             Allow-all by default.
-        :returns: True if a non-zero amount of traces were parsed, False otherwise.
+        :returns: True if a non-zero amount of packets were parsed, False otherwise.
         """
 
         assert(all([i.isalnum() or i in [".", "_", "-", " "] for i in self.NAME]))
 
         self.__recall_parser = data.parser.PCAPParser(self.__recall_pcap)
         self.__recall_parser.set_ip_filter(recall_filters)
-        desp = self.NAME + " positive recall traces from " + os.path.basename(self.__recall_pcap)
+        desp = self.NAME + " positive recall packets from " + os.path.basename(self.__recall_pcap)
         self._recall_collection = self.__recall_parser.load_and_insert_new(description=desp)
 
         if self._recall_collection:
@@ -182,10 +182,10 @@ class DetectionStrategy(ABC):
 
         self.__reader.select(self._pt_collection)
         self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
-        self._pt_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
+        self._pt_packets = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
         self._pt_collection_total = self.__reader.count(trace_filter={})
 
-        if len(self._pt_traces) == 0:
+        if len(self._pt_packets) == 0:
             return False
 
         # Reload positive filters.
@@ -198,17 +198,17 @@ class DetectionStrategy(ABC):
             self.debug_print("Input filters attached to the positive collection do not exist or are invalid, must be manually set with set_case_membership().")
 
 
-        # If no negative traces pcap parsed, we skip it.
+        # If no negative pcap parsed, we skip it.
         if self._neg_collection is not None:
             self.__reader.select(self._neg_collection)
             self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
-            self._neg_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
+            self._neg_packets = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
             self._neg_collection_total = self.__reader.count(trace_filter={})
 
             # Record distinct destination IP addresses for stat reporting.
             self._negative_unique_ips = self.__reader.distinct('dst')
 
-            if len(self._neg_traces) == 0:
+            if len(self._neg_packets) == 0:
                 return False
 
             # Reload negative filters.
@@ -221,14 +221,14 @@ class DetectionStrategy(ABC):
                 self.debug_print("Input filters attached to the negative collection do not exist or are invalid, must be manually set with set_case_membership().")
 
 
-        # If no recall traces pcap parsed, we finish here.
+        # If no recall pcap parsed, we finish here.
         if self._recall_collection is None:
-            self._traces_loaded = True
+            self._packets_loaded = True
             return True
 
         self.__reader.select(self._recall_collection)
         self.debug_print("- Retrieving from {}...".format(self.__reader.current()))
-        self._recall_traces = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
+        self._recall_packets = self.__reader.retrieve(trace_filter=self._strategic_packet_filter)
         self._recall_collection_total = self.__reader.count(trace_filter={})
 
         # Set recall subnets.
@@ -237,12 +237,12 @@ class DetectionStrategy(ABC):
             self._recall_subnets = [data.utils.build_subnet(i[0]) for i in recall_filters if i[1] in [data.constants.IP_SRC, data.constants.IP_EITHER]]
             self.debug_print("Automatically set the corresponding input filters for recall clients: {}.".format(str([i[0] for i in recall_filters])))
 
-        if len(self._recall_traces) == 0:
+        if len(self._recall_packets) == 0:
             return False
 
-        self.debug_print("Positive recall traces loaded.")
+        self.debug_print("Positive recall packets loaded.")
 
-        self._traces_loaded = True
+        self._packets_loaded = True
 
         return True
 
@@ -251,7 +251,7 @@ class DetectionStrategy(ABC):
         """
         Set an internal list of positive and negative subnets for membership
         checking with :meth:`in_positive_filter` and :meth:`in_negative_filter`. This
-        is useful if a mixed pcap needs to be parsed into :attr:`_pt_traces` only.
+        is useful if a mixed pcap needs to be parsed into :attr:`_pt_packets` only.
         If only one of the two needs to be set, pass in None in the corresponding
         other parameter.
 
@@ -316,7 +316,7 @@ class DetectionStrategy(ABC):
 
     def run_on_positive(self, config, **kwargs):
         """
-        Test the detection strategy on positive PT traces, call this instead of
+        Test the detection strategy on positive PT packets, call this instead of
 
         :meth:`positive_run`, due to the need of timing positive executions for
         performance statistics.
@@ -331,7 +331,7 @@ class DetectionStrategy(ABC):
         if not self._pt_collection:
             return False
 
-        if not self._traces_loaded:
+        if not self._packets_loaded:
             self._load_into_memory()
 
         if config is None:
@@ -351,7 +351,7 @@ class DetectionStrategy(ABC):
 
     def run_on_negative(self, config, **kwargs):
         """
-        Optionally test the detection strategy on negative client traces, call this
+        Optionally test the detection strategy on negative client packets, call this
         instead of :meth:`negative_run`.
 
         :param tuple config: a consistently-formatted tuple containing configurations
@@ -364,7 +364,7 @@ class DetectionStrategy(ABC):
         if not self._neg_collection:
             return False
 
-        if not self._traces_loaded:
+        if not self._packets_loaded:
             self._load_into_memory()
 
         if config is None:
@@ -386,14 +386,14 @@ class DetectionStrategy(ABC):
 
     def run_on_recall(self, **kwargs):
         """
-        Wrapper for the optional :meth:`recall_run`, testing the trained classifier
-        on positive recall traces.
+        Wrapper for the optional :meth:`recall_run`, testing a trained classifier
+        on positive recall packets.
         """
 
         if not self._recall_collection:
             return False
 
-        if not self._traces_loaded:
+        if not self._packets_loaded:
             self._load_into_memory()
 
         self._recall_rate = self.recall_run(**kwargs)
@@ -505,11 +505,11 @@ class DetectionStrategy(ABC):
         a split.
         Do not override this method, but override :meth:`test_validation_split` below.
 
-        :param float split_ratio: the proportion of positive traces used as test
+        :param float split_ratio: the proportion of positive packets used as test
             rather than validation in a split.
         """
 
-        if not self._traces_loaded:
+        if not self._packets_loaded:
             self._load_into_memory()
 
         splits = self.test_validation_split(split_ratio)
@@ -517,8 +517,8 @@ class DetectionStrategy(ABC):
             test, validation = splits
             # Only validate split if a non-empty split has been performed.
             if len(test) > 0 or len(validation) > 0:
-                self._pt_test_traces = test
-                self._pt_validation_traces = validation
+                self._pt_test_packets = test
+                self._pt_validation_packets = validation
                 self._pt_split = True
 
 
@@ -544,15 +544,15 @@ class DetectionStrategy(ABC):
         both `pt_collection` and `negative_collection` need to be set to valid names.
         Recall used for evaluation of strategy itself only, not for user's use.
 
-        :param list pt_ip_filters: input IP filters for positive test traces.
-        :param list negative_ip_filters: input IP filters for negative test traces.
+        :param list pt_ip_filters: input IP filters for positive test packets.
+        :param list negative_ip_filters: input IP filters for negative test packets.
         :param str pt_collection: set pt_collection to be the name of an existing
             collection in MongoDB to skip parsing again.
         :param str negative_collection: set negative_collection to be the name of an
             existing collection in MongoDB to skip parsing again.
         :param bool test_recall: if True, the strategy will also test the classifier
-            on unseen positive recall traces to cross validate.
-        :param list recall_ip_filters: input IP filter for recall test traces.
+            on unseen positive recall packets to cross validate.
+        :param list recall_ip_filters: input IP filter for recall test packets.
         :param str recall_collection: set recall_collection to be the name of an
             existing collection in MongoDB to skip parsing again.
         """
@@ -571,7 +571,7 @@ class DetectionStrategy(ABC):
             if self.__reader.select(pt_collection):
                 reparsing_positive = False
                 self._pt_collection = pt_collection
-                self.debug_print("Loading existing PT traces...")
+                self.debug_print("Loading existing PT trace...")
             else:
                 self.debug_print("Re-parsing PT PCAP file as {} does not exist in MongoDB...".format(pt_collection))
 
@@ -586,9 +586,9 @@ class DetectionStrategy(ABC):
             if self.__reader.select(negative_collection):
                 reparsing_negative = False
                 self._neg_collection = negative_collection
-                self.debug_print("Loading existing negative traces...")
+                self.debug_print("Loading existing negative trace...")
             else:
-                self.debug_print("Re-parsing negative traces as {} does not exist in MongoDB...".format(negative_collection))
+                self.debug_print("Re-parsing negative trace as {} does not exist in MongoDB...".format(negative_collection))
 
         if reparsing_negative:
             self.debug_print("- Parsing negative PCAP...")
@@ -602,7 +602,7 @@ class DetectionStrategy(ABC):
             self.debug_print("This run will test the positive recall of the best classifier.")
             if self.__reader.select(recall_collection):
                 self._recall_collection = recall_collection
-                self.debug_print("Loading existing recall traces...")
+                self.debug_print("Loading existing recall trace...")
             else:
                 self.debug_print("- Attempting to parse recall PCAP as specified recall collection does not exist.")
                 if self._parse_recall_packets(recall_ip_filters):
@@ -610,15 +610,15 @@ class DetectionStrategy(ABC):
                 else:
                     raise RuntimeError("! Failure to parse recall PCAP file.")
 
-        self._traces_parsed = True
+        self._packets_parsed = True
 
 
     def load(self):
         """
-        Load parsed or stored traces from their collections.
+        Load parsed or stored packets from their trace collections.
         Call this method when it is ready to load traces from memory. Call this
         method again after calling :meth:`set_strategic_filter` to set a new
-        strategic filter, as after traces need to be reloaded based on the new
+        strategic filter, as afterwards traces need to be reloaded based on the new
         filter.
         """
 
@@ -628,9 +628,9 @@ class DetectionStrategy(ABC):
 
         self.debug_print("- Loading packets according to the initial strategic filter...")
         self._load_into_memory()
-        self.debug_print("Positive: {} traces, examining {}.".format(self._pt_collection_total, len(self._pt_traces)))
-        self.debug_print("Negative: {} traces, examining {}.".format(self._neg_collection_total, len(self._neg_traces)))
-        self.debug_print("Positive Recall: {} traces, examining {}.".format(self._recall_collection_total, len(self._recall_traces)))
+        self.debug_print("Positive: {} packets, examining {}.".format(self._pt_collection_total, len(self._pt_packets)))
+        self.debug_print("Negative: {} packets, examining {}.".format(self._neg_collection_total, len(self._neg_packets)))
+        self.debug_print("Positive Recall: {} packets, examining {}.".format(self._recall_collection_total, len(self._recall_packets)))
 
 
     def run(self, **kwargs):
@@ -638,10 +638,10 @@ class DetectionStrategy(ABC):
         The entry point of the strategy.
         """
 
-        if not self._traces_parsed:
+        if not self._packets_parsed:
             raise RuntimeError("Use self.setup(...) to set up the strategy before running.")
 
-        if not self._traces_loaded:
+        if not self._packets_loaded:
             self.debug_print("- Loading traces...")
             self.load()
 
@@ -659,7 +659,7 @@ class DetectionStrategy(ABC):
         if self._neg_collection is not None:
             self.__neg_parser.clean_up(self._neg_collection)
 
-        self._traces_parsed = False
+        self._packets_parsed = False
 
 
     def make_csv(self):
@@ -706,12 +706,12 @@ class DetectionStrategy(ABC):
         usable after this.
         """
 
-        self._traces_parsed = False
-        self._pt_traces = []
-        self._pt_test_traces = []
-        self._pt_validation_traces = []
-        self._neg_traces = []
-        self._recall_traces = []
+        self._packets_parsed = False
+        self._pt_packets = []
+        self._pt_test_packets = []
+        self._pt_validation_packets = []
+        self._neg_packets = []
+        self._recall_packets = []
 
 
     # ========================To be implemented below==========================#
@@ -726,18 +726,18 @@ class DetectionStrategy(ABC):
         :returns: tuple(:attr:`_true_positive_rate`, :attr:`_false_positive_rate`)
         """
 
-        self.debug_print("- Running detection strategy on positive test traces...")
+        self.debug_print("- Running detection strategy on positive test packets...")
         self._true_positive_rate = self.run_on_positive(())
         self.debug_print("Reported true positive rate: {}".format(self._true_positive_rate))
 
         if self._neg_collection is not None:
-            self.debug_print("- Validating detection strategy on negative test traces...")
+            self.debug_print("- Validating detection strategy on negative test packets...")
             self._false_positive_rate = self.run_on_negative(())
             self.debug_print("Reported false positive rate: {}".format(self._false_positive_rate))
             self.debug_print("False positive IPs blocked rate: {}".format(self._false_positive_blocked_rate))
 
         if self._test_recall:
-            self.debug_print("- Validating best strategy on positive recall traces...")
+            self.debug_print("- Validating best strategy on positive recall packets...")
             self._recall_rate = self.run_on_recall()
             self.debug_print("Reported positive recall rate: {}".format(self._recall_rate))
 
@@ -751,12 +751,12 @@ class DetectionStrategy(ABC):
     def set_strategic_filter(self, new_filter={}):
         """
         While packets not related to the PT in the positive case should have
-        been removed from positive traces when parsing the pcap file
+        been removed from positive packets when parsing the pcap file
         (e.g. :meth:`_parse_PT_packets`), if this strategy only wants to examine
         certain packets in the traces, such as those with TLS payloads only,
         they should be specified here in the strategic filter. The syntax follows
-        MongoDB queries on the trace syntax.
-        (For trace syntax see :meth:`~CovertMark.data.parser.PCAPParser.load_packet_info`)
+        MongoDB queries on the packet syntax.
+        (For packet syntax see :meth:`~CovertMark.data.parser.PCAPParser.load_packet_info`)
         Implement this method by assigning to :meth:`_strategic_packet_filter`,
         optionally you can call this method again between positve and negative
         runs to adjust the filter as necessary with a new filter.
@@ -774,12 +774,12 @@ class DetectionStrategy(ABC):
 
     def test_validation_split(self, split_ratio):
         """
-        Perform a split of positive test traces into test and validation sets if
+        Perform a split of positive test packets into test and validation sets if
         required by the strategy. Override this method if split required, otherwise,
         keep it returning a tuple of empty lists as followed.
 
         :param float split_ratio: passed in from :meth:`split_pt`
-        :returns: tuple(test_traces, validation_traces)
+        :returns: tuple(test_packets, validation_packets)
         """
 
         return ([], [])
@@ -788,16 +788,16 @@ class DetectionStrategy(ABC):
     @abstractmethod
     def positive_run(self, **kwargs):
         """
-        Perform PT detection strategy on positive test traces.
+        Perform PT detection strategy on positive test packets.
         Available data:
-        - The number of positive traces in the collection under input filter (but
+        - The number of positive packets in the collection under input filter (but
         regardless of the strategic filter):
         --- :attr:`_pt_collection_total`
-        - All positive test traces under strategic filter:
-        --- :attr:`_pt_traces`
-        - If :attr:`_pt_split` is True (split into test and validation traces)
-        --- :attr:`_pt_test_traces`
-        --- :attr:`_pt_validation_traces`
+        - All positive test packets under strategic filter:
+        --- :attr:`_pt_packets`
+        - If :attr:`_pt_split` is True (split into test and validation packets)
+        --- :attr:`_pt_test_packets`
+        --- :attr:`_pt_validation_packets`
         Assign to :attr:`_strategic_states` if information needs to be stored
         between runs or carried over into negative test runs.
         Implement this method.
@@ -810,15 +810,15 @@ class DetectionStrategy(ABC):
 
     def negative_run(self, **kwargs):
         """
-        Perform PT detection strategy on negative test traces to test for False
+        Perform PT detection strategy on negative test packets to test for False
         Positive rate.
         Available data:
-        - The number of negative traces in the collection under input filter (but
+        - The number of negative packets in the collection under input filter (but
         regardless of the strategic filter):
         --- :attr:`_neg_collection_total`
-        - All negative test traces under strategic filter:
-        --- :attr:`_neg_traces`
-        - A set of unique IPs seen in negative traces:
+        - All negative test packets under strategic filter:
+        --- :attr:`_neg_packets`
+        - A set of unique IPs seen in negative packets:
         --- :attr:`_negative_unique_ips`
         Assign to :attr:`_strategic_states` if information needs to be stored
         between runs or carried over into positive test runs.
@@ -833,12 +833,12 @@ class DetectionStrategy(ABC):
 
     def recall_run(self, **kwargs):
         """
-        Perform a recall on unseen positive traces specified in :attr:`_recall_traces`.
+        Perform a recall on unseen positive packets specified in :attr:`_recall_packets`.
         You should carry over best parameters obtained from positive and negative
         runs or a best classifier through :attr:`_strategic_states` or subclass
         variables.
         It is assumed that after the recall input filter and the strategic filter,
-        all packets in :attr:`_recall_traces` are positive traces unseen during
+        all packets in :attr:`_recall_packets` are positive packets unseen during
         positve and negative runs prior. :attr:`_recall_subnets` should have been
         set during :meth:`_load_into_memory`
 
@@ -851,7 +851,7 @@ class DetectionStrategy(ABC):
     def report_blocked_ips(self):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
-        traces in Wireshark. Useful for studying false positives. Override
+        packets in Wireshark. Useful for studying false positives. Override
         this method if needed, draw data from :attr:`_negative_blocked_ips` as set
         above.
 

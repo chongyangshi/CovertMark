@@ -107,16 +107,16 @@ class EntropyEstimationStrategy(DetectionStrategy):
         config = (window_size, test_size, threshold)
         mtu_threshold = analytics.constants.MTU_FRAME_AVOIDANCE_THRESHOLD
         
-        examined_traces = 0
+        examined_packets = 0
         detected = []
         self._strategic_states['cut_off'][config] = 0
-        for t in self._pt_traces:
+        for t in self._pt_packets:
             payload = t['tcp_info']['payload'][:mtu_threshold]
             if len(payload) >= max(self._protocol_min_length, window_size, test_size):
-                examined_traces += 1
+                examined_packets += 1
                 detected.append(self._analyser.entropy_estimation(payload, window_size))
-        if examined_traces == 0:
-            self.debug_print("Warning: no traces examined, TCP payload length threshold or input filters may be incorrect.")
+        if examined_packets == 0:
+            self.debug_print("Warning: no packets examined, TCP payload length threshold or input filters may be incorrect.")
             return 0
 
         self._strategic_states['cut_off'][config] = floor(np.percentile(detected, threshold))
@@ -130,7 +130,7 @@ class EntropyEstimationStrategy(DetectionStrategy):
 
     def negative_run(self, **kwargs):
         """
-        Test an identical configuration on negative traces. Reporting falsely blocked IPs.
+        Test an identical configuration on negative packets. Reporting falsely blocked IPs.
 
         :param int window_size: the size of blocks of payload bytes tested in KS and
             AD. Default is set in :const:`BLOCK_SIZE`.
@@ -148,7 +148,7 @@ class EntropyEstimationStrategy(DetectionStrategy):
 
         false_positives = 0
         blocked_ips = set([])
-        for t in self._neg_traces:
+        for t in self._neg_packets:
             payload = t['tcp_info']['payload'][:mtu_threshold]
 
             if len(payload) >= max(self._protocol_min_length, window_size, test_size):
@@ -161,7 +161,7 @@ class EntropyEstimationStrategy(DetectionStrategy):
 
 
         # Unlike the positive case, we consider the false positive rate to be
-        # over all traces, rather than just the ones were are interested in.
+        # over all packets, rather than just the ones were are interested in.
         # Store all results in the state space.
         self._strategic_states['FPR'][config] = false_positives / self._neg_collection_total
         self._strategic_states['blocked_ips'][config] = blocked_ips
@@ -177,7 +177,7 @@ class EntropyEstimationStrategy(DetectionStrategy):
     def report_blocked_ips(self):
         """
         Return a Wireshark-compatible filter expression to allow viewing blocked
-        traces in Wireshark. Useful for studying false positives.
+        packets in Wireshark. Useful for studying false positives.
 
         :returns: a Wireshark-compatible filter expression string.
         """
@@ -226,42 +226,42 @@ class EntropyEstimationStrategy(DetectionStrategy):
         # Check whether we should include or disregard TLS or HTTP packets.
         pt_tls_count = 0
         pt_http_count = 0
-        for trace in self._pt_traces:
-            if trace["tls_info"] is not None:
+        for packet in self._pt_packets:
+            if packet["tls_info"] is not None:
                 pt_tls_count += 1
-            elif trace["http_info"] is not None:
+            elif packet["http_info"] is not None:
                 pt_http_count += 1
 
-        if float(pt_tls_count) / len(self._pt_traces) >= self.TLS_HTTP_INCLUSION_THRESHOLD:
+        if float(pt_tls_count) / len(self._pt_packets) >= self.TLS_HTTP_INCLUSION_THRESHOLD:
             self.debug_print("Considering TLS packets based on PT trace observations only.")
-            self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is not None]
-            self._neg_traces = [i for i in self._neg_traces if i["tls_info"] is not None]
+            self._pt_packets = [i for i in self._pt_packets if i["tls_info"] is not None]
+            self._neg_packets = [i for i in self._neg_packets if i["tls_info"] is not None]
         else:
             self.debug_print("Disregarding TLS packets based on PT trace observations.")
-            self._pt_traces = [i for i in self._pt_traces if i["tls_info"] is None]
-            self._neg_traces = [i for i in self._neg_traces if i["tls_info"] is None]
+            self._pt_packets = [i for i in self._pt_packets if i["tls_info"] is None]
+            self._neg_packets = [i for i in self._neg_packets if i["tls_info"] is None]
             self._disregard_tls = True
 
-        if float(pt_http_count) / len(self._pt_traces) >= self.TLS_HTTP_INCLUSION_THRESHOLD:
+        if float(pt_http_count) / len(self._pt_packets) >= self.TLS_HTTP_INCLUSION_THRESHOLD:
             self.debug_print("Considering HTTP packets based on PT trace observations only.")
-            self._pt_traces = [i for i in self._pt_traces if i["http_info"] is not None]
-            self._neg_traces = [i for i in self._neg_traces if i["http_info"] is not None]
+            self._pt_packets = [i for i in self._pt_packets if i["http_info"] is not None]
+            self._neg_packets = [i for i in self._neg_packets if i["http_info"] is not None]
         else:
             self.debug_print("Disregarding HTTP packets based on PT trace observations.")
-            self._pt_traces = [i for i in self._pt_traces if i["http_info"] is None]
-            self._neg_traces = [i for i in self._neg_traces if i["http_info"] is None]
+            self._pt_packets = [i for i in self._pt_packets if i["http_info"] is None]
+            self._neg_packets = [i for i in self._neg_packets if i["http_info"] is None]
             self._disregard_http = True
 
-        self.debug_print("- Running iterations of detection strategy on positive and negative test traces...")
+        self.debug_print("- Running iterations of detection strategy on positive and negative test packets...")
 
         for s in self.MIN_TEST_SIZES:
             for b in self.WINDOW_SIZES:
                 for c in self.THRESHOLDS:
 
-                    self.debug_print("- Calculating positive cut-off at {} pct, for min {} bytes, {} byte windows on positive traces...".format(c, s, b))
+                    self.debug_print("- Calculating positive cut-off at {} pct, for min {} bytes, {} byte windows on positive packets...".format(c, s, b))
                     tp = self.run_on_positive((b, s, c), window_size=b, test_size=s, threshold=c)
 
-                    self.debug_print("- Testing min {} bytes, {} byte windows on negative traces...".format(s, b))
+                    self.debug_print("- Testing min {} bytes, {} byte windows on negative packets...".format(s, b))
                     fp = self.run_on_negative((b, s, c), window_size=b, test_size=s, threshold=c)
                     self.debug_print("min {} bytes, {} byte windows at {} pct cut-off gives false positive rate {}.".format(s, b, c, fp))
 
