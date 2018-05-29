@@ -167,6 +167,9 @@ class LengthClusteringStrategy(DetectionStrategy):
 
         :returns: a Wireshark-compatible filter expression string.
         """
+        
+        if self._best_config is None:
+            return "(No effective cluster found.)"
 
         if self._tls_mode == "all":
             wireshark_output = "tcp.payload && ("
