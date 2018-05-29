@@ -387,7 +387,7 @@ and ``_neg_traces`` lists.
 |                                   | decimal places of accuracy.       |
 +-----------------------------------+-----------------------------------+
 | ttl                               | The time-to-live of IPv4 packets  |
-|                                   | in ms, of the remaining hop limit |
+|                                   | in ms, or the remaining hop limit |
 |                                   | of IPv6 packets.                  |
 +-----------------------------------+-----------------------------------+
 | tcp_info                          | A dictionary containing           |
