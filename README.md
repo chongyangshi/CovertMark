@@ -99,14 +99,10 @@ Assuming all runs of strategies in your procedure are on traces from the same pr
 
 You can export full results of strategy runs by entering `csv`, which will export CSV records of all current results into a directory specified. Simple plotting between strategy configuration parameters and performance metrics can be done in `plot`, which will prompt the specific parameter(s) and metric(s) you wish to plot in pairs. More complex plots can be done separately from the CSVs exported.
 
-An example CovertMark report:
-
-![An example CovertMark report.](https://images.ebornet.com/uploads/big/5969d27a2fd15cdbf5c929d256ba834e.png)
-
 Publication(s)
 ==================
 
-This project is the resulting product of my MPhil thesis *Covertness benchmarking of Tor pluggable transports* at the Computer Laboratory of the University of Cambridge, which will likely become a technical report and/or (hopefully) a conference paper. Citations to the relevant publication(s) will be available here once progresses have been made in publication.
+This project is the resulting product of my MPhil thesis *Security evaluation of protocol obfuscation proxies* at the Computer Laboratory of the University of Cambridge, which will likely become a technical report and/or (hopefully) a conference paper. Citations to the relevant publication(s) will be available here once progresses have been made in publication.
 
 Problems and Feedback
 ==================
