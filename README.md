@@ -102,11 +102,11 @@ You can export full results of strategy runs by entering `csv`, which will expor
 Publication(s)
 ==================
 
-This project is the resulting product of my MPhil thesis *Security evaluation of protocol obfuscation proxies* at the Computer Laboratory of the University of Cambridge, which will likely become a technical report and/or (hopefully) a conference paper. Citations to the relevant publication(s) will be available here once progresses have been made in publication.
+This project is the resulting product of my MPhil thesis *Security evaluation of network protocol obfuscation proxies* at the Computer Laboratory of the University of Cambridge, which will likely become a technical report and/or (hopefully) a conference paper. Citations to the relevant publication(s) will be available here once progresses have been made in publication.
 
 Problems and Feedback
 ==================
 
 Despite extensive efforts made to engineer CovertMark as a user-facing product, it is likely to malfunction if not used in the intended ways. (For example, exceptions when supplied with PCAP files not matching the input filter, which are *very* difficult to check without consuming long execution times to read the PCAP first). If you do get strange or unexpected results after execution, it is worth checking whether the input filters have been entered correctly and match those in the PCAP files.
 
-Of course, issues, pull requests, and general feedbacks are very welcome via the [GitHub repository](https://github.com/icydoge/CovertMark).
+Of course, issues, pull requests, and general feedbacks are very welcome.

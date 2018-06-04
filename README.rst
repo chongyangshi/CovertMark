@@ -233,11 +233,11 @@ Publication(s)
 ==============
 
 This project is the resulting product of my MPhil thesis *Security
-evaluation of protocol obfuscation proxies* at the Computer Laboratory
-of the University of Cambridge, which will likely become a technical
-report and/or (hopefully) a conference paper. Citations to the relevant
-publication(s) will be available here once progresses have been made in
-publication.
+evaluation of network protocol obfuscation proxies* at the Computer
+Laboratory of the University of Cambridge, which will likely become a
+technical report and/or (hopefully) a conference paper. Citations to the
+relevant publication(s) will be available here once progresses have been
+made in publication.
 
 Problems and Feedback
 =====================
@@ -251,5 +251,5 @@ unexpected results after execution, it is worth checking whether the
 input filters have been entered correctly and match those in the PCAP
 files.
 
-Of course, issues, pull requests, and general feedbacks are very welcome
-via the `GitHub repository <https://github.com/icydoge/CovertMark>`__.
+Of course, issues, pull requests, and general feedbacks are very
+welcome.
