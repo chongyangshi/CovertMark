@@ -53,7 +53,9 @@ RUN apk --update add --virtual build_deps build-base zlib-dev pcre-dev libressl-
 
 COPY nginx.conf /etc/nginx/
 ADD  conf.d /etc/nginx/conf.d
-ADD  _build/html /etc/nginx/web
+ADD  _build/html /etc/nginx/web/api
+COPY index.html /etc/nginx/web/
+COPY vendor /etc/nginx/web/
 
 VOLUME ["/var/cache/nginx"]
 EXPOSE 80
