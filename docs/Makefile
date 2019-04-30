@@ -1,7 +1,8 @@
-# Minimal makefile for Sphinx documentation
-#
+ALPINE_VERSION := 3.9
+SVC := web-covertmark-com
+COMMIT := $(shell git log -1 --pretty='%h')
 
-# You can set these variables from the command line.
+# Minimal makefile for Sphinx documentation
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 SPHINXPROJ    = CovertMark
@@ -13,6 +14,24 @@ help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 .PHONY: help Makefile
+
+# Docker
+all: pull build push
+
+build:
+	@$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	rm -rf api
+	pandoc --from=markdown --to=rst --output=../README.rst ../README.md
+	sphinx-apidoc -MeT -o api ../
+	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	docker build -t ${SVC} --build-arg ALPINE_VERSION=${ALPINE_VERSION} .
+
+pull:
+	docker pull alpine:${ALPINE_VERSION}
+
+push:
+	docker tag ${SVC}:latest icydoge/web:${SVC}-${COMMIT}
+	docker push icydoge/web:${SVC}-${COMMIT}
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
