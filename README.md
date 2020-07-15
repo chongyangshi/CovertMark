@@ -25,7 +25,7 @@ These should have been included in Command Line Tools distributed with Apple's X
 
 To set up CovertMark itself:
 
-    git clone https://github.com/icydoge/CovertMark.git
+    git clone https://github.com/chongyangshi/CovertMark.git
 
     cd CovertMark
 

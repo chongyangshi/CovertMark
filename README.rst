@@ -72,7 +72,7 @@ To set up CovertMark itself:
 
 ::
 
-    git clone https://github.com/icydoge/CovertMark.git
+    git clone https://github.com/chongyangshi/CovertMark.git
 
     cd CovertMark
 

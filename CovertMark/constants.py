@@ -7,7 +7,7 @@ CM_NAME = "CovertMark"
 CM_VER = "0.1"
 CM_RELEASE = "alpha"
 CM_AUTHOR = "C Shi"
-CM_LINK = "https://github.com/icydoge"
+CM_LINK = "https://github.com/chongyangshi"
 CM_LICENSE = "Please see LICENSE.md for terms of usage of this program."
 CM_TITLE = """\
  _____                     _  ___  ___           _
