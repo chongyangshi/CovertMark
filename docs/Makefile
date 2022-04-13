@@ -1,4 +1,4 @@
-ALPINE_VERSION := 3.11
+ALPINE_VERSION := 3.15
 SVC := web-covertmark-com
 COMMIT := $(shell git log -1 --pretty='%h')
 
@@ -24,7 +24,7 @@ build:
 	pandoc --from=markdown --to=rst --output=../README.rst ../README.md
 	sphinx-apidoc -MeT -o api ../
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-	docker build -t ${SVC} --build-arg ALPINE_VERSION=${ALPINE_VERSION} .
+	docker buildx build --platform linux/amd64 -t ${SVC} --build-arg ALPINE_VERSION=${ALPINE_VERSION} .
 
 pull:
 	docker pull alpine:${ALPINE_VERSION}
